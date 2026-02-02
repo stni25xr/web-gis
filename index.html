@@ -2,70 +2,87 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
-  <title>GIS Jönköping</title>
+  <title>GIS Öxnehaga – Blå karta</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     body { margin: 0; font-family: Arial; }
-    #title { background: #111; color: white; padding: 10px; text-align: center; }
+    #searchContainer {
+      padding: 10px;
+      background: #111;
+      color: white;
+      text-align: center;
+    }
+    #searchInput {
+      width: 300px;
+      padding: 5px;
+      font-size: 16px;
+    }
     #map { height: calc(100vh - 50px); }
   </style>
 </head>
 <body>
 
-<div id="title">Min GIS-karta – Jönköping</div>
+<div id="searchContainer">
+  <label for="searchInput">Sök plats:</label>
+  <input type="text" id="searchInput" placeholder="Ex: Öxnehagaskolan">
+  <button onclick="searchMarker()">Sök</button>
+</div>
+
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
-  // Skapa kartan i Jönköping
-  var map = L.map('map').setView([57.7833, 14.1667], 13);
+  // Skapa kartan centrerad på Öxnehaga
+  var map = L.map('map').setView([57.77548833712322, 14.262990193290275], 15);
 
-  // Bakgrundskarta
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
+  // Blå tonad bakgrund från Carto
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19
   }).addTo(map);
 
-  // GeoJSON direkt i filen – inga externa filer behövs
-  var geojsonData = {
-    "type": "FeatureCollection",
-    "features": [
-      {
-        "type": "Feature",
-        "properties": { "name": "Vättern Strandpromenad" },
-        "geometry": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [14.1620, 57.7845],
-              [14.1680, 57.7845],
-              [14.1680, 57.7805],
-              [14.1620, 57.7805],
-              [14.1620, 57.7845]
-            ]
-          ]
-        }
-      },
-      {
-        "type": "Feature",
-        "properties": { "name": "Rådhuset Jönköping" },
-        "geometry": {
-          "type": "Point",
-          "coordinates": [14.1617, 57.7812]
-        }
+  // Lista med marker-objekt (dina koordinater och namn)
+  var markers = [
+    {name: "Öxnehagaskolan", coords: [57.774355430786756, 14.264435086506042]},
+    {name: "Bra Liv, Öxnehaga vårdcentral", coords: [57.774896080613715, 14.265454325908154]},
+    {name: "Kohagens förskola", coords: [57.77374039598473, 14.262321505792743]},
+    {name: "Öxnehaga IP", coords: [57.77297837973305, 14.255866087552105]},
+    {name: "Höjdens Öxnehaga", coords: [57.77489633859385, 14.262918822101097]}
+  ];
+
+  var leafletMarkers = [];
+
+  // Skapa en blå ikon för markörer
+  var blueIcon = L.icon({
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/252/252025.png',
+    iconSize: [30, 30],
+    iconAnchor: [15, 30],
+    popupAnchor: [0, -30]
+  });
+
+  // Lägg till markörer på kartan
+  markers.forEach(function(m) {
+    var marker = L.marker(m.coords, {icon: blueIcon}).bindPopup(m.name).addTo(map);
+    leafletMarkers.push(marker);
+  });
+
+  // Funktion för att söka marker
+  function searchMarker() {
+    var input = document.getElementById("searchInput").value.toLowerCase();
+    for (var i = 0; i < markers.length; i++) {
+      if (markers[i].name.toLowerCase().includes(input)) {
+        map.setView(markers[i].coords, 18);
+        leafletMarkers[i].openPopup();
+        return;
       }
-    ]
-  };
-
-  // Lägg till GeoJSON på kartan
-  L.geoJSON(geojsonData, {
-    onEachFeature: function(feature, layer) {
-      layer.bindPopup(feature.properties.name);
-    },
-    style: { color: '#2563eb', weight: 2 },
-    pointToLayer: function(feature, latlng) { return L.marker(latlng); }
-  }).addTo(map);
+    }
+    alert("Hittade inget: " + input);
+  }
 </script>
 
 </body>
+
 </html>
 
