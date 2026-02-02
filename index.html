@@ -2,7 +2,7 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
-  <title>Interaktiv GIS-karta</title>
+  <title>Min GIS-karta</title>
 
   <!-- Leaflet CSS -->
   <link
@@ -10,16 +10,31 @@
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
 
-  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      margin: 0;
+    }
+    #map {
+      height: 100vh;
+    }
+  </style>
 </head>
+
 <body>
 
-  <h1>GIS Web Model</h1>
-  <div id="map"></div>
+<div id="map"></div>
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="main.js"></script>
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+  var map = L.map('map').setView([57.7089, 11.9746], 12);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+</script>
 
 </body>
 </html>
+
