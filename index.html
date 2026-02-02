@@ -2,39 +2,72 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
-  <title>Min GIS-karta</title>
+  <title>GIS Jönköping</title>
 
   <!-- Leaflet CSS -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
-    body {
-      margin: 0;
-    }
-    #map {
-      height: 100vh;
-    }
+    body { margin: 0; font-family: Arial; }
+    #title { background: #111; color: white; padding: 10px; text-align: center; }
+    #map { height: calc(100vh - 50px); }
   </style>
 </head>
-
 <body>
 
+<div id="title">Min GIS-karta – Jönköping</div>
 <div id="map"></div>
 
 <!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
-  var map = L.map('map').setView([57.7089, 11.9746], 12);
+  var map = L.map('map').setView([57.7833, 14.1667], 13);
 
+  // Bakgrundskarta
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  // GeoJSON direkt i filen
+  var geojsonData = {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "properties": { "name": "Vättern Strandpromenad" },
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [14.1600, 57.7850],
+              [14.1700, 57.7850],
+              [14.1700, 57.7800],
+              [14.1600, 57.7800],
+              [14.1600, 57.7850]
+            ]
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": { "name": "Rådhuset Jönköping" },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [14.1617, 57.7812]
+        }
+      }
+    ]
+  };
+
+  // Lägg till GeoJSON på kartan
+  L.geoJSON(geojsonData, {
+    onEachFeature: function(feature, layer) {
+      layer.bindPopup(feature.properties.name);
+    },
+    style: { color: '#2563eb', weight: 2 },
+    pointToLayer: function(feature, latlng) { return L.marker(latlng); }
   }).addTo(map);
 </script>
 
 </body>
 </html>
-
