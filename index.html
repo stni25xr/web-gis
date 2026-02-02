@@ -3,10 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>GIS Jönköping</title>
-
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
   <style>
     body { margin: 0; font-family: Arial; }
     #title { background: #111; color: white; padding: 10px; text-align: center; }
@@ -18,9 +15,9 @@
 <div id="title">Min GIS-karta – Jönköping</div>
 <div id="map"></div>
 
-<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+  // Skapa kartan i Jönköping
   var map = L.map('map').setView([57.7833, 14.1667], 13);
 
   // Bakgrundskarta
@@ -28,7 +25,7 @@
     attribution: '© OpenStreetMap'
   }).addTo(map);
 
-  // GeoJSON direkt i filen
+  // GeoJSON direkt i filen – inga externa filer behövs
   var geojsonData = {
     "type": "FeatureCollection",
     "features": [
@@ -39,11 +36,11 @@
           "type": "Polygon",
           "coordinates": [
             [
-              [14.1600, 57.7850],
-              [14.1700, 57.7850],
-              [14.1700, 57.7800],
-              [14.1600, 57.7800],
-              [14.1600, 57.7850]
+              [14.1620, 57.7845],
+              [14.1680, 57.7845],
+              [14.1680, 57.7805],
+              [14.1620, 57.7805],
+              [14.1620, 57.7845]
             ]
           ]
         }
@@ -71,3 +68,4 @@
 
 </body>
 </html>
+
