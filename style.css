@@ -1,0 +1,30 @@
+html, body { 
+  height: 100%; 
+  margin: 0; 
+  padding: 0; 
+  font-family: Arial; 
+}
+
+#viewDiv { 
+  height: 100%; 
+  width: 100%; 
+}
+
+/* Side panel for checkboxes */
+#layerControl {
+  position: absolute;
+  top: 20px;
+  right: 10px;
+  background: white;
+  padding: 10px;
+  border-radius: 6px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+  z-index: 999;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+#layerControl label { 
+  display: block; 
+  margin-bottom: 5px; 
+}
