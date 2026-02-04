@@ -1,0 +1,34 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Vättern Strandpromenad"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [14.1600, 57.7850],
+            [14.1700, 57.7850],
+            [14.1700, 57.7800],
+            [14.1600, 57.7800],
+            [14.1600, 57.7850]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Rådhuset Jönköping"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [14.1617, 57.7812]
+      }
+    }
+  ]
+}
+
