@@ -1,88 +1,182 @@
+
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-  <meta charset="UTF-8">
-  <title>GIS Öxnehaga – Blå karta</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <style>
-    body { margin: 0; font-family: Arial; }
-    #searchContainer {
-      padding: 10px;
-      background: #111;
-      color: white;
-      text-align: center;
-    }
-    #searchInput {
-      width: 300px;
-      padding: 5px;
-      font-size: 16px;
-    }
-    #map { height: calc(100vh - 50px); }
-  </style>
+    <meta charset="UTF-8" />
+    <title>3D Map – Jönköping</title>
+
+    <!-- ArcGIS JavaScript API (KORREKT IMPORT) -->
+    <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.30/"></script>
+
+    <style>
+        html, body {
+            margin: 0; padding: 0;
+            height: 100%; width: 100%;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        /* HEADER */
+        #header {
+            height: 70px;
+            background: #f5f5f5;
+            padding: 0 20px;
+            border-bottom: 2px solid #ccc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #header-title { font-size: 22px; font-weight: bold; }
+        #header-info { text-align: right; font-size: 14px; }
+
+        /* SIDEBAR */
+        #sidebar {
+            position: fixed;
+            top: 70px;
+            left: 0;
+            width: 220px;
+            height: calc(100% - 70px);
+            background: #222;
+            color: #fff;
+            padding: 20px;
+        }
+        .menu-button {
+            width: 100%;
+            background: #444;
+            border: none;
+            padding: 10px;
+            margin: 8px 0;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        /* MAP */
+        #mapView {
+            position: absolute;
+            top: 70px; left: 220px;
+            width: calc(100% - 220px);
+            height: calc(100% - 70px);
+        }
+    </style>
 </head>
+
 <body>
 
-<div id="searchContainer">
-  <label for="searchInput">Sök plats:</label>
-  <input type="text" id="searchInput" placeholder="Ex: Öxnehagaskolan">
-  <button onclick="searchMarker()">Sök</button>
-</div>
+    <!-- HEADER -->
+    <div id="header">
+        <div id="header-title">STNI25XR – Jönköping</div>
+        <div id="header-info">
+            <div>Jönköping – ca 145 000 invånare</div>
+            <div id="temp">Temperatur: ...</div>
+            <div id="clock">00:00:00</div>
+        </div>
+    </div>
 
-<div id="map"></div>
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+        <button class="menu-button" id="btnBuildings">Visa byggnader</button>
+        <button class="menu-button" id="btnLayers">Visa Oxnehaga</button>
+    </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- MAP -->
+    <div id="mapView"></div>
 
-<script>
-  // Skapa kartan centrerad på Öxnehaga
-  var map = L.map('map').setView([57.77548833712322, 14.262990193290275], 15);
+    <script>
+        /* ================= CLOCK ================= */
+        function updateClock() {
+            document.getElementById("clock").textContent =
+                new Date().toLocaleTimeString("sv-SE");
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
 
-  // Blå tonad bakgrund från Carto
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
-    subdomains: 'abcd',
-    maxZoom: 19
-  }).addTo(map);
+        /* ================= WEATHER ================= */
+        async function updateTemperature() {
+            try {
+                const res = await fetch(
+                    "https://api.open-meteo.com/v1/forecast?latitude=57.78&longitude=14.16&current_weather=true"
+                );
+                const data = await res.json();
+                document.getElementById("temp").textContent =
+                    "Temperatur: " + data.current_weather.temperature + "°C";
+            } catch {
+                document.getElementById("temp").textContent = "Temperatur: N/A";
+            }
+        }
+        updateTemperature();
+        setInterval(updateTemperature, 300000);
 
-  // Lista med marker-objekt (dina koordinater och namn)
-  var markers = [
-    {name: "Öxnehagaskolan", coords: [57.774355430786756, 14.264435086506042]},
-    {name: "Bra Liv, Öxnehaga vårdcentral", coords: [57.774896080613715, 14.265454325908154]},
-    {name: "Kohagens förskola", coords: [57.77374039598473, 14.262321505792743]},
-    {name: "Öxnehaga IP", coords: [57.77297837973305, 14.255866087552105]},
-    {name: "Höjdens Öxnehaga", coords: [57.77489633859385, 14.262918822101097]}
-  ];
+        /* ================= ARCGIS ================= */
+        require([
+            "esri/Map",
+            "esri/views/SceneView",
+            "esri/layers/SceneLayer",
+            "esri/layers/GeoJSONLayer"
+        ], function(Map, SceneView, SceneLayer, GeoJSONLayer) {
 
-  var leafletMarkers = [];
+            /* ===== MAP ===== */
+            const map = new Map({
+                basemap: "satellite",
+                ground: "world-elevation"
+            });
 
-  // Skapa en blå ikon för markörer
-  var blueIcon = L.icon({
-    iconUrl: 'https://cdn-icons-png.flaticon.com/512/252/252025.png',
-    iconSize: [30, 30],
-    iconAnchor: [15, 30],
-    popupAnchor: [0, -30]
-  });
+            /* ===== VIEW ===== */
+            const view = new SceneView({
+                container: "mapView",
+                map: map,
+                viewingMode: "global",
+                camera: {
+                    position: {
+                        latitude: 57.796,
+                        longitude: 14.200,
+                        z: 2500   // tillräckligt högt för att se hela GeoJSON-området
+                    },
+                    tilt: 45
+                }
+            });
 
-  // Lägg till markörer på kartan
-  markers.forEach(function(m) {
-    var marker = L.marker(m.coords, {icon: blueIcon}).bindPopup(m.name).addTo(map);
-    leafletMarkers.push(marker);
-  });
+            /* ===== 3D-BUILDINGS ===== */
+            const buildingsLayer = new SceneLayer({
+                portalItem: {
+                    id: "c444b24b184c4523a5dc96248bfea4e1"
+                    // Open 3D Buildings (global)
+                }
+            });
+            map.add(buildingsLayer);
 
-  // Funktion för att söka marker
-  function searchMarker() {
-    var input = document.getElementById("searchInput").value.toLowerCase();
-    for (var i = 0; i < markers.length; i++) {
-      if (markers[i].name.toLowerCase().includes(input)) {
-        map.setView(markers[i].coords, 18);
-        leafletMarkers[i].openPopup();
-        return;
-      }
-    }
-    alert("Hittade inget: " + input);
-  }
-</script>
+            /* ===== OXNEHAGA GEOJSON (DIN FIL) ===== */
+            const oxLayer = new GeoJSONLayer({
+                url: "./data/Oxnehaga-Area.geojson",
+                title: "Oxnehaga Area",
+                renderer: {
+                    type: "simple",
+                    symbol: {
+                        type: "simple-fill",
+                        color: [0, 100, 255, 0.15],
+                        outline: { color: [0, 100, 255], width: 2 }
+                    }
+                },
+                elevationInfo: { mode: "on-the-ground" }
+            });
+            map.add(oxLayer);
+
+            /* ================= AUTO-ZOOM ================= */
+            oxLayer.when(() => {
+                view.goTo(oxLayer.fullExtent, { duration: 2000 });
+            });
+
+            /* ================= BUTTONS ================= */
+            document.getElementById("btnBuildings").onclick = () => {
+                buildingsLayer.visible = !buildingsLayer.visible;
+            };
+            document.getElementById("btnLayers").onclick = () => {
+                oxLayer.visible = !oxLayer.visible;
+            };
+
+        });
+    </script>
 
 </body>
-
 </html>
-
