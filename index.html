@@ -6,7 +6,7 @@
   <title>STN25XR | Öxnehaga | Huskvarna</title>
 
   <!-- ArcGIS JavaScript API (RIKTIGA TAGGAR) -->
-  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css" />
+  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
   <script src="https://js.arcgis.com/4.30/"></script>
 
   <style>
@@ -74,7 +74,7 @@
     </div>
   </div>
 
-  <!-- ===== SIDEBAR (med tre toggles) ===== -->
+  <!-- ===== SIDEBAR ===== -->
   <aside id="sidebar" aria-label="Sidomeny">
     <h2>Meny</h2>
 
@@ -101,6 +101,14 @@
         <span class="slider"></span>
       </label>
     </div>
+
+    <div class="switch-row">
+      <span class="switch-label">Visa kommunal mark</span>
+      <label class="switch" aria-label="Visa kommunal mark">
+        <input id="swKomMark" type="checkbox" checked />
+        <span class="slider"></span>
+      </label>
+    </div>
   </aside>
 
   <!-- ===== 3D MAP ===== -->
@@ -115,7 +123,7 @@
     setInterval(updateClock, 1000); updateClock();
   </script>
 
-  <!-- ===== WEATHER (Open‑Meteo) ===== -->
+  <!-- ===== WEATHER ===== -->
   <script>
     function describeWeather(code) {
       const map = {
@@ -131,20 +139,17 @@
       };
       return map[code] || "Växlande";
     }
-
     async function updateWeather() {
       const sum  = document.getElementById("wx-summary");
       const pr   = document.getElementById("wx-precip");
       const snow = document.getElementById("wx-snow");
       const temp = document.getElementById("temp");
-
       try {
         const url = "https://api.open-meteo.com/v1/forecast"
           + "?latitude=57.796&longitude=14.200"
           + "&current=temperature_2m,weather_code"
           + "&hourly=precipitation_probability,snowfall"
           + "&timezone=auto";
-
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
@@ -161,13 +166,12 @@
         sum.textContent  = `Väder: ${wx}`;
         pr.textContent   = `Nederbörd (nästa 2 h): ${maxP !== null ? maxP + " %" : "N/A"}`;
         snow.textContent = `Snörisk (nästa 2 h): ${snowSum > 0 ? "Ja (" + snowSum.toFixed(1) + " mm)" : "Nej"}`;
-        temp.textContent = (typeof t === "number") ? `Temperatur: ${t}°C` : "Temperatur: N/A";
+        temp.textContent = (typeof t === "number") ? `Temperatur: ${t}°C` : "Temperatur: N/A`;
       } catch (e) {
         sum.textContent  = "Väder: N/A";
         pr.textContent   = "Nederbörd (nästa 2 h): N/A";
         snow.textContent = "Snörisk (nästa 2 h): N/A";
         temp.textContent = "Temperatur: N/A";
-        console.warn("Weather error:", e);
       }
     }
     updateWeather();
@@ -213,34 +217,39 @@
       });
       map.add(ox);
 
-      /* === Bus stops (GeoJSON points) — popup + toggle === */
+      /* === Bus stops (GeoJSON points) === */
       const bus = new GeoJSONLayer({
         url: "./data/Busshallplaster_oxnehaga.geojson",
         title: "Busshållplatser",
         renderer: {
           type: "simple",
-          symbol: {
-            type: "simple-marker",
-            color: [0,120,255,0.95],
-            size: 7,
-            outline: { color: "white", width: 1 }
-          }
+          symbol: { type: "simple-marker", color: [0,120,255,0.95], size: 7, outline: { color: "white", width: 1 } }
         },
         elevationInfo: { mode: "on-the-ground" },
-
-        /* Popup: visar alla fält (enkelt att starta med).
-           När du vet exakta fältnamn kan vi byta till en snygg, skräddarsydd mall. */
+        visible: true,
         popupTemplate: {
-          title: "{name}",   /* Byt till korrekt fältnamn, t.ex. {StopName} */
-          content: [{
-            type: "fields",
-            fieldInfos: []   // tom = visa alla attribut som finns
-          }]
-        },
-
-        visible: true
+          title: "{name}",
+          content: [{ type: "fields", fieldInfos: [] }]
+        }
       });
       map.add(bus);
+
+      /* === Kommunal mark (GeoJSON polygons) === */
+      const komMark = new GeoJSONLayer({
+        url: "./data/Komunal_mark.geojson",
+        title: "Kommunal mark",
+        renderer: {
+          type: "simple",
+          symbol: { type: "simple-fill", color: [46,204,113,0.25], outline: { color: [46,204,113], width: 2 } }
+        },
+        elevationInfo: { mode: "on-the-ground" },
+        visible: true,
+        popupTemplate: {
+          title: "Kommunal mark",
+          content: [{ type: "fields", fieldInfos: [] }]
+        }
+      });
+      map.add(komMark);
 
       /* === Auto-zoom to Oxnehaga === */
       view.whenLayerView(ox).then(() => {
@@ -251,17 +260,18 @@
         });
       });
 
-      /* === Menu switches (toggles) === */
+      /* === Menu switches === */
       const swBuildings = document.getElementById("swBuildings");
-      const swOx = document.getElementById("swOx");
-      const swBus = document.getElementById("swBus");
+      const swOx        = document.getElementById("swOx");
+      const swBus       = document.getElementById("swBus");
+      const swKomMark   = document.getElementById("swKomMark");
 
-      swBuildings.addEventListener("change", () => { buildings.visible = swBuildings.checked; });
-      swOx.addEventListener("change",        () => { ox.visible        = swOx.checked;        });
-      swBus.addEventListener("change",       () => { bus.visible       = swBus.checked;       });
+      swBuildings.addEventListener("change", () => buildings.visible = swBuildings.checked);
+      swOx.addEventListener("change",        () => ox.visible        = swOx.checked);
+      swBus.addEventListener("change",       () => bus.visible       = swBus.checked);
+      swKomMark.addEventListener("change",   () => komMark.visible   = swKomMark.checked);
     });
   </script>
 
 </body>
 </html>
-
