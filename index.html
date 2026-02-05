@@ -6,8 +6,8 @@
   <title>STN25XR | Öxnehaga | Huskvarna</title>
 
   <!-- ArcGIS JavaScript API -->
-  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
-  <script src="https://js.arcgis.com/4.30/"></script>
+  https://js.arcgis.com/4.30/esri/themes/light/main.css
+  https://js.arcgis.com/4.30/</script>
 
   <style>
     /* ===== Global ===== */
@@ -29,7 +29,13 @@
       align-items: center;
       box-sizing: border-box;
     }
+    #header-title { font-weight: 700; }
     #header-info { text-align: right; font-size: 14px; line-height: 1.3; }
+
+    /* Små etiketter i headern för väderraderna */
+    .wx-line { white-space: nowrap; }
+    .wx-strong { font-weight: 600; }
+    .wx-muted { color: #666; }
 
     /* ===== Sidebar ===== */
     #sidebar {
@@ -74,9 +80,8 @@
     }
     .slider:before {
       content: "";
-      position: absolute;
+      position: absolute; left: 3px; top: 3px;
       width: 18px; height: 18px;
-      left: 3px; top: 3px;
       background: #fff; border-radius: 50%;
       transition: .2s;
       box-shadow: 0 1px 2px rgba(0,0,0,.4);
@@ -93,6 +98,11 @@
       z-index: 1;
     }
 
+    /* Responsiv: smalare sidebar på mindre skärmar */
+    @media (max-width: 900px) {
+      #sidebar { width: 200px; }
+      #sceneView { left: 200px; width: calc(100% - 200px); }
+    }
   </style>
 </head>
 
@@ -102,9 +112,12 @@
   <div id="header">
     <div id="header-title">STN25XR | Öxnehaga | Huskvarna</div>
     <div id="header-info">
-      <div>Öxnehaga i Huskvarna – ca 3400 invånare</div>
-      <div id="temp">Temperatur: …</div>
-      <div id="clock">00:00:00</div>
+      <div class="wx-line">Öxnehaga i Huskvarna – ca 3400 invånare</div>
+      <div id="wx-summary" class="wx-line wx-strong">Väder: …</div>
+      <div id="wx-precip" class="wx-line">Nederbörd (nästa 2 h): …</div>
+      <div id="wx-snow" class="wx-line">Snörisk (nästa 2 h): …</div>
+      <div id="temp" class="wx-line">Temperatur: …</div>
+      <div id="clock" class="wx-line wx-muted">00:00:00</div>
     </div>
   </div>
 
@@ -132,8 +145,9 @@
   <!-- ===== 3D MAP ===== -->
   <div id="sceneView"></div>
 
-  <!-- ===== CLOCK & TEMPERATURE ===== -->
+  <!-- ===== CLOCK & WEATHER ===== -->
   <script>
+    // --- Klocka: uppdatera varje sekund ---
     function updateClock() {
       const el = document.getElementById("clock");
       if (el) el.textContent = new Date().toLocaleTimeString("sv-SE");
@@ -141,24 +155,126 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    // Temperatur från Open‑Meteo
-    async function updateTemperature() {
-      const el = document.getElementById("temp");
+    // --- Hjälp: översätt Open‑Meteo weather_code till svenska + emoji ---
+    function describeWeather(code, isDay, cloudCover) {
+      // Kodlista (förenklad, de vanligaste).
+      // 0 klar, 1-3 mest klart/mulet, 45/48 dimma, 51-57 duggregn,
+      // 61-67 regn/fryst regn, 71-77 snö, 80-82 skurar, 85-86 snöbyar, 95-99 åska
+      const sun = isDay ? "☀️" : "🌙";
+      const cloud = "☁️";
+      const rain = "🌧️";
+      const snow = "❄️";
+      const storm = "⛈️";
+      const fog = "🌫️";
+
+      const map = {
+        0: `${sun} Klart`,
+        1: `🌤️ Mest klart`,
+        2: `⛅ Växlande molnighet`,
+        3: `${cloud} Mulet`,
+        45: `${fog} Dimma`,
+        48: `${fog} Dimfrost`,
+        51: `${rain} Lätt duggregn`,
+        53: `${rain} Måttligt duggregn`,
+        55: `${rain} Kraftigt duggregn`,
+        56: `${rain} Isande duggregn`,
+        57: `${rain} Isande duggregn`,
+        61: `${rain} Lätt regn`,
+        63: `${rain} Regn`,
+        65: `${rain} Kraftigt regn`,
+        66: `${rain} Underkylt regn`,
+        67: `${rain} Kraftigt underkylt regn`,
+        71: `${snow} Lätt snöfall`,
+        73: `${snow} Snöfall`,
+        75: `${snow} Kraftigt snöfall`,
+        77: `${snow} Snökorn`,
+        80: `${rain} Lätta regnskurar`,
+        81: `${rain} Regnskurar`,
+        82: `${rain} Kraftiga regnskurar`,
+        85: `${snow} Snöbyar`,
+        86: `${snow} Kraftiga snöbyar`,
+        95: `${storm} Åska`,
+        96: `${storm} Åska + hagel`,
+        99: `${storm} Kraftig åska + hagel`
+      };
+
+      // Om kod saknas: bestäm utifrån molnighet
+      if (map[code] !== undefined) return map[code];
+      if (typeof cloudCover === "number") {
+        if (cloudCover <= 20) return `${sun} Klart`;
+        if (cloudCover <= 60) return `⛅ Delvis molnigt`;
+        return `${cloud} Mulet`;
+      }
+      return `Väder: okänt`;
+    }
+
+    // --- Hämta väder: nu + prognos (Open‑Meteo) ---
+    async function updateWeather() {
+      const tempEl = document.getElementById("temp");
+      const sumEl  = document.getElementById("wx-summary");
+      const prEl   = document.getElementById("wx-precip");
+      const snowEl = document.getElementById("wx-snow");
+
       try {
-        const url = "https://api.open-meteo.com/v1/forecast?latitude=57.78&longitude=14.16&current_weather=true";
-        const res = await fetch(url);
+        // Koordinater nära Jönköping/Huskvarna – justerade till Öxnehaga
+        const url = "https://api.open-meteo.com/v1/forecast"
+          + "?latitude=57.796&longitude=14.200"
+          + "&current=temperature_2m,is_day,weather_code,cloud_cover,precipitation,rain,snowfall"
+          + "&hourly=precipitation_probability,snowfall"
+          + "&timezone=auto";
+
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        const t = data?.current_weather?.temperature;
-        el.textContent = "Temperatur: " + (t ?? "N/A") + "°C";
-      } catch {
-        el.textContent = "Temperatur: N/A";
+
+        // Nuvarande värden
+        const cur = data.current || {};
+        const t = cur.temperature_2m;
+        const isDay = cur.is_day === 1;
+        const code = cur.weather_code;
+        const cloudCover = cur.cloud_cover;
+
+        // Timvisa serier för prognos
+        const hourlyTimes = data.hourly?.time || [];
+        const hourlyPpop  = data.hourly?.precipitation_probability || [];
+        const hourlySnow  = data.hourly?.snowfall || [];
+
+        // Nästa 2 timmar: max nederbördsrisk (%)
+        let maxP = null;
+        let snowSum = 0;
+        if (hourlyTimes.length) {
+          // Hitta index för "nu" (enkel approx: första timme i listan är ‘nu’ i API:et)
+          const take = Math.min(2, hourlyTimes.length); // första 2 rader
+          for (let i = 0; i < take; i++) {
+            const p = hourlyPpop[i];
+            const s = hourlySnow[i];
+            if (typeof p === "number") maxP = (maxP === null) ? p : Math.max(maxP, p);
+            if (typeof s === "number") snowSum += s;
+          }
+        }
+
+        // Skriv ut
+        tempEl.textContent = (typeof t === "number") ? `Temperatur: ${t}°C` : "Temperatur: N/A";
+        sumEl.textContent  = `Väder: ${describeWeather(code, isDay, cloudCover)}`;
+        prEl.textContent   = `Nederbörd (nästa 2 h): ${maxP !== null ? maxP + " %" : "N/A"}`;
+        // Snörisk: om någon av de närmaste två timmarna ger >0 mm snö → “Ja”
+        const snowRisk = (snowSum && snowSum > 0) ? "Ja" : "Nej";
+        snowEl.textContent = `Snörisk (nästa 2 h): ${snowSum > 0 ? snowRisk + ` (${snowSum.toFixed(1)} mm)` : snowRisk}`;
+
+      } catch (e) {
+        tempEl.textContent = "Temperatur: N/A";
+        sumEl.textContent  = "Väder: N/A";
+        prEl.textContent   = "Nederbörd (nästa 2 h): N/A";
+        snowEl.textContent = "Snörisk (nästa 2 h): N/A";
       }
     }
-    updateTemperature();
-    setInterval(updateTemperature, 300000);
+
+    // Init + uppdatera var 5:e minut
+    updateWeather();
+    setInterval(updateWeather, 300000);
   </script>
 
-  <!-- ===== ArcGIS ===== -->
+  <!-- ===== ArcGIS (3D-karta) ===== -->
   <script>
     require([
       "esri/Map",
@@ -167,7 +283,7 @@
       "esri/layers/GeoJSONLayer"
     ], function(Map, SceneView, SceneLayer, GeoJSONLayer) {
 
-      /* === MAP === */
+      /* === KARTA === */
       const map = new Map({
         basemap: "satellite",
         ground: "world-elevation"
@@ -183,9 +299,9 @@
         }
       });
 
-      /* === 3D‑BUILDINGS === */
+      /* === 3D‑BYGGNADER === */
       const buildings = new SceneLayer({
-        portalItem: { id: "c444b24b184c4523a5dc96248bfea4e1" },
+        portalItem: { id: "c444b24b184c4523a5dc96248bfea4e1" }, // Open 3D Buildings
         visible: true
       });
       map.add(buildings);
@@ -205,7 +321,7 @@
       });
       map.add(ox);
 
-      /* === AUTO‑ZOOM WHEN READY === */
+      /* === AUTO-ZOOM till området === */
       view.whenLayerView(ox).then(() => {
         ox.queryExtent().then((res) => {
           if (res && res.extent) {
@@ -215,6 +331,9 @@
       });
 
       /* === SWITCHES === */
+      const swBuildings = document.getElementById("swBuildings");
+      const swOx = document.getElementById("swOx");
+
       swBuildings.addEventListener("change", () => {
         buildings.visible = swBuildings.checked;
       });
@@ -228,5 +347,4 @@
 
 </body>
 </html>
-``
 
