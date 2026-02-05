@@ -2,181 +2,276 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-    <meta charset="UTF-8" />
-    <title>3D Map – Jönköping</title>
+  <meta charset="UTF-8" />
+  <title>STN25XR – Jönköping</title>
 
-    <!-- ArcGIS JavaScript API (KORREKT IMPORT) -->
-    <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css" />
-    <script src="https://js.arcgis.com/4.30/"></script>
+  <!-- ArcGIS JavaScript API (KORREKTA IMPORTER) -->
+  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css" />
+  <script src="https://js.arcgis.com/4.30/"></script>
 
-    <style>
-        html, body {
-            margin: 0; padding: 0;
-            height: 100%; width: 100%;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
-        }
+  <!-- ====== STIL (ren, lättläst) ====== -->
+  <style>
+    /* ===== Global layout ===== */
+    html, body {
+      margin: 0; padding: 0;
+      height: 100%; width: 100%;
+      overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
+    }
 
-        /* HEADER */
-        #header {
-            height: 70px;
-            background: #f5f5f5;
-            padding: 0 20px;
-            border-bottom: 2px solid #ccc;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        #header-title { font-size: 22px; font-weight: bold; }
-        #header-info { text-align: right; font-size: 14px; }
+    /* ===== Header ===== */
+    #header {
+      height: 70px;
+      background: #f5f5f5;
+      border-bottom: 2px solid #ccc;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-sizing: border-box;
+    }
+    #header-title { font-size: 22px; font-weight: 700; letter-spacing: 0.3px; }
+    #header-info { text-align: right; font-size: 14px; line-height: 1.4; }
 
-        /* SIDEBAR */
-        #sidebar {
-            position: fixed;
-            top: 70px;
-            left: 0;
-            width: 220px;
-            height: calc(100% - 70px);
-            background: #222;
-            color: #fff;
-            padding: 20px;
-        }
-        .menu-button {
-            width: 100%;
-            background: #444;
-            border: none;
-            padding: 10px;
-            margin: 8px 0;
-            color: #fff;
-            cursor: pointer;
-            border-radius: 4px;
-        }
+    /* ===== Sidebar ===== */
+    #sidebar {
+      position: fixed;
+      top: 70px; left: 0;
+      width: 240px;
+      height: calc(100% - 70px);
+      background: #222;
+      color: #fff;
+      padding: 18px;
+      box-sizing: border-box;
+      overflow-y: auto;
+    }
+    #sidebar h2 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #ddd;
+      border-bottom: 1px solid #444;
+      padding-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+    /* Rad per switch */
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 14px 0;
+    }
+    .switch-label {
+      font-size: 14px;
+      color: #eee;
+      user-select: none;
+    }
 
-        /* MAP */
-        #mapView {
-            position: absolute;
-            top: 70px; left: 220px;
-            width: calc(100% - 220px);
-            height: calc(100% - 70px);
-        }
-    </style>
+    /* ===== Slide Switch (toggle) ===== */
+    .switch {
+      position: relative;
+      width: 46px; height: 26px;
+      flex: 0 0 auto;
+    }
+    .switch input {
+      position: absolute;
+      opacity: 0;
+      width: 0; height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: #555;
+      border-radius: 26px;
+      transition: background 0.2s ease;
+    }
+    .slider:before {
+      content: "";
+      position: absolute;
+      height: 20px; width: 20px;
+      left: 3px; top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    }
+    .switch input:checked + .slider {
+      background: #2d6cdf; /* blå när på */
+    }
+    .switch input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+
+    /* ===== Map container ===== */
+    #mapView {
+      position: absolute;
+      top: 70px; left: 240px;
+      width: calc(100% - 240px);
+      height: calc(100% - 70px);
+    }
+
+    /* ===== Responsiv ===== */
+    @media (max-width: 900px) {
+      #sidebar { width: 180px; }
+      #mapView { left: 180px; width: calc(100% - 180px); }
+    }
+  </style>
 </head>
 
 <body>
+  <!-- ===== HEADER ===== -->
+  <div id="header">
+    <div id="header-title">STN25XR – Jönköping</div>
+    <div id="header-info">
+      <div>Jönköping – ca 145 000 invånare</div>
+      <div id="temp">Temperatur: …</div>
+      <div id="clock">00:00:00</div>
+    </div>
+  </div>
 
-    <!-- HEADER -->
-    <div id="header">
-        <div id="header-title">STNI25XR – Jönköping</div>
-        <div id="header-info">
-            <div>Jönköping – ca 145 000 invånare</div>
-            <div id="temp">Temperatur: ...</div>
-            <div id="clock">00:00:00</div>
-        </div>
+  <!-- ===== SIDEBAR (med slide switches) ===== -->
+  <aside id="sidebar" aria-label="Sidomeny">
+    <h2>Meny</h2>
+
+    <!-- Switch: 3D-byggnader -->
+    <div class="switch-row">
+      <span class="switch-label">Visa byggnader</span>
+      <label class="switch" aria-label="Visa byggnader">
+        <input id="swBuildings" type="checkbox" checked />
+        <span class="slider"></span>
+      </label>
     </div>
 
-    <!-- SIDEBAR -->
-    <div id="sidebar">
-        <button class="menu-button" id="btnBuildings">Visa byggnader</button>
-        <button class="menu-button" id="btnLayers">Visa Oxnehaga</button>
+    <!-- Switch: Oxnehaga-GeoJSON -->
+    <div class="switch-row">
+      <span class="switch-label">Visa Oxnehaga</span>
+      <label class="switch" aria-label="Visa Oxnehaga">
+        <input id="swOx" type="checkbox" checked />
+        <span class="slider"></span>
+      </label>
     </div>
+  </aside>
 
-    <!-- MAP -->
-    <div id="mapView"></div>
+  <!-- ===== MAP ===== -->
+  <div id="mapView" role="main" aria-label="3D-karta"></div>
 
-    <script>
-        /* ================= CLOCK ================= */
-        function updateClock() {
-            document.getElementById("clock").textContent =
-                new Date().toLocaleTimeString("sv-SE");
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
+  <!-- ===== SCRIPT: Klocka & Temperatur ===== -->
+  <script>
+    // -- Klocka (uppdateras varje sekund)
+    function updateClock() {
+      document.getElementById("clock").textContent =
+        new Date().toLocaleTimeString("sv-SE");
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
 
-        /* ================= WEATHER ================= */
-        async function updateTemperature() {
-            try {
-                const res = await fetch(
-                    "https://api.open-meteo.com/v1/forecast?latitude=57.78&longitude=14.16&current_weather=true"
-                );
-                const data = await res.json();
-                document.getElementById("temp").textContent =
-                    "Temperatur: " + data.current_weather.temperature + "°C";
-            } catch {
-                document.getElementById("temp").textContent = "Temperatur: N/A";
-            }
-        }
-        updateTemperature();
-        setInterval(updateTemperature, 300000);
+    // -- Temperatur (Open-Meteo, var 5:e minut)
+    async function updateTemperature() {
+      try {
+        const res = await fetch(
+          "https://api.open-meteo.com/v1/forecast?latitude=57.78&longitude=14.16&current_weather=true"
+        );
+        const data = await res.json();
+        document.getElementById("temp").textContent =
+          "Temperatur: " + data.current_weather.temperature + "°C";
+      } catch {
+        document.getElementById("temp").textContent = "Temperatur: N/A";
+      }
+    }
+    updateTemperature();
+    setInterval(updateTemperature, 300000);
+  </script>
 
-        /* ================= ARCGIS ================= */
-        require([
-            "esri/Map",
-            "esri/views/SceneView",
-            "esri/layers/SceneLayer",
-            "esri/layers/GeoJSONLayer"
-        ], function(Map, SceneView, SceneLayer, GeoJSONLayer) {
+  <!-- ===== SCRIPT: ArcGIS SceneView + lager + switches ===== -->
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/SceneView",
+      "esri/layers/SceneLayer",
+      "esri/layers/GeoJSONLayer"
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer) {
 
-            /* ===== MAP ===== */
-            const map = new Map({
-                basemap: "satellite",
-                ground: "world-elevation"
-            });
+      /* === KARTA === */
+      const map = new Map({
+        basemap: "satellite",
+        ground: "world-elevation"
+      });
 
-            /* ===== VIEW ===== */
-            const view = new SceneView({
-                container: "mapView",
-                map: map,
-                viewingMode: "global",
-                camera: {
-                    position: {
-                        latitude: 57.796,
-                        longitude: 14.200,
-                        z: 2500   // tillräckligt högt för att se hela GeoJSON-området
-                    },
-                    tilt: 45
-                }
-            });
+      /* === SCENEVIEW (3D) === */
+      const view = new SceneView({
+        container: "mapView",
+        map: map,
+        viewingMode: "global",
+        camera: {
+          position: { latitude: 57.796, longitude: 14.200, z: 2500 },
+          tilt: 45
+        },
+        qualityProfile: "high"
+      });
 
-            /* ===== 3D-BUILDINGS ===== */
-            const buildingsLayer = new SceneLayer({
-                portalItem: {
-                    id: "c444b24b184c4523a5dc96248bfea4e1"
-                    // Open 3D Buildings (global)
-                }
-            });
-            map.add(buildingsLayer);
+      /* === LAGER: 3D-BYGGNADER (globalt Overture/OSM) === */
+      const buildingsLayer = new SceneLayer({
+        portalItem: {
+          id: "c444b24b184c4523a5dc96248bfea4e1" // Open 3D Buildings (global)
+        },
+        title: "3D Buildings",
+        visible: true
+      });
+      map.add(buildingsLayer);
 
-            /* ===== OXNEHAGA GEOJSON (DIN FIL) ===== */
-            const oxLayer = new GeoJSONLayer({
-                url: "./data/Oxnehaga-Area.geojson",
-                title: "Oxnehaga Area",
-                renderer: {
-                    type: "simple",
-                    symbol: {
-                        type: "simple-fill",
-                        color: [0, 100, 255, 0.15],
-                        outline: { color: [0, 100, 255], width: 2 }
-                    }
-                },
-                elevationInfo: { mode: "on-the-ground" }
-            });
-            map.add(oxLayer);
+      /* === LAGER: Oxnehaga GeoJSON (din fil) === */
+      const oxLayer = new GeoJSONLayer({
+        url: "./data/Oxnehaga-Area.geojson",
+        title: "Oxnehaga Area",
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-fill",
+            color: [0, 100, 255, 0.25],
+            outline: { color: [0, 100, 255], width: 2 }
+          }
+        },
+        elevationInfo: { mode: "on-the-ground" },
+        visible: true
+      });
+      map.add(oxLayer);
 
-            /* ================= AUTO-ZOOM ================= */
-            oxLayer.when(() => {
-                view.goTo(oxLayer.fullExtent, { duration: 2000 });
-            });
-
-            /* ================= BUTTONS ================= */
-            document.getElementById("btnBuildings").onclick = () => {
-                buildingsLayer.visible = !buildingsLayer.visible;
-            };
-            document.getElementById("btnLayers").onclick = () => {
-                oxLayer.visible = !oxLayer.visible;
-            };
-
+      /* === AUTO-ZOOM till GeoJSON när det är redo (robust) === */
+      view.whenLayerView(oxLayer).then(() => {
+        oxLayer.queryExtent().then((res) => {
+          if (res && res.extent) {
+            view.goTo({ target: res.extent, tilt: 35 }, { duration: 1800 });
+          }
         });
-    </script>
+      });
 
+      /* === SLIDE SWITCHES: koppla på/av === */
+      const swBuildings = document.getElementById("swBuildings");
+      const swOx = document.getElementById("swOx");
+
+      // Förhindra att drag/kamerarörelser triggas när man använder switcharna (touch)
+      ["click", "pointerdown"].forEach(evt => {
+        swBuildings.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
+        swOx.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
+      });
+
+      // Toggla lager-synlighet på change (äkta switch-beteende)
+      swBuildings.addEventListener("change", () => {
+        buildingsLayer.visible = swBuildings.checked;
+      });
+      swOx.addEventListener("change", () => {
+        oxLayer.visible = swOx.checked;
+      });
+
+      /* === PLATSHÅLLARE: egna lager/analys ===
+         // === ADD YOUR CUSTOM LAYERS HERE ===
+         // === ADD YOUR ANALYSIS HERE ===
+      */
+    });
+  </script>
 </body>
 </html>
+
