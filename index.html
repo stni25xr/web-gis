@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>STN25XR | Öxnehaga | Huskvarna</title>
 
-  <!-- ArcGIS API – RIKTIGA TAGGAR -->
+  <!-- ArcGIS JavaScript API (RIKTIGA TAGGAR) -->
   <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css" />
   <script src="https://js.arcgis.com/4.30/"></script>
 
@@ -18,6 +18,7 @@
       height: 70px; background:#f5f5f5; border-bottom:2px solid #ccc;
       padding:0 20px; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box;
     }
+    #header-title { font-weight:700; }
     #header-info { text-align:right; font-size:14px; line-height:1.25; }
     #clock { color:#666; }
 
@@ -36,7 +37,7 @@
     .switch { position:relative; width:44px; height:24px; }
     .switch input { opacity:0; width:0; height:0; }
     .slider { position:absolute; inset:0; background:#555; border-radius:24px; cursor:pointer; transition:.2s; }
-    .slider:before { content:""; position:absolute; left:3px; top:3px; width:18px; height:18px; background:#fff; border-radius:50%; transition:.2s; box-shadow:0 1px 2px rgba(0,0,0,.4); }
+    .slider:before { content:""; position:absolute; left:3px; top:3px; width:18px; height:18px; background:#fff; border-radius:50%; transition:transform .2s; box-shadow:0 1px 2px rgba(0,0,0,.4); }
     .switch input:checked + .slider { background:#2d6cdf; }
     .switch input:checked + .slider:before { transform:translateX(20px); }
 
@@ -45,15 +46,16 @@
       position:absolute; top:70px; left:260px; width:calc(100% - 260px); height:calc(100% - 70px); z-index:1;
     }
 
-    @media (max-width: 900px) {
+    @media (max-width:900px){
       #sidebar { width:200px; }
       #sceneView { left:200px; width:calc(100% - 200px); }
     }
   </style>
 </head>
+
 <body>
 
-  <!-- HEADER -->
+  <!-- ===== HEADER ===== -->
   <div id="header">
     <div id="header-title">STN25XR | Öxnehaga | Huskvarna</div>
     <div id="header-info">
@@ -66,7 +68,7 @@
     </div>
   </div>
 
-  <!-- SIDEBAR -->
+  <!-- ===== SIDEBAR ===== -->
   <aside id="sidebar" aria-label="Sidomeny">
     <h2>Meny</h2>
 
@@ -85,12 +87,20 @@
         <span class="slider"></span>
       </label>
     </div>
+
+    <div class="switch-row">
+      <span class="switch-label">Visa busshållplatser</span>
+      <label class="switch" aria-label="Visa busshållplatser">
+        <input id="swBus" type="checkbox" checked />
+        <span class="slider"></span>
+      </label>
+    </div>
   </aside>
 
-  <!-- MAP -->
+  <!-- ===== 3D MAP ===== -->
   <div id="sceneView" role="main" aria-label="3D‑karta"></div>
 
-  <!-- CLOCK -->
+  <!-- ===== CLOCK ===== -->
   <script>
     function updateClock() {
       const el = document.getElementById("clock");
@@ -99,7 +109,7 @@
     setInterval(updateClock, 1000); updateClock();
   </script>
 
-  <!-- WEATHER -->
+  <!-- ===== WEATHER (Open‑Meteo) ===== -->
   <script>
     function describeWeather(code) {
       const map = {
@@ -158,15 +168,7 @@
     setInterval(updateWeather, 300000);
   </script>
 
-  <!-- ARCGIS (3D) -->
-  <script>
-    // Extra koll om ArcGIS‑scriptet inte laddades
-    if (typeof window.require !== "function") {
-      document.body.insertAdjacentHTML("beforeend",
-        "<div style='position:absolute;top:90px;left:270px;font:16px Arial;color:#c00;background:#fff;padding:8px;border:1px solid #c00'>ArcGIS‑scriptet laddades inte. Öppna via Live Server eller GitHub Pages.</div>");
-    }
-  </script>
-
+  <!-- ===== ARCGIS (3D) ===== -->
   <script>
     require([
       "esri/Map",
@@ -175,33 +177,56 @@
       "esri/layers/GeoJSONLayer"
     ], function (Map, SceneView, SceneLayer, GeoJSONLayer) {
 
+      /* === Map === */
       const map = new Map({ basemap: "satellite", ground: "world-elevation" });
 
+      /* === 3D View === */
       const view = new SceneView({
         container: "sceneView",
         map,
         camera: { position: { latitude: 57.796, longitude: 14.200, z: 1800 }, tilt: 45 }
       });
 
-      // 3D‑byggnader (globalt)
+      /* === 3D Buildings (global) === */
       const buildings = new SceneLayer({
         portalItem: { id: "c444b24b184c4523a5dc96248bfea4e1" },
         visible: true
       });
       map.add(buildings);
 
-      // Oxnehaga (din GeoJSON)
+      /* === Oxnehaga polygon (GeoJSON) === */
       const ox = new GeoJSONLayer({
         url: "./data/Oxnehaga-Area.geojson",
+        title: "Oxnehaga Area",
         renderer: {
           type: "simple",
           symbol: { type: "simple-fill", color: [0,100,255,0.25], outline: { color: [0,100,255], width: 2 } }
         },
+        elevationInfo: { mode: "on-the-ground" },
         visible: true
       });
       map.add(ox);
 
-      // Auto‑zoom när lagret är redo
+      /* === Bus stops (GeoJSON points) ===
+         NOTE: The filename contains å. Use percent-encoding in the URL. */
+      const bus = new GeoJSONLayer({
+        url: "./data/Bussh%C3%A5llplatser_oxnehaga.geojson",
+        title: "Busshållplatser",
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-marker",
+            color: [0,120,255,0.95],
+            size: 6,
+            outline: { color: "white", width: 1 }
+          }
+        },
+        elevationInfo: { mode: "on-the-ground" },
+        visible: true
+      });
+      map.add(bus);
+
+      /* === Auto-zoom to Oxnehaga on load === */
       view.whenLayerView(ox).then(() => {
         ox.queryExtent().then((res) => {
           if (res && res.extent) {
@@ -210,13 +235,16 @@
         });
       });
 
-      // Switchar
+      /* === Menu switches === */
       const swBuildings = document.getElementById("swBuildings");
       const swOx = document.getElementById("swOx");
+      const swBus = document.getElementById("swBus");
 
-      swBuildings.addEventListener("change", () => buildings.visible = swBuildings.checked);
-      swOx.addEventListener("change", () => ox.visible = swOx.checked);
+      swBuildings.addEventListener("change", () => { buildings.visible = swBuildings.checked; });
+      swOx.addEventListener("change",        () => { ox.visible        = swOx.checked;        });
+      swBus.addEventListener("change",       () => { bus.visible       = swBus.checked;       });
     });
   </script>
+
 </body>
 </html>
