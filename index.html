@@ -5,35 +5,32 @@
   <meta charset="UTF-8" />
   <title>STN25XR – Jönköping</title>
 
-  <!-- ArcGIS JavaScript API (KORREKTA IMPORTER) -->
-  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css" />
-  <script src="https://js.arcgis.com/4.30/"></script>
+  <!-- ArcGIS JavaScript API -->
+  https://js.arcgis.com/4.30/esri/themes/light/main.css
+  https://js.arcgis.com/4.30/</script>
 
-  <!-- ====== STIL (ren, lättläst) ====== -->
   <style>
-    /* ===== Global layout ===== */
     html, body {
       margin: 0; padding: 0;
-      height: 100%; width: 100%;
+      width: 100%; height: 100%;
       overflow: hidden;
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: Arial, sans-serif;
     }
 
-    /* ===== Header ===== */
+    /* HEADER */
     #header {
       height: 70px;
       background: #f5f5f5;
-      border-bottom: 2px solid #ccc;
       padding: 0 20px;
+      border-bottom: 2px solid #ccc;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-sizing: border-box;
     }
-    #header-title { font-size: 22px; font-weight: 700; letter-spacing: 0.3px; }
-    #header-info { text-align: right; font-size: 14px; line-height: 1.4; }
+    #header-title { font-size: 22px; font-weight: bold; }
+    #header-info { text-align: right; font-size: 14px; }
 
-    /* ===== Sidebar ===== */
+    /* SIDEBAR */
     #sidebar {
       position: fixed;
       top: 70px; left: 0;
@@ -42,87 +39,64 @@
       background: #222;
       color: #fff;
       padding: 18px;
-      box-sizing: border-box;
-      overflow-y: auto;
     }
-    #sidebar h2 {
-      margin: 0 0 12px 0;
-      font-size: 16px;
-      font-weight: 700;
-      text-transform: uppercase;
-      color: #ddd;
-      border-bottom: 1px solid #444;
-      padding-bottom: 10px;
-      letter-spacing: 0.5px;
-    }
-    /* Rad per switch */
+
     .switch-row {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      margin: 14px 0;
+      align-items: center;
+      margin: 12px 0;
     }
     .switch-label {
       font-size: 14px;
-      color: #eee;
       user-select: none;
     }
 
-    /* ===== Slide Switch (toggle) ===== */
+    /* SLIDE SWITCH */
     .switch {
       position: relative;
-      width: 46px; height: 26px;
-      flex: 0 0 auto;
+      width: 44px; height: 24px;
     }
     .switch input {
-      position: absolute;
-      opacity: 0;
-      width: 0; height: 0;
+      opacity: 0; width: 0; height: 0;
     }
     .slider {
       position: absolute;
-      cursor: pointer;
       inset: 0;
       background: #555;
-      border-radius: 26px;
-      transition: background 0.2s ease;
+      border-radius: 24px;
+      cursor: pointer;
+      transition: .2s;
     }
     .slider:before {
       content: "";
       position: absolute;
-      height: 20px; width: 20px;
+      height: 18px; width: 18px;
       left: 3px; top: 3px;
       background: #fff;
       border-radius: 50%;
-      transition: transform 0.2s ease;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+      transition: .2s;
     }
     .switch input:checked + .slider {
-      background: #2d6cdf; /* blå när på */
+      background: #2d6cdf;
     }
     .switch input:checked + .slider:before {
       transform: translateX(20px);
     }
 
-    /* ===== Map container ===== */
+    /* MAP */
     #mapView {
       position: absolute;
       top: 70px; left: 240px;
       width: calc(100% - 240px);
       height: calc(100% - 70px);
     }
-
-    /* ===== Responsiv ===== */
-    @media (max-width: 900px) {
-      #sidebar { width: 180px; }
-      #mapView { left: 180px; width: calc(100% - 180px); }
-    }
   </style>
 </head>
 
 <body>
-  <!-- ===== HEADER ===== -->
+
+  <!-- HEADER -->
   <div id="header">
     <div id="header-title">STN25XR – Jönköping</div>
     <div id="header-info">
@@ -132,35 +106,32 @@
     </div>
   </div>
 
-  <!-- ===== SIDEBAR (med slide switches) ===== -->
-  <aside id="sidebar" aria-label="Sidomeny">
-    <h2>Meny</h2>
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <h2 style="margin-top:0;">Meny</h2>
 
-    <!-- Switch: 3D-byggnader -->
     <div class="switch-row">
       <span class="switch-label">Visa byggnader</span>
-      <label class="switch" aria-label="Visa byggnader">
-        <input id="swBuildings" type="checkbox" checked />
+      <label class="switch">
+        <input id="swBuildings" type="checkbox" checked>
         <span class="slider"></span>
       </label>
     </div>
 
-    <!-- Switch: Oxnehaga-GeoJSON -->
     <div class="switch-row">
       <span class="switch-label">Visa Oxnehaga</span>
-      <label class="switch" aria-label="Visa Oxnehaga">
-        <input id="swOx" type="checkbox" checked />
+      <label class="switch">
+        <input id="swOx" type="checkbox" checked>
         <span class="slider"></span>
       </label>
     </div>
-  </aside>
+  </div>
 
-  <!-- ===== MAP ===== -->
-  <div id="mapView" role="main" aria-label="3D-karta"></div>
+  <!-- MAP -->
+  <div id="mapView"></div>
 
-  <!-- ===== SCRIPT: Klocka & Temperatur ===== -->
   <script>
-    // -- Klocka (uppdateras varje sekund)
+    // CLOCK
     function updateClock() {
       document.getElementById("clock").textContent =
         new Date().toLocaleTimeString("sv-SE");
@@ -168,7 +139,7 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    // -- Temperatur (Open-Meteo, var 5:e minut)
+    // TEMPERATURE
     async function updateTemperature() {
       try {
         const res = await fetch(
@@ -185,7 +156,7 @@
     setInterval(updateTemperature, 300000);
   </script>
 
-  <!-- ===== SCRIPT: ArcGIS SceneView + lager + switches ===== -->
+  <!-- ARCGIS MAP -->
   <script>
     require([
       "esri/Map",
@@ -194,13 +165,11 @@
       "esri/layers/GeoJSONLayer"
     ], function (Map, SceneView, SceneLayer, GeoJSONLayer) {
 
-      /* === KARTA === */
       const map = new Map({
         basemap: "satellite",
         ground: "world-elevation"
       });
 
-      /* === SCENEVIEW (3D) === */
       const view = new SceneView({
         container: "mapView",
         map: map,
@@ -208,24 +177,19 @@
         camera: {
           position: { latitude: 57.796, longitude: 14.200, z: 2500 },
           tilt: 45
-        },
-        qualityProfile: "high"
+        }
       });
 
-      /* === LAGER: 3D-BYGGNADER (globalt Overture/OSM) === */
+      // 3D-BUILDINGS
       const buildingsLayer = new SceneLayer({
-        portalItem: {
-          id: "c444b24b184c4523a5dc96248bfea4e1" // Open 3D Buildings (global)
-        },
-        title: "3D Buildings",
+        portalItem: { id: "c444b24b184c4523a5dc96248bfea4e1" },
         visible: true
       });
       map.add(buildingsLayer);
 
-      /* === LAGER: Oxnehaga GeoJSON (din fil) === */
+      // OXNEHAGA GEOJSON
       const oxLayer = new GeoJSONLayer({
         url: "./data/Oxnehaga-Area.geojson",
-        title: "Oxnehaga Area",
         renderer: {
           type: "simple",
           symbol: {
@@ -239,39 +203,28 @@
       });
       map.add(oxLayer);
 
-      /* === AUTO-ZOOM till GeoJSON när det är redo (robust) === */
+      // Auto-zoom när lagret laddats
       view.whenLayerView(oxLayer).then(() => {
         oxLayer.queryExtent().then((res) => {
-          if (res && res.extent) {
-            view.goTo({ target: res.extent, tilt: 35 }, { duration: 1800 });
+          if (res.extent) {
+            view.goTo({ target: res.extent, tilt: 35 }, { duration: 2000 });
           }
         });
       });
 
-      /* === SLIDE SWITCHES: koppla på/av === */
+      // ===== FIXADE SWITCH-HANDLERS =====
       const swBuildings = document.getElementById("swBuildings");
       const swOx = document.getElementById("swOx");
 
-      // Förhindra att drag/kamerarörelser triggas när man använder switcharna (touch)
-      ["click", "pointerdown"].forEach(evt => {
-        swBuildings.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
-        swOx.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
-      });
+      swBuildings.addEventListener("change", () =>
+        buildingsLayer.visible = swBuildings.checked
+      );
 
-      // Toggla lager-synlighet på change (äkta switch-beteende)
-      swBuildings.addEventListener("change", () => {
-        buildingsLayer.visible = swBuildings.checked;
-      });
-      swOx.addEventListener("change", () => {
-        oxLayer.visible = swOx.checked;
-      });
-
-      /* === PLATSHÅLLARE: egna lager/analys ===
-         // === ADD YOUR CUSTOM LAYERS HERE ===
-         // === ADD YOUR ANALYSIS HERE ===
-      */
+      swOx.addEventListener("change", () =>
+        oxLayer.visible = swOx.checked
+      );
     });
   </script>
+
 </body>
 </html>
-
