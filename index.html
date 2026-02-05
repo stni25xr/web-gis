@@ -103,9 +103,9 @@
     </div>
 
     <div class="switch-row">
-      <span class="switch-label">Visa vatten</span>
-      <label class="switch" aria-label="Visa vatten">
-        <input id="swWater" type="checkbox" checked />
+      <span class="switch-label">Visa kommunal mark</span>
+      <label class="switch" aria-label="Visa kommunal mark">
+        <input id="swKomMark" type="checkbox" checked />
         <span class="slider"></span>
       </label>
     </div>
@@ -123,7 +123,7 @@
     setInterval(updateClock, 1000); updateClock();
   </script>
 
-  <!-- ===== WEATHER (Open‑Meteo) ===== -->
+  <!-- ===== WEATHER ===== -->
   <script>
     function describeWeather(code) {
       const map = {
@@ -139,20 +139,17 @@
       };
       return map[code] || "Växlande";
     }
-
     async function updateWeather() {
       const sum  = document.getElementById("wx-summary");
       const pr   = document.getElementById("wx-precip");
       const snow = document.getElementById("wx-snow");
       const temp = document.getElementById("temp");
-
       try {
         const url = "https://api.open-meteo.com/v1/forecast"
           + "?latitude=57.796&longitude=14.200"
           + "&current=temperature_2m,weather_code"
           + "&hourly=precipitation_probability,snowfall"
           + "&timezone=auto";
-
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
@@ -169,13 +166,12 @@
         sum.textContent  = `Väder: ${wx}`;
         pr.textContent   = `Nederbörd (nästa 2 h): ${maxP !== null ? maxP + " %" : "N/A"}`;
         snow.textContent = `Snörisk (nästa 2 h): ${snowSum > 0 ? "Ja (" + snowSum.toFixed(1) + " mm)" : "Nej"}`;
-        temp.textContent = (typeof t === "number") ? `Temperatur: ${t}°C` : "Temperatur: N/A";
+        temp.textContent = (typeof t === "number") ? `Temperatur: ${t}°C` : "Temperatur: N/A`;
       } catch (e) {
         sum.textContent  = "Väder: N/A";
         pr.textContent   = "Nederbörd (nästa 2 h): N/A";
         snow.textContent = "Snörisk (nästa 2 h): N/A";
         temp.textContent = "Temperatur: N/A";
-        console.warn("Weather error:", e);
       }
     }
     updateWeather();
@@ -227,36 +223,33 @@
         title: "Busshållplatser",
         renderer: {
           type: "simple",
-          symbol: {
-            type: "simple-marker",
-            color: [0,120,255,0.95],
-            size: 7,
-            outline: { color: "white", width: 1 }
-          }
+          symbol: { type: "simple-marker", color: [0,120,255,0.95], size: 7, outline: { color: "white", width: 1 } }
         },
         elevationInfo: { mode: "on-the-ground" },
-        // Valfri popup—visa alla fält initialt:
-        popupTemplate: { title: "{name}", content: [{ type: "fields", fieldInfos: [] }] },
-        visible: true
+        visible: true,
+        popupTemplate: {
+          title: "{name}",
+          content: [{ type: "fields", fieldInfos: [] }]
+        }
       });
       map.add(bus);
 
-      /* === Water (GeoJSON polygons/lines) — NEW === */
-      const water = new GeoJSONLayer({
-        url: "./data/Vatten_jonkoping_01.geojson",
-        title: "Vatten",
+      /* === Kommunal mark (GeoJSON polygons) === */
+      const komMark = new GeoJSONLayer({
+        url: "./data/Komunal_mark.geojson",
+        title: "Kommunal mark",
         renderer: {
           type: "simple",
-          symbol: {
-            type: "simple-fill",                 /* funkar även om geometrin är polygon */
-            color: [0, 170, 255, 0.20],          /* ljus cyan, transparent */
-            outline: { color: [0, 120, 255, 0.8], width: 2 }
-          }
+          symbol: { type: "simple-fill", color: [46,204,113,0.25], outline: { color: [46,204,113], width: 2 } }
         },
         elevationInfo: { mode: "on-the-ground" },
-        visible: true
+        visible: true,
+        popupTemplate: {
+          title: "Kommunal mark",
+          content: [{ type: "fields", fieldInfos: [] }]
+        }
       });
-      map.add(water);
+      map.add(komMark);
 
       /* === Auto-zoom to Oxnehaga === */
       view.whenLayerView(ox).then(() => {
@@ -269,15 +262,14 @@
 
       /* === Menu switches === */
       const swBuildings = document.getElementById("swBuildings");
-      const swOx = document.getElementById("swOx");
-      const swBus = document.getElementById("swBus");
-      const swWater = document.getElementById("swWater");
+      const swOx        = document.getElementById("swOx");
+      const swBus       = document.getElementById("swBus");
+      const swKomMark   = document.getElementById("swKomMark");
 
-      swBuildings.addEventListener("change", () => { buildings.visible = swBuildings.checked; });
-      swOx.addEventListener("change",        () => { ox.visible        = swOx.checked;        });
-      swBus.addEventListener("change",       () => { bus.visible       = swBus.checked;       });
-      swWater.addEventListener("change",     () => { water.visible     = swWater.checked;     });
-
+      swBuildings.addEventListener("change", () => buildings.visible = swBuildings.checked);
+      swOx.addEventListener("change",        () => ox.visible        = swOx.checked);
+      swBus.addEventListener("change",       () => bus.visible       = swBus.checked);
+      swKomMark.addEventListener("change",   () => komMark.visible   = swKomMark.checked);
     });
   </script>
 
