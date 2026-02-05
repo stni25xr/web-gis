@@ -103,9 +103,9 @@
     </div>
 
     <div class="switch-row">
-      <span class="switch-label">Visa kommunal mark</span>
-      <label class="switch" aria-label="Visa kommunal mark">
-        <input id="swKomMark" type="checkbox" checked />
+      <span class="switch-label">Visa huvudbyggnad</span>
+      <label class="switch" aria-label="Visa huvudbyggnad">
+        <input id="swMainBygg" type="checkbox" checked />
         <span class="slider"></span>
       </label>
     </div>
@@ -123,7 +123,7 @@
     setInterval(updateClock, 1000); updateClock();
   </script>
 
-  <!-- ===== WEATHER ===== -->
+  <!-- ===== WEATHER (Open‑Meteo) ===== -->
   <script>
     function describeWeather(code) {
       const map = {
@@ -139,17 +139,20 @@
       };
       return map[code] || "Växlande";
     }
+
     async function updateWeather() {
       const sum  = document.getElementById("wx-summary");
       const pr   = document.getElementById("wx-precip");
       const snow = document.getElementById("wx-snow");
       const temp = document.getElementById("temp");
+
       try {
         const url = "https://api.open-meteo.com/v1/forecast"
           + "?latitude=57.796&longitude=14.200"
           + "&current=temperature_2m,weather_code"
           + "&hourly=precipitation_probability,snowfall"
           + "&timezone=auto";
+
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
@@ -166,12 +169,13 @@
         sum.textContent  = `Väder: ${wx}`;
         pr.textContent   = `Nederbörd (nästa 2 h): ${maxP !== null ? maxP + " %" : "N/A"}`;
         snow.textContent = `Snörisk (nästa 2 h): ${snowSum > 0 ? "Ja (" + snowSum.toFixed(1) + " mm)" : "Nej"}`;
-        temp.textContent = (typeof t === "number") ? `Temperatur: ${t}°C` : "Temperatur: N/A`;
+        temp.textContent = (typeof t === "number") ? `Temperatur: ${t}°C` : "Temperatur: N/A";
       } catch (e) {
         sum.textContent  = "Väder: N/A";
         pr.textContent   = "Nederbörd (nästa 2 h): N/A";
         snow.textContent = "Snörisk (nästa 2 h): N/A";
         temp.textContent = "Temperatur: N/A";
+        console.warn("Weather error:", e);
       }
     }
     updateWeather();
@@ -223,35 +227,36 @@
         title: "Busshållplatser",
         renderer: {
           type: "simple",
-          symbol: { type: "simple-marker", color: [0,120,255,0.95], size: 7, outline: { color: "white", width: 1 } }
+          symbol: {
+            type: "simple-marker",
+            color: [0,120,255,0.95],
+            size: 7,
+            outline: { color: "white", width: 1 }
+          }
         },
         elevationInfo: { mode: "on-the-ground" },
-        visible: true,
-        popupTemplate: {
-          title: "{name}",
-          content: [{ type: "fields", fieldInfos: [] }]
-        }
+        visible: true
       });
       map.add(bus);
 
-      /* === Kommunal mark (GeoJSON polygons) === */
-      const komMark = new GeoJSONLayer({
-        url: "./data/Komunal_mark.geojson",
-        title: "Kommunal mark",
+      /* === Huvudbyggnad (GeoJSON polygon) === */
+      const mainBygg = new GeoJSONLayer({
+        url: "./data/Main_byggnad.geojson.json",  // ← dubbeländelse enligt din fil
+        title: "Huvudbyggnad",
         renderer: {
           type: "simple",
-          symbol: { type: "simple-fill", color: [46,204,113,0.25], outline: { color: [46,204,113], width: 2 } }
+          symbol: {
+            type: "simple-fill",
+            color: [255, 215, 0, 0.30],           // guld‑gul transparent fyllning
+            outline: { color: [255, 215, 0, 1], width: 2 }
+          }
         },
         elevationInfo: { mode: "on-the-ground" },
-        visible: true,
-        popupTemplate: {
-          title: "Kommunal mark",
-          content: [{ type: "fields", fieldInfos: [] }]
-        }
+        visible: true
       });
-      map.add(komMark);
+      map.add(mainBygg);
 
-      /* === Auto-zoom to Oxnehaga === */
+      /* === Auto-zoom till Oxnehaga vid start === */
       view.whenLayerView(ox).then(() => {
         ox.queryExtent().then((res) => {
           if (res && res.extent) {
@@ -264,12 +269,24 @@
       const swBuildings = document.getElementById("swBuildings");
       const swOx        = document.getElementById("swOx");
       const swBus       = document.getElementById("swBus");
-      const swKomMark   = document.getElementById("swKomMark");
+      const swMainBygg  = document.getElementById("swMainBygg");
 
-      swBuildings.addEventListener("change", () => buildings.visible = swBuildings.checked);
-      swOx.addEventListener("change",        () => ox.visible        = swOx.checked);
-      swBus.addEventListener("change",       () => bus.visible       = swBus.checked);
-      swKomMark.addEventListener("change",   () => komMark.visible   = swKomMark.checked);
+      swBuildings.addEventListener("change", () => { buildings.visible = swBuildings.checked; });
+      swOx.addEventListener("change",        () => { ox.visible        = swOx.checked;        });
+      swBus.addEventListener("change",       () => { bus.visible       = swBus.checked;       });
+      swMainBygg.addEventListener("change",  () => { mainBygg.visible  = swMainBygg.checked;  });
+
+      // (Valfritt) Popup för busshållplatser – visa alla attribut tills vi vet fältnamn
+      bus.popupTemplate = {
+        title: "Busshållplats",
+        content: [{ type: "fields", fieldInfos: [] }]
+      };
+
+      // (Valfritt) Popup för Huvudbyggnad – visa alla attribut
+      mainBygg.popupTemplate = {
+        title: "Huvudbyggnad",
+        content: [{ type: "fields", fieldInfos: [] }]
+      };
     });
   </script>
 
