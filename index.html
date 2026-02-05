@@ -6,7 +6,7 @@
   <title>STN25XR | Öxnehaga | Huskvarna</title>
 
   <!-- ArcGIS JavaScript API (RIKTIGA TAGGAR) -->
-  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css" />
+  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
   <script src="https://js.arcgis.com/4.30/"></script>
 
   <style>
@@ -15,8 +15,14 @@
 
     /* ===== Header ===== */
     #header {
-      height: 70px; background:#f5f5f5; border-bottom:2px solid #ccc;
-      padding:0 20px; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box;
+      height: 70px;
+      background:#f5f5f5;
+      border-bottom:2px solid #ccc;
+      padding:0 20px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      box-sizing:border-box;
     }
     #header-title { font-weight:700; }
     #header-info { text-align:right; font-size:14px; line-height:1.25; }
@@ -207,17 +213,16 @@
       });
       map.add(ox);
 
-      /* === Bus stops (GeoJSON points) ===
-         NOTE: The filename contains å. Use percent-encoding in the URL. */
+      /* === Bus stops (GeoJSON points) — NYTT FILNAMN === */
       const bus = new GeoJSONLayer({
-        url: "./data/Bussh%C3%A5llplatser_oxnehaga.geojson",
+        url: "./data/Busshallplaster_oxnehaga.geojson",   // <-- ditt nya namn
         title: "Busshållplatser",
         renderer: {
           type: "simple",
           symbol: {
             type: "simple-marker",
             color: [0,120,255,0.95],
-            size: 6,
+            size: 7,
             outline: { color: "white", width: 1 }
           }
         },
@@ -226,7 +231,7 @@
       });
       map.add(bus);
 
-      /* === Auto-zoom to Oxnehaga on load === */
+      /* === Auto-zoom to Oxnehaga === */
       view.whenLayerView(ox).then(() => {
         ox.queryExtent().then((res) => {
           if (res && res.extent) {
