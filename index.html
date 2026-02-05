@@ -4,50 +4,83 @@
   <meta charset="UTF-8" />
   <title>STN25XR – Jönköping</title>
 
-  <!-- KORREKTA ArcGIS-importer -->
-  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css" />
+  <!-- KORREKT ArcGIS-import (MÅSTE SE UT SÅ HÄR) -->
+  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
   <script src="https://js.arcgis.com/4.30/"></script>
 
   <style>
     html, body {
-      margin: 0; padding: 0; height: 100%; width: 100%;
-      overflow: hidden; font-family: Arial, sans-serif;
+      margin: 0; padding: 0;
+      height: 100%; width: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
     }
 
+    /* HEADER */
     #header {
-      height: 70px; background: #f5f5f5; border-bottom: 2px solid #ccc;
-      padding: 0 20px; display: flex; justify-content: space-between; align-items: center;
+      height: 70px;
+      background: #f5f5f5;
+      border-bottom: 2px solid #ccc;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
+    /* ===== SIDEBAR – FULL HEIGHT FIX ===== */
     #sidebar {
-      position: fixed; top: 70px; left: 0; width: 240px;
-      height: calc(100% - 70px); background: #222; color: #fff;
+      position: fixed;
+      top: 70px;
+      left: 0;
+      width: 240px;
+      height: calc(100% - 70px);   /* <-- FIX */
+      background: #222;
+      color: #fff;
       padding: 18px;
+      overflow-y: auto;            /* <-- VISAR ALLT */
+      box-sizing: border-box;
     }
 
-    .switch-row { display: flex; justify-content: space-between; margin: 12px 0; }
+    .switch-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 14px 0;
+    }
+    .switch-label {
+      font-size: 14px;
+      user-select: none;
+    }
+
+    /* SLIDE SWITCH */
     .switch { position: relative; width: 44px; height: 24px; }
     .switch input { opacity: 0; width:0; height:0; }
     .slider {
-      position: absolute; inset: 0; background:#555; border-radius: 24px;
+      position: absolute; inset: 0;
+      background: #555; border-radius: 24px;
       cursor: pointer; transition: .2s;
     }
     .slider:before {
-      content: ""; position: absolute; top:3px; left:3px;
-      width:18px; height:18px; background:#fff; border-radius:50%; transition:.2s;
+      content:""; position:absolute; width:18px; height:18px;
+      left:3px; top:3px;
+      background:white; border-radius:50%; transition:.2s;
     }
-    input:checked + .slider { background: #2d6cdf; }
-    input:checked + .slider:before { transform: translateX(20px); }
+    input:checked + .slider { background:#2d6cdf; }
+    input:checked + .slider:before { transform:translateX(20px); }
 
+    /* MAP-CONTAINERS */
     #sceneView, #mapView {
-      position: absolute; top: 70px; left: 240px;
-      width: calc(100% - 240px); height: calc(100% - 70px);
+      position:absolute;
+      top:70px; left:240px;
+      width:calc(100% - 240px);
+      height:calc(100% - 70px);
     }
   </style>
 </head>
 
 <body>
 
+  <!-- HEADER -->
   <div id="header">
     <div>STN25XR – Jönköping</div>
     <div id="header-info">
@@ -57,42 +90,54 @@
     </div>
   </div>
 
+  <!-- SIDEBAR -->
   <div id="sidebar">
     <h2>Meny</h2>
 
     <div class="switch-row">
-      <span>Visa byggnader</span>
+      <span class="switch-label">Visa byggnader</span>
       <label class="switch"><input id="swBuildings" type="checkbox" checked><span class="slider"></span></label>
     </div>
 
     <div class="switch-row">
-      <span>Visa Oxnehaga</span>
+      <span class="switch-label">Visa Oxnehaga</span>
       <label class="switch"><input id="swOx" type="checkbox" checked><span class="slider"></span></label>
     </div>
 
     <div class="switch-row">
-      <span>2D vy / 3D vy</span>
-      <label class="switch"><input id="swMode" type="checkbox" checked><span class="slider"></span></label>
+      <span class="switch-label">2D vy / 3D vy</span>
+     ="checkbox" checked><span class="slider"></span></label>
     </div>
   </div>
 
+  <!-- MAP CONTAINERS -->
   <div id="sceneView"></div>
   <div id="mapView" style="display:none;"></div>
 
+  <!-- KLOCKA + TEMPERATUR -->
   <script>
-    function updateClock(){ document.getElementById("clock").textContent=new Date().toLocaleTimeString("sv-SE"); }
-    setInterval(updateClock,1000); updateClock();
+    function updateClock(){
+      document.getElementById("clock").textContent =
+        new Date().toLocaleTimeString("sv-SE");
+    }
+    setInterval(updateClock,1000);
+    updateClock();
 
     async function updateTemperature(){
       try{
         const r=await fetch("https://api.open-meteo.com/v1/forecast?latitude=57.78&longitude=14.16&current_weather=true");
         const d=await r.json();
-        document.getElementById("temp").textContent="Temperatur: "+d.current_weather.temperature+"°C";
-      } catch { document.getElementById("temp").textContent="Temperatur: N/A"; }
+        document.getElementById("temp").textContent =
+          "Temperatur: " + d.current_weather.temperature + "°C";
+      } catch {
+        document.getElementById("temp").textContent = "Temperatur: N/A";
+      }
     }
-    updateTemperature(); setInterval(updateTemperature,300000);
+    updateTemperature();
+    setInterval(updateTemperature, 300000);
   </script>
 
+  <!-- ARCGIS KARTA -->
   <script>
     require([
       "esri/Map",
@@ -100,36 +145,40 @@
       "esri/views/MapView",
       "esri/layers/SceneLayer",
       "esri/layers/GeoJSONLayer"
-    ], function(Map, SceneView, MapView, SceneLayer, GeoJSONLayer) {
+    ], function(Map, SceneView, MapView, SceneLayer, GeoJSONLayer){
 
+      /* === GEMENSAM KARTA === */
       const map = new Map({
         basemap: "satellite",
         ground: "world-elevation"
       });
 
-      // === 3D ===
+      /* === 3D VIEW === */
       const scene = new SceneView({
-        container: "sceneView",
-        map: map,
-        camera: { position:{ latitude:57.796, longitude:14.20, z:2500 }, tilt:45 }
+        container:"sceneView",
+        map:map,
+        camera:{
+          position:{ latitude:57.796, longitude:14.20, z:2500 },
+          tilt:45
+        }
       });
 
-      // === 2D ===
+      /* === 2D VIEW === */
       const map2d = new MapView({
-        container: "mapView",
-        map: map,
-        center: [14.20,57.796],
-        zoom: 12
+        container:"mapView",
+        map:map,
+        center:[14.20,57.796],
+        zoom:12
       });
 
-      // === Buildings ===
+      /* === BUILDINGS === */
       const buildings = new SceneLayer({
         portalItem:{ id:"c444b24b184c4523a5dc96248bfea4e1" },
         visible:true
       });
       map.add(buildings);
 
-      // === Oxnehaga ===
+      /* === OXNEHAGA === */
       const ox = new GeoJSONLayer({
         url:"./data/Oxnehaga-Area.geojson",
         renderer:{
@@ -140,25 +189,37 @@
       });
       map.add(ox);
 
-      // === Zoom ===
+      /* AUTO-ZOOM I 3D */
       scene.whenLayerView(ox).then(()=>{
         ox.queryExtent().then(ext=>{
-          scene.goTo({ target:ext.extent, tilt:35 }, {duration:2000});
+          scene.goTo({ target:ext.extent, tilt:35 });
         });
       });
 
-      // === Switches ===
-      swBuildings.onchange = ()=> buildings.visible = swBuildings.checked;
-      swOx.onchange = ()=> ox.visible = swOx.checked;
+      /* === SWITCHES === */
+      swBuildings.onchange = () => buildings.visible = swBuildings.checked;
+      swOx.onchange        = () => ox.visible        = swOx.checked;
 
-      // === 2D/3D ===
-      swMode.onchange = ()=>{
-        const is3d = swMode.checked;
-        document.getElementById("sceneView").style.display = is3d ? "block" : "none";
-        document.getElementById("mapView").style.display = is3d ? "none" : "block";
+      /* === 2D/3D MODE === */
+      swMode.onchange = () => {
+        let is3D = swMode.checked;
+
+        document.getElementById("sceneView").style.display = is3D ? "block" : "none";
+        document.getElementById("mapView").style.display   = is3D ? "none"  : "block";
+
+        // Flytta kartkameran när man växlar
+        if(is3D){
+          scene.goTo(map2d.viewpoint);
+        } else {
+          map2d.viewpoint = scene.viewpoint;
+        }
       };
+
     });
   </script>
+
+</body>
+</html>
 
 </body>
 </html>
