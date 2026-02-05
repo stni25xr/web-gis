@@ -6,7 +6,7 @@
   <title>STN25XR | Öxnehaga | Huskvarna</title>
 
   <!-- ArcGIS JavaScript API (RIKTIGA TAGGAR) -->
-  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
+  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css" />
   <script src="https://js.arcgis.com/4.30/"></script>
 
   <style>
@@ -15,14 +15,8 @@
 
     /* ===== Header ===== */
     #header {
-      height: 70px;
-      background:#f5f5f5;
-      border-bottom:2px solid #ccc;
-      padding:0 20px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      box-sizing:border-box;
+      height: 70px; background:#f5f5f5; border-bottom:2px solid #ccc;
+      padding:0 20px; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box;
     }
     #header-title { font-weight:700; }
     #header-info { text-align:right; font-size:14px; line-height:1.25; }
@@ -79,15 +73,15 @@
     <h2>Meny</h2>
 
     <div class="switch-row">
-      <span class="switch-label">Visa byggnader</span>
-      <label class="switch" aria-label="Visa byggnader">
-        <input id="swBuildings" type="checkbox" checked />
+      <span class="switch-label">Visa 3D‑byggnader (global)</span>
+      <label class="switch" aria-label="Visa 3D‑byggnader">
+        <input id="swBuildings3D" type="checkbox" checked />
         <span class="slider"></span>
       </label>
     </div>
 
     <div class="switch-row">
-      <span class="switch-label">Visa Oxnehaga</span>
+      <span class="switch-label">Visa Oxnehaga (polygon)</span>
       <label class="switch" aria-label="Visa Oxnehaga">
         <input id="swOx" type="checkbox" checked />
         <span class="slider"></span>
@@ -103,9 +97,9 @@
     </div>
 
     <div class="switch-row">
-      <span class="switch-label">Visa huvudbyggnad</span>
-      <label class="switch" aria-label="Visa huvudbyggnad">
-        <input id="swMainBygg" type="checkbox" checked />
+      <span class="switch-label">Visa byggnader (GeoJSON)</span>
+      <label class="switch" aria-label="Visa byggnader (GeoJSON)">
+        <input id="swBygg" type="checkbox" checked />
         <span class="slider"></span>
       </label>
     </div>
@@ -201,12 +195,12 @@
         camera: { position: { latitude: 57.796, longitude: 14.200, z: 1800 }, tilt: 45 }
       });
 
-      /* === 3D Buildings (global) === */
-      const buildings = new SceneLayer({
+      /* === 3D Buildings (global scene layer) === */
+      const buildings3D = new SceneLayer({
         portalItem: { id: "c444b24b184c4523a5dc96248bfea4e1" },
         visible: true
       });
-      map.add(buildings);
+      map.add(buildings3D);
 
       /* === Oxnehaga polygon (GeoJSON) === */
       const ox = new GeoJSONLayer({
@@ -216,79 +210,3 @@
           type: "simple",
           symbol: { type: "simple-fill", color: [0,100,255,0.25], outline: { color: [0,100,255], width: 2 } }
         },
-        elevationInfo: { mode: "on-the-ground" },
-        visible: true
-      });
-      map.add(ox);
-
-      /* === Bus stops (GeoJSON points) === */
-      const bus = new GeoJSONLayer({
-        url: "./data/Busshallplaster_oxnehaga.geojson",
-        title: "Busshållplatser",
-        renderer: {
-          type: "simple",
-          symbol: {
-            type: "simple-marker",
-            color: [0,120,255,0.95],
-            size: 7,
-            outline: { color: "white", width: 1 }
-          }
-        },
-        elevationInfo: { mode: "on-the-ground" },
-        visible: true
-      });
-      map.add(bus);
-
-      /* === Huvudbyggnad (GeoJSON polygon) === */
-      const mainBygg = new GeoJSONLayer({
-        url: "./data/Main_byggnad.geojson.json",  // ← dubbeländelse enligt din fil
-        title: "Huvudbyggnad",
-        renderer: {
-          type: "simple",
-          symbol: {
-            type: "simple-fill",
-            color: [255, 215, 0, 0.30],           // guld‑gul transparent fyllning
-            outline: { color: [255, 215, 0, 1], width: 2 }
-          }
-        },
-        elevationInfo: { mode: "on-the-ground" },
-        visible: true
-      });
-      map.add(mainBygg);
-
-      /* === Auto-zoom till Oxnehaga vid start === */
-      view.whenLayerView(ox).then(() => {
-        ox.queryExtent().then((res) => {
-          if (res && res.extent) {
-            view.goTo({ target: res.extent, tilt: 38 }, { duration: 1200 });
-          }
-        });
-      });
-
-      /* === Menu switches === */
-      const swBuildings = document.getElementById("swBuildings");
-      const swOx        = document.getElementById("swOx");
-      const swBus       = document.getElementById("swBus");
-      const swMainBygg  = document.getElementById("swMainBygg");
-
-      swBuildings.addEventListener("change", () => { buildings.visible = swBuildings.checked; });
-      swOx.addEventListener("change",        () => { ox.visible        = swOx.checked;        });
-      swBus.addEventListener("change",       () => { bus.visible       = swBus.checked;       });
-      swMainBygg.addEventListener("change",  () => { mainBygg.visible  = swMainBygg.checked;  });
-
-      // (Valfritt) Popup för busshållplatser – visa alla attribut tills vi vet fältnamn
-      bus.popupTemplate = {
-        title: "Busshållplats",
-        content: [{ type: "fields", fieldInfos: [] }]
-      };
-
-      // (Valfritt) Popup för Huvudbyggnad – visa alla attribut
-      mainBygg.popupTemplate = {
-        title: "Huvudbyggnad",
-        content: [{ type: "fields", fieldInfos: [] }]
-      };
-    });
-  </script>
-
-</body>
-</html>
