@@ -2,9 +2,9 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8" />
-  <title>STN25XR|Öxnehaga|Jönköping</title>
+  <title>STN25XR | Öxnehaga | Jönköping</title>
 
-  <!-- RIKTIGA ArcGIS-importer (MÅSTE vara så här) -->
+  <!-- RIKTIGA ArcGIS-importer (måste vara TAGGAR, inte text!) -->
   <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
   <script src="https://js.arcgis.com/4.30/"></script>
 
@@ -49,17 +49,25 @@
     .switch {
       position: relative; width: 44px; height: 24px;
     }
-    .switch input { opacity: 0; width:0; height:0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
     .slider {
-      position:absolute; inset:0; background:#555;
-      border-radius:24px; cursor:pointer; transition:.2s;
+      position: absolute; inset: 0;
+      background: #555;
+      border-radius: 24px;
+      cursor: pointer;
+      transition: .2s;
     }
     .slider:before {
-      content:""; position:absolute; left:3px; top:3px;
-      width:18px; height:18px; background:white; border-radius:50%; transition:.2s;
+      content: "";
+      position: absolute;
+      left: 3px; top: 3px;
+      width: 18px; height: 18px;
+      background: white;
+      border-radius: 50%;
+      transition: .2s;
     }
-    input:checked + .slider { background:#2d6cdf; }
-    input:checked + .slider:before { transform:translateX(20px); }
+    input:checked + .slider { background: #2d6cdf; }
+    input:checked + .slider:before { transform: translateX(20px); }
 
     #sceneView, #mapView {
       position: absolute;
@@ -79,26 +87,33 @@
     <div id="header-info">
       <div>Jönköping – ca 145 000 invånare</div>
       <div id="temp">Temperatur: …</div>
-      <div id="clock">00:00:00</div>
-    </div>
-  </div>
+     /div>
 
   <div id="sidebar">
     <h2 style="margin-top:0;">Meny</h2>
 
     <div class="switch-row">
       <span>Visa byggnader</span>
-      <label class="switch"><input id="swBuildings" type="checkbox" checked><span class="slider"></span></label>
+      <label class="switch">
+        <input id="swBuildings" type="checkbox" checked>
+        <span class="slider"></span>
+      </label>
     </div>
 
     <div class="switch-row">
       <span>Visa Oxnehaga</span>
-      <label class="switch"><input id="swOx" type="checkbox" checked><span class="slider"></span></label>
+      <label class="switch">
+        <input id="swOx" type="checkbox" checked>
+        <span class="slider"></span>
+      </label>
     </div>
 
     <div class="switch-row">
       <span>2D vy / 3D vy</span>
-      <label class="switch"><input id="swMode" type="checkbox" checked><span class="slider"></span></label>
+      <label class="switch">
+        <input id="swMode" type="checkbox" checked>
+        <span class="slider"></span>
+      </label>
     </div>
   </div>
 
@@ -106,20 +121,24 @@
   <div id="mapView" style="display:none;"></div>
 
   <script>
+    // Klocka
     function updateClock(){
       document.getElementById("clock").textContent =
         new Date().toLocaleTimeString("sv-SE");
     }
-    setInterval(updateClock,1000);
+    setInterval(updateClock, 1000);
     updateClock();
 
+    // Temperatur
     async function updateTemperature(){
-      try{
-        const r=await fetch("https://api.open-meteo.com/v1/forecast?latitude=57.78&longitude=14.16&current_weather=true");
-        const d=await r.json();
+      try {
+        const r = await fetch("https://api.open-meteo.com/v1/forecast?latitude=57.78&longitude=14.16&current_weather=true");
+        const d = await r.json();
         document.getElementById("temp").textContent =
           "Temperatur: " + d.current_weather.temperature + "°C";
-      } catch { document.getElementById("temp").textContent = "Temperatur: N/A"; }
+      } catch {
+        document.getElementById("temp").textContent = "Temperatur: N/A";
+      }
     }
     updateTemperature();
     setInterval(updateTemperature, 300000);
@@ -134,40 +153,39 @@
       "esri/layers/GeoJSONLayer"
     ], function(Map, SceneView, MapView, SceneLayer, GeoJSONLayer){
 
-      /* === KARTA === */
       const map = new Map({
         basemap: "satellite",
         ground: "world-elevation"
       });
 
-      /* === 3D VIEW === */
+      // 3D
       const scene = new SceneView({
-        container:"sceneView",
-        map:map,
-        camera:{
+        container: "sceneView",
+        map: map,
+        camera: {
           position:{ latitude:57.796, longitude:14.20, z:1800 },
-          tilt:45
+          tilt: 45
         }
       });
 
-      /* === 2D VIEW === */
+      // 2D
       const map2d = new MapView({
-        container:"mapView",
-        map:map,
-        center:[14.20, 57.796],
-        zoom:12
+        container: "mapView",
+        map: map,
+        center: [14.20, 57.796],
+        zoom: 12
       });
 
-      /* === BUILDINGS === */
+      // Buildings
       const buildings = new SceneLayer({
         portalItem:{ id:"c444b24b184c4523a5dc96248bfea4e1" },
         visible:true
       });
       map.add(buildings);
 
-      /* === OXNEHAGA === */
+      // Oxnehaga polygon
       const ox = new GeoJSONLayer({
-        url:"./data/Oxnehaga-Area.geojson",
+        url: "./data/Oxnehaga-Area.geojson",
         renderer:{
           type:"simple",
           symbol:{
@@ -180,26 +198,25 @@
       });
       map.add(ox);
 
-      /* AUTO-ZOOM 3D */
+      // Zooma rätt i 3D
       scene.whenLayerView(ox).then(()=>{
         ox.queryExtent().then(ext=>{
-          scene.goTo({ target: ext.extent, tilt:38 }, { duration:1200 });
+          scene.goTo({ target: ext.extent, tilt: 38 }, { duration:1200 });
         });
       });
 
-      /* === SWITCHES === */
+      // Switches
       swBuildings.onchange = () => buildings.visible = swBuildings.checked;
       swOx.onchange        = () => ox.visible        = swOx.checked;
 
-      /* === 2D/3D växling (denna fungerar nu) === */
+      // 2D / 3D switch
       swMode.onchange = () => {
-
         const is3D = swMode.checked;
 
         document.getElementById("sceneView").style.display = is3D ? "block" : "none";
         document.getElementById("mapView").style.display   = is3D ? "none"  : "block";
 
-        if(is3D){
+        if (is3D) {
           scene.goTo(map2d.viewpoint);
         } else {
           map2d.goTo(scene.viewpoint);
