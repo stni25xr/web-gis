@@ -6,7 +6,7 @@
   <title>STN25XR | Öxnehaga | Huskvarna</title>
 
   <!-- ArcGIS JavaScript API (RIKTIGA TAGGAR) -->
-  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
+  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css" />
   <script src="https://js.arcgis.com/4.30/"></script>
 
   <style>
@@ -56,6 +56,11 @@
       #sidebar { width:200px; }
       #sceneView { left:200px; width:calc(100% - 200px); }
     }
+
+    /* Popup-innehåll (liten tabell) */
+    .popup-kv table { border-collapse:collapse; width:100%; font:14px/1.3 Arial; }
+    .popup-kv th, .popup-kv td { text-align:left; padding:4px 6px; border-bottom:1px solid #eee; }
+    .popup-kv th { color:#333; width:40%; white-space:nowrap; }
   </style>
 </head>
 
@@ -213,9 +218,9 @@
       });
       map.add(ox);
 
-      /* === Bus stops (GeoJSON points) — NYTT FILNAMN === */
+      /* === Bus stops (GeoJSON points) === */
       const bus = new GeoJSONLayer({
-        url: "./data/Busshallplaster_oxnehaga.geojson",   // <-- ditt nya namn
+        url: "./data/Busshallplaster_oxnehaga.geojson",
         title: "Busshållplatser",
         renderer: {
           type: "simple",
@@ -227,7 +232,8 @@
           }
         },
         elevationInfo: { mode: "on-the-ground" },
-        visible: true
+        visible: true,
+        popupEnabled: false   // vi styr popupen själva (generisk & länk-stöd)
       });
       map.add(bus);
 
@@ -240,7 +246,57 @@
         });
       });
 
-      /* === Menu switches === */
+      /* === Hjälp: escape HTML så popupen blir säker === */
+      function esc(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      /* === Egen popup för busshållplatser: visar alla attribut + länk om 'url' finns === */
+      view.on("click", async (event) => {
+        const hit = await view.hitTest(event);
+        const g = hit.results.find(r => r.graphic && r.graphic.layer === bus)?.graphic;
+        if (!g) return;
+
+        const at = g.attributes || {};
+        const title = at.name || at.Namn || at.StopName || "Busshållplats";
+
+        // Bygg en tabell med alla attribut (filtrera bort stora/ointressanta fält)
+        const skip = new Set(["OBJECTID", "objectid", "Shape", "shape", "geometry"]);
+        let rows = "";
+        Object.keys(at).forEach(k => {
+          if (skip.has(k)) return;
+          const v = at[k];
+          if (v === null || typeof v === "object") return;
+          rows += `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`;
+        });
+
+        // Länk om fält 'url' finns
+        let linkHtml = "";
+        if (at.url && typeof at.url === "string") {
+          const safeUrl = esc(at.url);
+          linkHtml = `<p style="margin:8px 0 0;"><a href="${safeUrl}" target="_blank" rel="noopener">Öppna länk</a></p>`;
+        }
+
+        const html = `
+          <div class="popup-kv">
+            <table>${rows || "<tr><td>Inga attribut</td></tr>"}</table>
+            ${linkHtml}
+          </div>
+        `;
+
+        view.popup.open({
+          title,
+          content: html,
+          location: g.geometry
+        });
+      });
+
+      /* === Meny-reglage === */
       const swBuildings = document.getElementById("swBuildings");
       const swOx = document.getElementById("swOx");
       const swBus = document.getElementById("swBus");
@@ -253,3 +309,5 @@
 
 </body>
 </html>
+
+
