@@ -4,12 +4,11 @@
   <meta charset="UTF-8" />
   <title>STN25XR | Öxnehaga | Jönköping</title>
 
-  <!-- ArcGIS JavaScript API (korrekta TAGGAR) -->
+  <!-- RIKTIGA ArcGIS-importer (måste vara TAGGAR, inte text!) -->
   <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
   <script src="https://js.arcgis.com/4.30/"></script>
 
   <style>
-    /* ===== Bas ===== */
     html, body {
       margin: 0; padding: 0;
       height: 100%; width: 100%;
@@ -17,7 +16,6 @@
       font-family: Arial, sans-serif;
     }
 
-    /* ===== Header ===== */
     #header {
       height: 70px;
       background: #f5f5f5;
@@ -26,208 +24,207 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-sizing: border-box;
-    }
-    #header-info { text-align: right; font-size: 14px; line-height: 1.4; }
-
-    /* ===== Sidebar (vänster meny) ===== */
-    #sidebar {
-      position: fixed;
-      top: 70px;             /* under headern */
-      left: 0;
-      width: 260px;          /* menybredd */
-      height: calc(100% - 70px);
-      background: #222;
-      color: #fff;
-      padding: 20px;
-      box-sizing: border-box;
-      overflow-y: auto;
-      z-index: 10;
-    }
-    #sidebar h2 {
-      margin: 0 0 12px 0;
-      font-size: 16px; color: #ddd;
-      border-bottom: 1px solid #444; padding-bottom: 8px;
     }
 
-    /* Rad med switch */
-    .switch-row {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 12px; margin: 14px 0;
-    }
-    .switch-label { font-size: 14px; color: #eee; user-select: none; }
-
-    /* ===== Slide switch ===== */
-    .switch { position: relative; width: 44px; height: 24px; flex: 0 0 auto; }
-    .switch input { position:absolute; opacity:0; width:0; height:0; }
-    .slider {
-      position:absolute; inset:0;
-      background:#555; border-radius:24px; cursor:pointer; transition:background .2s;
-    }
-    .slider:before {
-      content:""; position:absolute; left:3px; top:3px;
-      width:18px; height:18px; background:#fff; border-radius:50%;
-      transition: transform .2s; box-shadow: 0 1px 2px rgba(0,0,0,.4);
-    }
-    .switch input:checked + .slider { background:#2d6cdf; }
-    .switch input:checked + .slider:before { transform: translateX(20px); }
-
-    /* ===== Karta ===== */
-    #sceneView {
-      position: absolute;
-      top: 70px; left: 260px;                 /* matchar sidebar-bredd */
-      width: calc(100% - 260px);
-      height: calc(100% - 70px);
-      z-index: 1;
-    }
-  </style>
-</head>
-
-<body>
-  <!-- ===== HEADER ===== -->
-  <div id="header">
-    <div>STN25XR – Jönköping</div>
-    <div id="header-info">
-      <div>Jönköping – ca 145 000 invånare</div>
-      <div id="temp">Temperatur: …</div>
-      <div id="clock">00:00:00</div>
-    </div>
-  </div>
-
-  <!-- ===== SIDEBAR ===== -->
-  <aside id="sidebar" aria-label="Sidomeny">
-    <h2>Meny</h2>
-
-    <div class="switch-row">
-      <span class="switch-label">Visa byggnader</span>
-      <label class="switch" aria-label="Visa byggnader">
-        <input id="swBuildings" type="checkbox" checked />
-        <span class="slider"></span>
-      </label>
-    </div>
-
-    <div class="switch-row">
-      <span class="switch-label">Visa Oxnehaga</span>
-      <label class="switch" aria-label="Visa Oxnehaga">
-        <input id="swOx" type="checkboxHär är en **ren och fungerande** version med **enbart 3D‑vy (SceneView)**, samt **fixad klocka** och **live‑temperatur**.  
-Byt ut din `index.html` helt med koden nedan.
-
-> ✅ Innehåller:  
-> • Rätt ArcGIS‑importer (CSS + JS taggar)  
-> • 3D‑byggnader (globalt Overture/OSM)  
-> • Ditt GeoJSON‑lager `./data/Oxnehaga-Area.geojson`  
-> • Auto‑zoom till GeoJSON‑området  
-> • Klocka (uppdateras varje sekund)  
-> • Temperatur (Open‑Meteo, uppdateras var 5:e minut)  
-> • Endast **två** switches i sidomenyn: “Visa byggnader”, “Visa Oxnehaga” (ingen 2D)
-
-```html
-<!DOCTYPE html>
-<html lang="sv">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>STN25XR | Öxnehaga | Jönköping</title>
-
-  <!-- ArcGIS JavaScript API (KORREKTA TAGGAR) -->
-  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
-  <script src="https://js.arcgis.com/4.30/"></script>
-
-  <style>
-    /* ===== Global ===== */
-    html, body {
-      margin: 0; padding: 0;
-      height: 100%; width: 100%;
-      overflow: hidden;
-      font-family: Arial, Helvetica, sans-serif;
-    }
-
-    /* ===== Header ===== */
-    #header {
-      height: 70px;
-      background: #f5f5f5;
-      border-bottom: 2px solid #ccc;
-      padding: 0 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-sizing: border-box;
-    }
-    #header-title { font-size: 20px; font-weight: 700; }
-    #header-info { text-align: right; font-size: 14px; line-height: 1.3; }
-
-    /* ===== Sidebar ===== */
     #sidebar {
       position: fixed;
       top: 70px;
       left: 0;
-      width: 260px;
+      width: 240px;
       height: calc(100% - 70px);
       background: #222;
       color: #fff;
       padding: 20px;
       box-sizing: border-box;
       z-index: 10;
-      overflow-y: auto;
     }
-    #sidebar h2 {
-      margin: 0 0 12px 0;
-      font-size: 16px;
-      color: #ddd;
-      border-bottom: 1px solid #444;
-      padding-bottom: 8px;
-    }
+
     .switch-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin: 14px 0;
     }
-    .switch-label {
-      font-size: 14px;
-      user-select: none;
-    }
 
-    /* ===== Slide switch ===== */
-    .switch { position: relative; width: 44px; height: 24px; }
+    .switch {
+      position: relative; width: 44px; height: 24px;
+    }
     .switch input { opacity: 0; width: 0; height: 0; }
     .slider {
       position: absolute; inset: 0;
-      background: #555; border-radius: 24px;
-      cursor: pointer; transition: .2s;
+      background: #555;
+      border-radius: 24px;
+      cursor: pointer;
+      transition: .2s;
     }
     .slider:before {
       content: "";
       position: absolute;
-      width: 18px; height: 18px; left: 3px; top: 3px;
-      background: #fff; border-radius: 50%; transition: .2s;
-      box-shadow: 0 1px 2px rgba(0,0,0,.4);
+      left: 3px; top: 3px;
+      width: 18px; height: 18px;
+      background: white;
+      border-radius: 50%;
+      transition: .2s;
     }
-    .switch input:checked + .slider { background: #2d6cdf; }
-    .switch input:checked + .slider:before { transform: translateX(20px); }
+    input:checked + .slider { background: #2d6cdf; }
+    input:checked + .slider:before { transform: translateX(20px); }
 
-    /* ===== Map ===== */
-    #sceneView {
+    #sceneView, #mapView {
       position: absolute;
-      top: 70px; left: 260px;
-      width: calc(100% - 260px);
+      top: 70px;
+      left: 240px;
+      width: calc(100% - 240px);
       height: calc(100% - 70px);
       z-index: 1;
-    }
-
-    /* Responsiv justering (smalare sidebar på små skärmar) */
-    @media (max-width: 900px) {
-      #sidebar { width: 200px; }
-      #sceneView { left: 200px; width: calc(100% - 200px); }
     }
   </style>
 </head>
 
 <body>
 
-  <!-- ===== Header ===== -->
   <div id="header">
-    <div id="header-title">STN25XR – Jönköping</div>
+    <div>STN25XR – Jönköping</div>
     <div id="header-info">
       <div>Jönköping – ca 145 000 invånare</div>
+      <div id="temp">Temperatur: …</div>
+     /div>
+
+  <div id="sidebar">
+    <h2 style="margin-top:0;">Meny</h2>
+
+    <div class="switch-row">
+      <span>Visa byggnader</span>
+      <label class="switch">
+        <input id="swBuildings" type="checkbox" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="switch-row">
+      <span>Visa Oxnehaga</span>
+      <label class="switch">
+        <input id="swOx" type="checkbox" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="switch-row">
+      <span>2D vy / 3D vy</span>
+      <label class="switch">
+        <input id="swMode" type="checkbox" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div id="sceneView"></div>
+  <div id="mapView" style="display:none;"></div>
+
+  <script>
+    // Klocka
+    function updateClock(){
+      document.getElementById("clock").textContent =
+        new Date().toLocaleTimeString("sv-SE");
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Temperatur
+    async function updateTemperature(){
+      try {
+        const r = await fetch("https://api.open-meteo.com/v1/forecast?latitude=57.78&longitude=14.16&current_weather=true");
+        const d = await r.json();
+        document.getElementById("temp").textContent =
+          "Temperatur: " + d.current_weather.temperature + "°C";
+      } catch {
+        document.getElementById("temp").textContent = "Temperatur: N/A";
+      }
+    }
+    updateTemperature();
+    setInterval(updateTemperature, 300000);
+  </script>
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/SceneView",
+      "esri/views/MapView",
+      "esri/layers/SceneLayer",
+      "esri/layers/GeoJSONLayer"
+    ], function(Map, SceneView, MapView, SceneLayer, GeoJSONLayer){
+
+      const map = new Map({
+        basemap: "satellite",
+        ground: "world-elevation"
+      });
+
+      // 3D
+      const scene = new SceneView({
+        container: "sceneView",
+        map: map,
+        camera: {
+          position:{ latitude:57.796, longitude:14.20, z:1800 },
+          tilt: 45
+        }
+      });
+
+      // 2D
+      const map2d = new MapView({
+        container: "mapView",
+        map: map,
+        center: [14.20, 57.796],
+        zoom: 12
+      });
+
+      // Buildings
+      const buildings = new SceneLayer({
+        portalItem:{ id:"c444b24b184c4523a5dc96248bfea4e1" },
+        visible:true
+      });
+      map.add(buildings);
+
+      // Oxnehaga polygon
+      const ox = new GeoJSONLayer({
+        url: "./data/Oxnehaga-Area.geojson",
+        renderer:{
+          type:"simple",
+          symbol:{
+            type:"simple-fill",
+            color:[0,100,255,0.25],
+            outline:{ color:[0,100,255], width:2 }
+          }
+        },
+        visible:true
+      });
+      map.add(ox);
+
+      // Zooma rätt i 3D
+      scene.whenLayerView(ox).then(()=>{
+        ox.queryExtent().then(ext=>{
+          scene.goTo({ target: ext.extent, tilt: 38 }, { duration:1200 });
+        });
+      });
+
+      // Switches
+      swBuildings.onchange = () => buildings.visible = swBuildings.checked;
+      swOx.onchange        = () => ox.visible        = swOx.checked;
+
+      // 2D / 3D switch
+      swMode.onchange = () => {
+        const is3D = swMode.checked;
+
+        document.getElementById("sceneView").style.display = is3D ? "block" : "none";
+        document.getElementById("mapView").style.display   = is3D ? "none"  : "block";
+
+        if (is3D) {
+          scene.goTo(map2d.viewpoint);
+        } else {
+          map2d.goTo(scene.viewpoint);
+        }
+      };
+    });
+  </script>
+
+</body>
+</html>
 
