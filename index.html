@@ -5,13 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>STN25XR | Öxnehaga | Huskvarna</title>
 
-  <!-- ArcGIS API (MÅSTE vara riktiga taggar!) -->
+  <!-- ArcGIS JavaScript API (MÅSTE vara riktiga taggar, inte text) -->
   https://js.arcgis.com/4.30/esri/themes/light/main.css
-  https://js.arcgis.com/4.30/
+  https://js.arcgis.com/4.30/</script>
 
   <style>
-    html, body { margin:0; padding:0; height:100%; width:100%; overflow:hidden; font-family:Arial, sans-serif; }
+    /* ===== Global ===== */
+    html, body {
+      margin: 0; padding: 0;
+      height: 100%; width: 100%;
+      overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
+    }
 
+    /* ===== Header ===== */
     #header {
       height: 70px;
       background: #f5f5f5;
@@ -20,59 +27,99 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      box-sizing: border-box;
     }
+    #header-title { font-weight: 700; }
+    #header-info { text-align: right; font-size: 14px; line-height: 1.25; }
+    #clock { color: #666; }
 
+    /* ===== Sidebar ===== */
     #sidebar {
-      position: fixed; top: 70px; left:0;
-      width: 260px; height: calc(100% - 70px);
-      background:#222; color:#fff;
-      padding:20px; box-sizing:border-box;
-      overflow-y:auto; z-index:10;
+      position: fixed;
+      top: 70px;
+      left: 0;
+      width: 260px;
+      height: calc(100% - 70px);
+      background: #222;
+      color: #fff;
+      padding: 20px;
+      box-sizing: border-box;
+      overflow-y: auto;
+      z-index: 10;
+    }
+    #sidebar h2 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      color: #ddd;
+      border-bottom: 1px solid #444;
+      padding-bottom: 8px;
     }
 
-    .switch-row { display:flex; justify-content:space-between; align-items:center; margin:14px 0; }
-    .switch-label { font-size:14px; }
+    .switch-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 14px 0;
+    }
+    .switch-label { font-size: 14px; user-select: none; }
 
-    .switch { position:relative; width:44px; height:24px; }
-    .switch input { opacity:0; width:0; height:0; }
+    /* ===== Slide switch ===== */
+    .switch { position: relative; width: 44px; height: 24px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
     .slider {
-      position:absolute; inset:0; background:#555; border-radius:24px;
-      cursor:pointer; transition:.2s;
+      position: absolute; inset: 0;
+      background: #555; border-radius: 24px;
+      cursor: pointer; transition: .2s;
     }
     .slider:before {
-      content:""; position:absolute; width:18px; height:18px;
-      left:3px; top:3px; background:white; border-radius:50%; transition:.2s;
+      content: "";
+      position: absolute; left: 3px; top: 3px;
+      width: 18px; height: 18px; background: #fff; border-radius: 50%;
+      box-shadow: 0 1px 2px rgba(0,0,0,.4);
+      transition: transform .2s;
     }
-    input:checked + .slider { background:#2d6cdf; }
-    input:checked + .slider:before { transform: translateX(20px); }
+    .switch input:checked + .slider { background: #2d6cdf; }
+    .switch input:checked + .slider:before { transform: translateX(20px); }
 
+    /* ===== Map ===== */
     #sceneView {
-      position:absolute; top:70px; left:260px;
-      width:calc(100% - 260px); height:calc(100% - 70px);
+      position: absolute;
+      top: 70px; left: 260px;
+      width: calc(100% - 260px);
+      height: calc(100% - 70px);
+      z-index: 1;
+    }
+
+    /* Responsiv */
+    @media (max-width: 900px) {
+      #sidebar { width: 200px; }
+      #sceneView { left: 200px; width: calc(100% - 200px); }
     }
   </style>
 </head>
 
 <body>
 
+  <!-- ===== HEADER ===== -->
   <div id="header">
     <div id="header-title">STN25XR | Öxnehaga | Huskvarna</div>
-    <div id="header-info" style="text-align:right;font-size:14px;">
+    <div id="header-info">
       <div>Öxnehaga i Huskvarna – ca 3400 invånare</div>
       <div id="wx-summary">Väder: …</div>
       <div id="wx-precip">Nederbörd (nästa 2 h): …</div>
       <div id="wx-snow">Snörisk (nästa 2 h): …</div>
       <div id="temp">Temperatur: …</div>
-      <div id="clock" style="color:#666;">00:00:00</div>
+      <div id="clock">00:00:00</div>
     </div>
   </div>
 
-  <aside id="sidebar">
+  <!-- ===== SIDEBAR ===== -->
+  <aside id="sidebar" aria-label="Sidomeny">
     <h2>Meny</h2>
 
     <div class="switch-row">
       <span class="switch-label">Visa byggnader</span>
-      <label class="switch">
+      <label class="switch" aria-label="Visa byggnader">
         <input id="swBuildings" type="checkbox" checked />
         <span class="slider"></span>
       </label>
@@ -80,82 +127,95 @@
 
     <div class="switch-row">
       <span class="switch-label">Visa Oxnehaga</span>
-      <label class="switch">
+      <label class="switch" aria-label="Visa Oxnehaga">
         <input id="swOx" type="checkbox" checked />
         <span class="slider"></span>
       </label>
     </div>
   </aside>
 
-  <div id="sceneView"></div>
+  <!-- ===== 3D MAP ===== -->
+  <div id="sceneView" role="main" aria-label="3D-karta"></div>
 
-  <!-- CLOCK -->
+  <!-- ===== CLOCK ===== -->
   <script>
     function updateClock() {
-      document.getElementById("clock").textContent = new Date().toLocaleTimeString("sv-SE");
+      const el = document.getElementById("clock");
+      if (el) el.textContent = new Date().toLocaleTimeString("sv-SE");
     }
     setInterval(updateClock, 1000);
     updateClock();
   </script>
 
-  <!-- WEATHER -->
+  <!-- ===== WEATHER (Open‑Meteo) ===== -->
   <script>
     function describeWeather(code) {
       const map = {
-        0: "☀️ Klart",
-        1: "🌤️ Mest klart",
-        2: "⛅ Växlande molnighet",
-        3: "☁️ Mulet",
-        61: "🌧️ Lätt regn",
-        63: "🌧️ Regn",
-        65: "🌧️ Kraftigt regn",
-        71: "❄️ Lätt snöfall",
-        73: "❄️ Snöfall",
-        75: "❄️ Kraftigt snöfall",
-        95: "⛈️ Åska"
+        0: "☀️ Klart", 1: "🌤️ Mest klart", 2: "⛅ Växlande molnighet", 3: "☁️ Mulet",
+        45: "🌫️ Dimma", 48: "🌫️ Dimfrost",
+        51: "🌧️ Lätt duggregn", 53: "🌧️ Måttligt duggregn", 55: "🌧️ Kraftigt duggregn",
+        61: "🌧️ Lätt regn", 63: "🌧️ Regn", 65: "🌧️ Kraftigt regn",
+        66: "🌧️ Underkylt regn", 67: "🌧️ Kraftigt underkylt regn",
+        71: "❄️ Lätt snöfall", 73: "❄️ Snöfall", 75: "❄️ Kraftigt snöfall",
+        77: "❄️ Snökorn", 80: "🌧️ Lätta regnskurar", 81: "🌧️ Regnskurar", 82: "🌧️ Kraftiga regnskurar",
+        85: "❄️ Snöbyar", 86: "❄️ Kraftiga snöbyar",
+        95: "⛈️ Åska", 96: "⛈️ Åska + hagel", 99: "⛈️ Kraftig åska + hagel"
       };
       return map[code] || "Växlande";
     }
 
     async function updateWeather() {
-      try {
-        const url = "https://api.open-meteo.com/v1/forecast?latitude=57.796&longitude=14.200&current=temperature_2m,weather_code&hourly=precipitation_probability,snowfall&timezone=auto";
+      const sum  = document.getElementById("wx-summary");
+      const pr   = document.getElementById("wx-precip");
+      const snow = document.getElementById("wx-snow");
+      const temp = document.getElementById("temp");
 
-        const res = await fetch(url);
+      try {
+        const url = "https://api.open-meteo.com/v1/forecast"
+          + "?latitude=57.796&longitude=14.200"
+          + "&current=temperature_2m,weather_code"
+          + "&hourly=precipitation_probability,snowfall"
+          + "&timezone=auto";
+
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
 
-        const t = data.current.temperature_2m;
-        const code = data.current.weather_code;
+        const t = data?.current?.temperature_2m;
+        const code = data?.current?.weather_code;
         const wx = describeWeather(code);
 
-        const p1 = data.hourly.precipitation_probability[0];
-        const p2 = data.hourly.precipitation_probability[1];
-        const maxP = Math.max(p1, p2);
+        // Ta de två närmaste timmarna i hourly‑listan
+        const p = (data?.hourly?.precipitation_probability || []);
+        const s = (data?.hourly?.snowfall || []);
+        const maxP = (p.length ? Math.max(p[0] ?? 0, p[1] ?? 0) : null);
+        const snowSum = (s.length ? (Number(s[0] || 0) + Number(s[1] || 0)) : 0);
 
-        const s1 = data.hourly.snowfall[0];
-        const s2 = data.hourly.snowfall[1];
-        const snowRisk = (s1 + s2) > 0 ? "Ja" : "Nej";
-
-        document.getElementById("temp").textContent = `Temperatur: ${t}°C`;
-        document.getElementById("wx-summary").textContent = `Väder: ${wx}`;
-        document.getElementById("wx-precip").textContent = `Nederbörd (nästa 2 h): ${maxP}%`;
-        document.getElementById("wx-snow").textContent = `Snörisk (nästa 2 h): ${snowRisk}`;
-      } catch {
-        document.getElementById("wx-summary").textContent = "Väder: N/A";
+        sum.textContent  = `Väder: ${wx}`;
+        pr.textContent   = `Nederbörd (nästa 2 h): ${maxP !== null ? maxP + " %" : "N/A"}`;
+        snow.textContent = `Snörisk (nästa 2 h): ${snowSum > 0 ? "Ja (" + snowSum.toFixed(1) + " mm)" : "Nej"}`;
+        temp.textContent = (typeof t === "number") ? `Temperatur: ${t}°C` : "Temperatur: N/A";
+      } catch (e) {
+        sum.textContent  = "Väder: N/A";
+        pr.textContent   = "Nederbörd (nästa 2 h): N/A";
+        snow.textContent = "Snörisk (nästa 2 h): N/A";
+        temp.textContent = "Temperatur: N/A";
+        console.error("Weather error:", e);
       }
     }
     updateWeather();
-    setInterval(updateWeather, 300000);
+    setInterval(updateWeather, 300000); // var 5:e minut
   </script>
 
-  <!-- ARCGIS MAP -->
+  <!-- ===== ARCGIS (3D) ===== -->
   <script>
-    require([
+    // Kör först när ArcGIS scriptet ovan har laddats
+    window.require([
       "esri/Map",
       "esri/views/SceneView",
       "esri/layers/SceneLayer",
       "esri/layers/GeoJSONLayer"
-    ], function(Map, SceneView, SceneLayer, GeoJSONLayer) {
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer) {
 
       const map = new Map({
         basemap: "satellite",
@@ -171,35 +231,48 @@
         }
       });
 
+      // 3D-byggnader (globalt)
       const buildings = new SceneLayer({
-        portalItem: { id:"c444b24b184c4523a5dc96248bfea4e1" },
-        visible:true
+        portalItem: { id: "c444b24b184c4523a5dc96248bfea4e1" },
+        visible: true
       });
       map.add(buildings);
 
+      // Oxnehaga GeoJSON (lägg filen i ./data/Oxnehaga-Area.geojson)
       const ox = new GeoJSONLayer({
         url: "./data/Oxnehaga-Area.geojson",
         renderer: {
-          type:"simple",
+          type: "simple",
           symbol: {
-            type:"simple-fill",
-            color:[0,100,255,0.25],
-            outline:{ color:[0,100,255], width:2 }
+            type: "simple-fill",
+            color: [0, 100, 255, 0.25],
+            outline: { color: [0, 100, 255], width: 2 }
           }
         },
-        visible:true
+        visible: true
       });
       map.add(ox);
 
+      // Flyg till GeoJSON‑området när lagret är redo (och krascha inte om filen saknas)
       view.whenLayerView(ox).then(() => {
-        ox.queryExtent().then(ext => {
-          view.goTo({ target: ext.extent, tilt: 38 }, { duration: 1200 });
-        });
+        ox.queryExtent().then((res) => {
+          if (res && res.extent) {
+            view.goTo({ target: res.extent, tilt: 38 }, { duration: 1200 });
+          }
+        }).catch((err) => console.warn("GeoJSON extent error:", err));
+      }).catch((err) => console.warn("LayerView error:", err));
+
+      // Switchar
+      const swBuildings = document.getElementById("swBuildings");
+      const swOx = document.getElementById("swOx");
+
+      swBuildings.addEventListener("change", () => {
+        buildings.visible = swBuildings.checked;
       });
 
-      swBuildings.onchange = () => buildings.visible = swBuildings.checked;
-      swOx.onchange        = () => ox.visible         = swOx.checked;
-
+      swOx.addEventListener("change", () => {
+        ox.visible = swOx.checked;
+      });
     });
   </script>
 
