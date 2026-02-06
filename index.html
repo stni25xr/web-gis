@@ -271,7 +271,8 @@
       // 3D‑byggnader (globalt)
       const buildings = new SceneLayer({
         portalItem: { id: "c444b24b184c4523a5dc96248bfea4e1" },
-        visible: true
+        visible: true,
+        popupEnabled: false
       });
       map.add(buildings);
 
@@ -282,7 +283,8 @@
           type: "simple",
           symbol: { type: "simple-fill", color: [0,100,255,0.25], outline: { color: [0,100,255], width: 2 } }
         },
-        visible: true
+        visible: true,
+        popupEnabled: false
       });
       map.add(ox);
 
@@ -311,7 +313,19 @@
             height: 18
           }
         },
-        visible: true
+        visible: true,
+        popupTemplate: {
+          title: "Busshållplats",
+          content: [
+            {
+              type: "fields",
+              fieldInfos: [
+                { fieldName: "Nr", label: "Nr" },
+                { fieldName: "Hplnamn", label: "Hplnamn" }
+              ]
+            }
+          ]
+        }
       });
       map.add(bus);
 
@@ -325,7 +339,8 @@
             outline: { color: [0, 120, 60], width: 1 }
           }
         },
-        visible: true
+        visible: true,
+        popupEnabled: false
       });
       map.add(mark);
 
@@ -339,7 +354,8 @@
             outline: { color: [0, 120, 180], width: 1 }
           }
         },
-        visible: true
+        visible: true,
+        popupEnabled: false
       });
       map.add(water);
 
@@ -562,4 +578,5 @@
   </script>
 </body>
 </html>
+
 
