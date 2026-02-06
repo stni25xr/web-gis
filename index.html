@@ -2,127 +2,186 @@
 <html lang="sv">
 <head>
 <meta charset="utf-8">
-<title>STN25XR | Öxnehaga 4D GIS</title>
+<title>STN25XR | Öxnehaga | Huskvarna</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<!-- ArcGIS -->
 <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
 <script src="https://js.arcgis.com/4.30/"></script>
 
 <style>
-html, body { margin:0; height:100%; font-family:Arial; }
+html, body { margin:0; height:100%; font-family:Arial, Helvetica, sans-serif; }
+
+/* ===== HEADER ===== */
 #header {
-  height:70px; background:#f4f4f4; border-bottom:2px solid #ccc;
-  display:flex; justify-content:space-between; align-items:center; padding:0 20px;
+  height:70px;
+  background:#f4f4f4;
+  border-bottom:2px solid #ccc;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:0 20px;
+  box-sizing:border-box;
 }
-#sidebar {
-  position:absolute; top:70px; left:0; width:300px; bottom:0;
-  background:#1e1e1e; color:white; padding:12px; overflow:auto; z-index:10;
+
+/* ===== LEFT MENU ===== */
+#left {
+  position:absolute;
+  top:70px;
+  left:0;
+  width:240px;
+  bottom:0;
+  background:#222;
+  color:#fff;
+  padding:16px;
+  box-sizing:border-box;
 }
-#sceneView { position:absolute; top:70px; left:300px; right:0; bottom:0; }
-table { width:100%; font-size:12px; border-collapse:collapse; }
-td { border-bottom:1px solid #444; padding:4px; }
+
+/* ===== RIGHT PANEL ===== */
+#right {
+  position:absolute;
+  top:70px;
+  right:0;
+  width:320px;
+  bottom:0;
+  background:#f7f7f7;
+  border-left:2px solid #ccc;
+  padding:12px;
+  box-sizing:border-box;
+  overflow:auto;
+}
+
+/* ===== MAP ===== */
+#sceneView {
+  position:absolute;
+  top:70px;
+  left:240px;
+  right:320px;
+  bottom:0;
+}
+
+label { display:flex; justify-content:space-between; margin-bottom:10px; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+td { padding:4px; border-bottom:1px solid #ddd; }
+td:first-child { font-weight:bold; width:45%; }
 </style>
 </head>
 
 <body>
 
+<!-- ===== HEADER ===== -->
 <div id="header">
-  <b>STN25XR | Öxnehaga | 4D GIS</b>
+  <div><b>STN25XR | Öxnehaga | Huskvarna</b></div>
   <div>
     <span id="temp">Temp: …</span> |
     <span id="clock">00:00:00</span>
   </div>
 </div>
 
-<div id="sidebar">
-  <h3>Valt objekt</h3>
+<!-- ===== LEFT MENU ===== -->
+<div id="left">
+  <label>Byggnader <input type="checkbox" id="swBuildings" checked></label>
+  <label>Oxnehaga <input type="checkbox" id="swOx" checked></label>
+  <label>Busshållplatser <input type="checkbox" id="swBus" checked></label>
+  <label>Kommunal mark <input type="checkbox" id="swMark" checked></label>
+  <label>Vatten <input type="checkbox" id="swWater" checked></label>
+</div>
+
+<!-- ===== RIGHT PANEL ===== -->
+<div id="right">
+  <h3>Attribut</h3>
+  <div id="attrHint">Klicka på ett objekt i kartan</div>
   <table id="attrTable"></table>
 </div>
 
+<!-- ===== MAP ===== -->
 <div id="sceneView"></div>
 
+<!-- ===== CLOCK + WEATHER ===== -->
 <script>
 setInterval(() =>
   clock.textContent = new Date().toLocaleTimeString("sv-SE"), 1000
 );
 
 fetch("https://api.open-meteo.com/v1/forecast?latitude=57.796&longitude=14.200&current=temperature_2m")
-.then(r=>r.json()).then(d=>temp.textContent="Temp: "+d.current.temperature_2m+"°C");
+.then(r=>r.json())
+.then(d=>temp.textContent="Temp: "+d.current.temperature_2m+"°C");
 </script>
 
+<!-- ===== ARCGIS ===== -->
 <script>
 require([
-  "esri/Map","esri/views/SceneView",
-  "esri/layers/GeoJSONLayer",
-  "esri/widgets/LayerList","esri/widgets/Legend",
-  "esri/widgets/TimeSlider"
-], function(Map,SceneView,GeoJSONLayer,LayerList,Legend,TimeSlider){
+  "esri/Map",
+  "esri/views/SceneView",
+  "esri/layers/GeoJSONLayer"
+], function (Map, SceneView, GeoJSONLayer) {
 
-const map = new Map({ basemap:"satellite", ground:"world-elevation" });
+  const map = new Map({
+    basemap: "satellite",
+    ground: "world-elevation"
+  });
 
-const view = new SceneView({
-  container:"sceneView", map,
-  camera:{ position:{latitude:57.796,longitude:14.200,z:1600}, tilt:45 }
-});
-
-/* ===== BYGGNADER (BIM) ===== */
-const buildings = new GeoJSONLayer({
-  url:"./data/Main_byggnad.geojson.json",
-  elevationInfo:{ mode:"relative-to-ground" },
-  renderer:{
-    type:"simple",
-    symbol:{
-      type:"polygon-3d",
-      symbolLayers:[{
-        type:"extrude",
-        size:{ field:"HEIGHT", value:10 },
-        material:{ color:"#aaa" }
-      }]
+  const view = new SceneView({
+    container: "sceneView",
+    map: map,
+    camera: {
+      position: { latitude:57.796, longitude:14.200, z:1500 },
+      tilt: 45
     }
-  },
-  popupTemplate:{ title:"Byggnad (BIM)", content:"{*}" },
-  timeInfo:{
-    startField:"START_DATE",
-    endField:"END_DATE"
-  }
-});
+  });
 
-/* ===== ÖVRIGA LAGER ===== */
-const ox = new GeoJSONLayer({ url:"./data/Oxnehaga-Area.geojson" });
-const bus = new GeoJSONLayer({ url:"./data/Busshallplaster_oxnehaga.geojson" });
-const mark = new GeoJSONLayer({ url:"./data/Komunal_mark.geojson" });
-const water = new GeoJSONLayer({ url:"./data/Vatten_jonkoping_01.geojson" });
+  /* ===== LAYERS ===== */
+  const buildings = new GeoJSONLayer({
+    url: "./data/Main_byggnad.geojson.json",
+    elevationInfo:{ mode:"relative-to-ground" }
+  });
 
-map.addMany([ox,mark,water,buildings,bus]);
+  const ox = new GeoJSONLayer({
+    url: "./data/Oxnehaga-Area.geojson",
+    elevationInfo:{ mode:"on-the-ground" }
+  });
 
-/* ===== WIDGETS ===== */
-view.ui.add(new LayerList({ view }), "top-right");
-view.ui.add(new Legend({ view }), "bottom-right");
+  const bus = new GeoJSONLayer({
+    url: "./data/Busshallplaster_oxnehaga.geojson",
+    elevationInfo:{ mode:"relative-to-ground", offset:1 }
+  });
 
-const timeSlider = new TimeSlider({
-  view,
-  fullTimeExtent:{
-    start:new Date("1990-01-01"),
-    end:new Date("2035-12-31")
-  }
-});
-view.ui.add(timeSlider,"bottom-left");
+  const mark = new GeoJSONLayer({
+    url: "./data/Komunal_mark.geojson"
+  });
 
-/* ===== ATTRIBUT-TABELL ===== */
-view.on("click", e => {
-  view.hitTest(e).then(r => {
-    const g = r.results[0]?.graphic;
-    if(!g) return;
-    const tbl = document.getElementById("attrTable");
-    tbl.innerHTML="";
-    Object.entries(g.attributes).forEach(([k,v])=>{
-      tbl.innerHTML += `<tr><td>${k}</td><td>${v}</td></tr>`;
+  const water = new GeoJSONLayer({
+    url: "./data/Vatten_jonkoping_01.geojson"
+  });
+
+  map.addMany([ox, mark, water, buildings, bus]);
+
+  /* ===== SWITCHES ===== */
+  swBuildings.onchange = e => buildings.visible = e.target.checked;
+  swOx.onchange        = e => ox.visible        = e.target.checked;
+  swBus.onchange       = e => bus.visible       = e.target.checked;
+  swMark.onchange      = e => mark.visible      = e.target.checked;
+  swWater.onchange     = e => water.visible     = e.target.checked;
+
+  /* ===== CLICK → RIGHT PANEL ===== */
+  view.on("click", event => {
+    view.hitTest(event).then(hit => {
+      const g = hit.results.find(r => r.graphic)?.graphic;
+      if (!g) return;
+
+      attrHint.style.display = "none";
+      const table = document.getElementById("attrTable");
+      table.innerHTML = "";
+
+      Object.entries(g.attributes).forEach(([k,v]) => {
+        table.innerHTML += `<tr><td>${k}</td><td>${v}</td></tr>`;
+      });
     });
   });
-});
 
 });
 </script>
 
 </body>
 </html>
+
