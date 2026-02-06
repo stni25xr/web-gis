@@ -1,56 +1,109 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-<meta charset="utf-8" />
-<title>STN25XR | Öxnehaga 3D</title>
-
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="utf-8">
+<title>STN25XR | Öxnehaga | Huskvarna</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <!-- ArcGIS -->
 <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
 <script src="https://js.arcgis.com/4.30/"></script>
 
 <style>
-html, body, #sceneView {
+html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  width: 100%;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
+/* ===== HEADER ===== */
+#header {
+  height: 70px;
+  background: #f4f4f4;
+  border-bottom: 2px solid #ccc;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+#clock { color:#555; }
+
+/* ===== SIDEBAR ===== */
 #sidebar {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 99;
+  top: 70px;
+  left: 0;
+  width: 260px;
+  height: calc(100% - 70px);
   background: #222;
-  color: white;
-  padding: 12px;
-  border-radius: 6px;
-  font-family: Arial;
+  color: #fff;
+  padding: 16px;
+  box-sizing: border-box;
+  z-index: 10;
 }
+label { display:flex; justify-content:space-between; margin-bottom:12px; }
 
-label { display:block; margin-bottom:8px; }
+/* ===== MAP ===== */
+#sceneView {
+  position: absolute;
+  top: 70px;
+  left: 260px;
+  right: 0;
+  bottom: 0;
+}
 </style>
 </head>
 
 <body>
 
-<div id="sidebar">
-  <label><input type="checkbox" id="swBuildings" checked> Byggnader</label>
-  <label><input type="checkbox" id="swOx" checked> Oxnehaga</label>
-  <label><input type="checkbox" id="swBus" checked> Busshållplatser</label>
+<!-- ===== HEADER ===== -->
+<div id="header">
+  <div><b>STN25XR | Öxnehaga | Huskvarna</b></div>
+  <div>
+    <div id="temp">Temperatur: …</div>
+    <div id="clock">00:00:00</div>
+  </div>
 </div>
 
+<!-- ===== SIDEBAR ===== -->
+<div id="sidebar">
+  <label>Byggnader <input type="checkbox" id="swBuildings" checked></label>
+  <label>Oxnehaga <input type="checkbox" id="swOx" checked></label>
+  <label>Busshållplatser <input type="checkbox" id="swBus" checked></label>
+  <label>Kommunal mark <input type="checkbox" id="swMark" checked></label>
+  <label>Vatten <input type="checkbox" id="swWater" checked></label>
+</div>
+
+<!-- ===== MAP ===== -->
 <div id="sceneView"></div>
 
+<!-- ===== CLOCK ===== -->
+<script>
+setInterval(() => {
+  document.getElementById("clock").textContent =
+    new Date().toLocaleTimeString("sv-SE");
+}, 1000);
+</script>
+
+<!-- ===== WEATHER ===== -->
+<script>
+fetch("https://api.open-meteo.com/v1/forecast?latitude=57.796&longitude=14.200&current=temperature_2m")
+.then(r => r.json())
+.then(d => {
+  document.getElementById("temp").textContent =
+    "Temperatur: " + d.current.temperature_2m + " °C";
+});
+</script>
+
+<!-- ===== ARCGIS ===== -->
 <script>
 require([
   "esri/Map",
   "esri/views/SceneView",
-  "esri/layers/SceneLayer",
   "esri/layers/GeoJSONLayer"
-], function (Map, SceneView, SceneLayer, GeoJSONLayer) {
+], function (Map, SceneView, GeoJSONLayer) {
 
   const map = new Map({
     basemap: "satellite",
@@ -61,20 +114,30 @@ require([
     container: "sceneView",
     map: map,
     camera: {
-      position: { latitude: 57.796, longitude: 14.200, z: 1500 },
+      position: { latitude: 57.796, longitude: 14.200, z: 1600 },
       tilt: 45
     }
   });
 
-  /* === 3D Buildings === */
-  const buildings = new SceneLayer({
-    portalItem: {
-      id: "c444b24b184c4523a5dc96248bfea4e1"
-    }
-  });
-  map.add(buildings);
+  /* ===== LAYERS ===== */
 
-  /* === Oxnehaga area === */
+  const buildings = new GeoJSONLayer({
+    url: "./data/Main_byggnad.geojson.json",
+    elevationInfo: { mode: "relative-to-ground", offset: 0 },
+    renderer: {
+      type: "simple",
+      symbol: {
+        type: "polygon-3d",
+        symbolLayers: [{
+          type: "extrude",
+          size: 12,
+          material: { color: "#999" }
+        }]
+      }
+    },
+    popupTemplate: { title: "Byggnad", content: "{*}" }
+  });
+
   const ox = new GeoJSONLayer({
     url: "./data/Oxnehaga-Area.geojson",
     elevationInfo: { mode: "on-the-ground" },
@@ -82,51 +145,40 @@ require([
       type: "simple",
       symbol: {
         type: "simple-fill",
-        color: [0, 120, 255, 0.3],
-        outline: { color: "cyan", width: 2 }
+        color: [0,120,255,0.3],
+        outline: { color:"cyan", width:2 }
       }
-    },
-    popupTemplate: {
-      title: "Oxnehaga",
-      content: "Område"
     }
   });
-  map.add(ox);
 
-  /* === Bus stops === */
   const bus = new GeoJSONLayer({
     url: "./data/Busshallplaster_oxnehaga.geojson",
-    elevationInfo: { mode: "relative-to-ground", offset: 1 },
-    renderer: {
-      type: "simple",
-      symbol: {
-        type: "simple-marker",
-        color: "dodgerblue",
-        size: 8,
-        outline: { color: "white", width: 1 }
-      }
-    },
-    popupTemplate: {
-      title: "Busshållplats",
-      content: `
-        <ul>
-          <li><b>Namn:</b> {name}</li>
-          <li><b>ID:</b> {id}</li>
-        </ul>
-      `
-    }
-  });
-  map.add(bus);
-
-  /* === Zoom === */
-  view.whenLayerView(ox).then(() => {
-    ox.queryExtent().then(r => view.goTo(r.extent.expand(1.5)));
+    elevationInfo: { mode:"relative-to-ground", offset:1 },
+    popupTemplate: { title:"Busshållplats", content:"{*}" }
   });
 
-  /* === UI === */
-  document.getElementById("swBuildings").onchange = e => buildings.visible = e.target.checked;
-  document.getElementById("swOx").onchange = e => ox.visible = e.target.checked;
-  document.getElementById("swBus").onchange = e => bus.visible = e.target.checked;
+  const mark = new GeoJSONLayer({
+    url: "./data/Komunal_mark.geojson",
+    elevationInfo: { mode:"on-the-ground" },
+    popupTemplate: { title:"Kommunal mark", content:"{*}" }
+  });
+
+  const water = new GeoJSONLayer({
+    url: "./data/Vatten_jonkoping_01.geojson",
+    elevationInfo: { mode:"on-the-ground" },
+    popupTemplate: { title:"Vatten", content:"{*}" }
+  });
+
+  map.addMany([ox, mark, water, buildings, bus]);
+
+  view.when(() => ox.queryExtent().then(r => view.goTo(r.extent.expand(1.4))));
+
+  /* ===== UI ===== */
+  swBuildings.onchange = e => buildings.visible = e.target.checked;
+  swOx.onchange        = e => ox.visible        = e.target.checked;
+  swBus.onchange       = e => bus.visible       = e.target.checked;
+  swMark.onchange      = e => mark.visible      = e.target.checked;
+  swWater.onchange     = e => water.visible     = e.target.checked;
 
 });
 </script>
