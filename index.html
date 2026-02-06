@@ -10,60 +10,81 @@
 <script src="https://js.arcgis.com/4.30/"></script>
 
 <style>
-html, body { margin:0; height:100%; font-family:Arial, Helvetica, sans-serif; }
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: Arial, Helvetica, sans-serif;
+}
 
 /* ===== HEADER ===== */
 #header {
-  height:70px;
-  background:#f4f4f4;
-  border-bottom:2px solid #ccc;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:0 20px;
-  box-sizing:border-box;
+  height: 70px;
+  background: #f4f4f4;
+  border-bottom: 2px solid #ccc;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  box-sizing: border-box;
 }
 
 /* ===== LEFT MENU ===== */
 #left {
-  position:absolute;
-  top:70px;
-  left:0;
-  width:240px;
-  bottom:0;
-  background:#222;
-  color:#fff;
-  padding:16px;
-  box-sizing:border-box;
+  position: absolute;
+  top: 70px;
+  left: 0;
+  width: 240px;
+  bottom: 0;
+  background: #222;
+  color: #fff;
+  padding: 16px;
+  box-sizing: border-box;
 }
 
 /* ===== RIGHT PANEL ===== */
 #right {
-  position:absolute;
-  top:70px;
-  right:0;
-  width:320px;
-  bottom:0;
-  background:#f7f7f7;
-  border-left:2px solid #ccc;
-  padding:12px;
-  box-sizing:border-box;
-  overflow:auto;
+  position: absolute;
+  top: 70px;
+  right: 0;
+  width: 320px;
+  bottom: 0;
+  background: #f7f7f7;
+  border-left: 2px solid #ccc;
+  padding: 12px;
+  box-sizing: border-box;
+  overflow: auto;
 }
 
 /* ===== MAP ===== */
 #sceneView {
-  position:absolute;
-  top:70px;
-  left:240px;
-  right:320px;
-  bottom:0;
+  position: absolute;
+  top: 70px;
+  left: 240px;
+  right: 320px;
+  bottom: 0;
 }
 
-label { display:flex; justify-content:space-between; margin-bottom:10px; }
-table { width:100%; border-collapse:collapse; font-size:13px; }
-td { padding:4px; border-bottom:1px solid #ddd; }
-td:first-child { font-weight:bold; width:45%; }
+label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+td {
+  padding: 4px;
+  border-bottom: 1px solid #ddd;
+}
+
+td:first-child {
+  font-weight: bold;
+  width: 45%;
+}
 </style>
 </head>
 
@@ -97,15 +118,19 @@ td:first-child { font-weight:bold; width:45%; }
 <!-- ===== MAP ===== -->
 <div id="sceneView"></div>
 
-<!-- ===== CLOCK + WEATHER ===== -->
+<!-- ===== CLOCK & WEATHER ===== -->
 <script>
-setInterval(() =>
-  clock.textContent = new Date().toLocaleTimeString("sv-SE"), 1000
-);
+setInterval(function () {
+  document.getElementById("clock").textContent =
+    new Date().toLocaleTimeString("sv-SE");
+}, 1000);
 
 fetch("https://api.open-meteo.com/v1/forecast?latitude=57.796&longitude=14.200&current=temperature_2m")
-.then(r=>r.json())
-.then(d=>temp.textContent="Temp: "+d.current.temperature_2m+"°C");
+  .then(function (r) { return r.json(); })
+  .then(function (d) {
+    document.getElementById("temp").textContent =
+      "Temp: " + d.current.temperature_2m + " °C";
+  });
 </script>
 
 <!-- ===== ARCGIS ===== -->
@@ -116,6 +141,7 @@ require([
   "esri/layers/GeoJSONLayer"
 ], function (Map, SceneView, GeoJSONLayer) {
 
+  /* ===== MAP & VIEW ===== */
   const map = new Map({
     basemap: "satellite",
     ground: "world-elevation"
@@ -125,57 +151,126 @@ require([
     container: "sceneView",
     map: map,
     camera: {
-      position: { latitude:57.796, longitude:14.200, z:1500 },
+      position: { latitude: 57.796, longitude: 14.200, z: 1500 },
       tilt: 45
     }
   });
 
   /* ===== LAYERS ===== */
+
   const buildings = new GeoJSONLayer({
     url: "./data/Main_byggnad.geojson.json",
-    elevationInfo:{ mode:"relative-to-ground" }
+    elevationInfo: { mode: "relative-to-ground" },
+    renderer: {
+      type: "simple",
+      symbol: {
+        type: "polygon-3d",
+        symbolLayers: [{
+          type: "extrude",
+          size: 10,
+          material: { color: "#9e9e9e" }
+        }]
+      }
+    }
   });
 
   const ox = new GeoJSONLayer({
     url: "./data/Oxnehaga-Area.geojson",
-    elevationInfo:{ mode:"on-the-ground" }
+    elevationInfo: { mode: "on-the-ground" },
+    renderer: {
+      type: "simple",
+      symbol: {
+        type: "simple-fill",
+        color: [0, 120, 255, 0.25],
+        outline: { color: [0, 120, 255], width: 2 }
+      }
+    }
   });
 
   const bus = new GeoJSONLayer({
     url: "./data/Busshallplaster_oxnehaga.geojson",
-    elevationInfo:{ mode:"relative-to-ground", offset:1 }
+    elevationInfo: { mode: "relative-to-ground", offset: 1 },
+    renderer: {
+      type: "simple",
+      symbol: {
+        type: "simple-marker",
+        color: [255, 140, 0],
+        size: 8,
+        outline: { color: "white", width: 1 }
+      }
+    }
   });
 
   const mark = new GeoJSONLayer({
-    url: "./data/Komunal_mark.geojson"
+    url: "./data/Komunal_mark.geojson",
+    renderer: {
+      type: "simple",
+      symbol: {
+        type: "simple-fill",
+        color: [0, 160, 80, 0.35],
+        outline: { color: [0, 120, 60], width: 1 }
+      }
+    }
   });
 
   const water = new GeoJSONLayer({
-    url: "./data/Vatten_jonkoping_01.geojson"
+    url: "./data/Vatten_jonkoping_01.geojson",
+    renderer: {
+      type: "simple",
+      symbol: {
+        type: "simple-fill",
+        color: [0, 150, 200, 0.4],
+        outline: { color: [0, 120, 180], width: 1 }
+      }
+    }
   });
 
   map.addMany([ox, mark, water, buildings, bus]);
 
+  /* ===== AUTO ZOOM TO ÖXNEHAGA ===== */
+  view.whenLayerView(ox).then(function () {
+    ox.queryExtent().then(function (result) {
+      view.goTo(
+        { target: result.extent.expand(1.4), tilt: 40 },
+        { duration: 1200 }
+      );
+    });
+  });
+
   /* ===== SWITCHES ===== */
-  swBuildings.onchange = e => buildings.visible = e.target.checked;
-  swOx.onchange        = e => ox.visible        = e.target.checked;
-  swBus.onchange       = e => bus.visible       = e.target.checked;
-  swMark.onchange      = e => mark.visible      = e.target.checked;
-  swWater.onchange     = e => water.visible     = e.target.checked;
+  document.getElementById("swBuildings").onchange = function (e) {
+    buildings.visible = e.target.checked;
+  };
+  document.getElementById("swOx").onchange = function (e) {
+    ox.visible = e.target.checked;
+  };
+  document.getElementById("swBus").onchange = function (e) {
+    bus.visible = e.target.checked;
+  };
+  document.getElementById("swMark").onchange = function (e) {
+    mark.visible = e.target.checked;
+  };
+  document.getElementById("swWater").onchange = function (e) {
+    water.visible = e.target.checked;
+  };
 
   /* ===== CLICK → RIGHT PANEL ===== */
-  view.on("click", event => {
-    view.hitTest(event).then(hit => {
-      const g = hit.results.find(r => r.graphic)?.graphic;
-      if (!g) return;
+  view.on("click", function (event) {
+    view.hitTest(event).then(function (hit) {
+      const found = hit.results.find(function (r) {
+        return r.graphic;
+      });
+      if (!found) return;
 
-      attrHint.style.display = "none";
+      document.getElementById("attrHint").style.display = "none";
       const table = document.getElementById("attrTable");
       table.innerHTML = "";
 
-      Object.entries(g.attributes).forEach(([k,v]) => {
-        table.innerHTML += `<tr><td>${k}</td><td>${v}</td></tr>`;
-      });
+      const attrs = found.graphic.attributes;
+      for (const key in attrs) {
+        const row = "<tr><td>" + key + "</td><td>" + attrs[key] + "</td></tr>";
+        table.innerHTML += row;
+      }
     });
   });
 
@@ -184,4 +279,5 @@ require([
 
 </body>
 </html>
+
 
