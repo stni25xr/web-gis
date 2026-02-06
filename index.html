@@ -5,307 +5,223 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>STN25XR | Öxnehaga | Huskvarna</title>
 
-  <!-- ArcGIS JavaScript API (RIKTIGA TAGGAR) -->
-  https://js.arcgis.com/4.30/esri/themes/light/main.css
-  https://js.arcgis.com/4.30/</script>
+  <!-- ArcGIS JavaScript API – RIKTIGA TAGGAR -->
+  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
+  <script src="https://js.arcgis.com/4.30/"></script>
 
   <style>
-    /* ===== Global ===== */
     html, body { margin:0; padding:0; height:100%; width:100%; overflow:hidden; font-family:Arial, Helvetica, sans-serif; }
 
-    /* ===== Header ===== */
+    /* HEADER */
     #header {
-      height: 70px; background:#f5f5f5; border-bottom:2px solid #ccc;
-      padding:0 20px; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box;
+      height:70px; background:#f5f5f5; border-bottom:2px solid #ccc;
+      padding:0 20px; display:flex; justify-content:space-between; align-items:center;
     }
-    #header-title { font-weight:700; }
     #header-info { text-align:right; font-size:14px; line-height:1.25; }
     #clock { color:#666; }
 
-    /* ===== Sidebar ===== */
+    /* SIDEBAR */
     #sidebar {
       position:fixed; top:70px; left:0; width:260px; height:calc(100% - 70px);
-      background:#222; color:#fff; padding:20px; box-sizing:border-box; overflow-y:auto; z-index:10;
+      background:#222; color:#fff; padding:20px; overflow-y:auto; z-index:10;
     }
     #sidebar h2 {
       margin:0 0 12px 0; font-size:16px; color:#ddd; border-bottom:1px solid #444; padding-bottom:8px;
     }
     .switch-row { display:flex; justify-content:space-between; align-items:center; margin:14px 0; }
-    .switch-label { font-size:14px; user-select:none; }
+    .switch-label { font-size:14px; }
 
-    /* ===== Slide switch ===== */
+    /* SWITCH */
     .switch { position:relative; width:44px; height:24px; }
     .switch input { opacity:0; width:0; height:0; }
-    .slider { position:absolute; inset:0; background:#555; border-radius:24px; cursor:pointer; transition:.2s; }
-    .slider:before { content:""; position:absolute; left:3px; top:3px; width:18px; height:18px; background:#fff; border-radius:50%; transition:transform .2s; box-shadow:0 1px 2px rgba(0,0,0,.4); }
-    .switch input:checked + .slider { background:#2d6cdf; }
-    .switch input:checked + .slider:before { transform:translateX(20px); }
-
-    /* ===== Map ===== */
-    #sceneView {
-      position:absolute; top:70px; left:260px; width:calc(100% - 260px); height:calc(100% - 70px); z-index:1;
+    .slider {
+      position:absolute; inset:0; background:#555; border-radius:24px; cursor:pointer; transition:.2s;
     }
+    .slider:before {
+      content:""; position:absolute; left:3px; top:3px; width:18px; height:18px;
+      background:white; border-radius:50%; transition:transform .2s;
+    }
+    input:checked + .slider { background:#2d6cdf; }
+    input:checked + .slider:before { transform:translateX(20px); }
 
-    @media (max-width:900px){
-      #sidebar { width:200px; }
-      #sceneView { left:200px; width:calc(100% - 200px); }
+    /* MAP */
+    #sceneView {
+      position:absolute; top:70px; left:260px;
+      width:calc(100% - 260px); height:calc(100% - 70px);
     }
   </style>
 </head>
 
 <body>
 
-  <!-- ===== HEADER ===== -->
+  <!-- HEADER -->
   <div id="header">
     <div id="header-title">STN25XR | Öxnehaga | Huskvarna</div>
     <div id="header-info">
       <div>Öxnehaga i Huskvarna – ca 3400 invånare</div>
       <div id="wx-summary">Väder: …</div>
-      <div id="wx-precip">Nederbörd (nästa 2 h): …</div>
-      <div id="wx-snow">Snörisk (nästa 2 h): …</div>
+      <div id="wx-precip">Nederbörd: …</div>
+      <div id="wx-snow">Snörisk: …</div>
       <div id="temp">Temperatur: …</div>
       <div id="clock">00:00:00</div>
     </div>
   </div>
 
-  <!-- ===== SIDEBAR ===== -->
-  <aside id="sidebar" aria-label="Sidomeny">
+  <!-- SIDEBAR -->
+  <aside id="sidebar">
     <h2>Meny</h2>
 
     <div class="switch-row">
-      <span class="switch-label">Visa 3D‑byggnader (global)</span>
-      <label class="switch" aria-label="Visa 3D‑byggnader">
-        <input id="swBuildings3D" type="checkbox" checked />
-        <span class="slider"></span>
-      </label>
+      <span class="switch-label">Visa byggnader</span>
+      <label class="switch"><input id="swBuildings" type="checkbox" checked><span class="slider"></span></label>
     </div>
 
     <div class="switch-row">
-      <span class="switch-label">Visa Oxnehaga (polygon)</span>
-      <label class="switch" aria-label="Visa Oxnehaga">
-        <input id="swOx" type="checkbox" checked />
-        <span class="slider"></span>
-      </label>
+      <span class="switch-label">Visa Oxnehaga</span>
+      <label class="switch"><input id="swOx" type="checkbox" checked><span class="slider"></span></label>
     </div>
 
     <div class="switch-row">
       <span class="switch-label">Visa busshållplatser</span>
-      <label class="switch" aria-label="Visa busshållplatser">
-        <input id="swBus" type="checkbox" checked />
-        <span class="slider"></span>
-      </label>
-    </div>
-
-    <div class="switch-row">
-      <span class="switch-label">Visa byggnader (GeoJSON)</span>
-      <label class="switch" aria-label="Visa byggnader (GeoJSON)">
-        <input id="swBygg" type="checkbox" checked />
-        <span class="slider"></span>
-      </label>
+      <label class="switch"><input id="swBus" type="checkbox" checked><span class="slider"></span></label>
     </div>
   </aside>
 
-  <!-- ===== 3D MAP ===== -->
-  <div id="sceneView" role="main" aria-label="3D‑karta"></div>
+  <!-- 3D MAP -->
+  <div id="sceneView"></div>
 
-  <!-- ===== CLOCK ===== -->
+  <!-- CLOCK -->
   <script>
     function updateClock() {
-      const el = document.getElementById("clock");
-      if (el) el.textContent = new Date().toLocaleTimeString("sv-SE");
+      document.getElementById("clock").textContent =
+        new Date().toLocaleTimeString("sv-SE");
     }
-    setInterval(updateClock, 1000); updateClock();
+    setInterval(updateClock,1000); updateClock();
   </script>
 
-  <!-- ===== WEATHER (Open‑Meteo) ===== -->
+  <!-- WEATHER -->
   <script>
     function describeWeather(code) {
       const map = {
-        0:"☀️ Klart",1:"🌤️ Mest klart",2:"⛅ Växlande molnighet",3:"☁️ Mulet",
-        45:"🌫️ Dimma",48:"🌫️ Dimfrost",
-        51:"🌧️ Lätt duggregn",53:"🌧️ Måttligt duggregn",55:"🌧️ Kraftigt duggregn",
+        0:"☀️ Klart",1:"🌤️ Mest klart",2:"⛅ Molnigt",3:"☁️ Mulet",
         61:"🌧️ Lätt regn",63:"🌧️ Regn",65:"🌧️ Kraftigt regn",
-        66:"🌧️ Underkylt regn",67:"🌧️ Kraftigt underkylt regn",
-        71:"❄️ Lätt snöfall",73:"❄️ Snöfall",75:"❄️ Kraftigt snöfall",
-        77:"❄️ Snökorn",80:"🌧️ Lätta regnskurar",81:"🌧️ Regnskurar",82:"🌧️ Kraftiga regnskurar",
-        85:"❄️ Snöbyar",86:"❄️ Kraftiga snöbyar",
-        95:"⛈️ Åska",96:"⛈️ Åska + hagel",99:"⛈️ Kraftig åska + hagel"
+        71:"❄️ Snöfall",73:"❄️ Snöfall",75:"❄️ Kraftigt snöfall",
+        85:"❄️ Snöbyar",95:"⛈️ Åska"
       };
       return map[code] || "Växlande";
     }
 
     async function updateWeather() {
-      const sum  = document.getElementById("wx-summary");
-      const pr   = document.getElementById("wx-precip");
-      const snow = document.getElementById("wx-snow");
-      const temp = document.getElementById("temp");
-
       try {
-        const url = "https://api.open-meteo.com/v1/forecast"
-          + "?latitude=57.796&longitude=14.200"
+        const url =
+          "https://api.open-meteo.com/v1/forecast?latitude=57.796&longitude=14.200"
           + "&current=temperature_2m,weather_code"
           + "&hourly=precipitation_probability,snowfall"
           + "&timezone=auto";
 
-        const res = await fetch(url, { cache: "no-store" });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const data = await res.json();
+        const r = await fetch(url);
+        const d = await r.json();
 
-        const t = data?.current?.temperature_2m;
-        const code = data?.current?.weather_code;
-        const p = data?.hourly?.precipitation_probability || [];
-        const s = data?.hourly?.snowfall || [];
+        const temp = d.current.temperature_2m;
+        const wc   = d.current.weather_code;
 
-        const wx = describeWeather(code);
-        const maxP = p.length ? Math.max(p[0] ?? 0, p[1] ?? 0) : null;
-        const snowSum = s.length ? (Number(s[0] || 0) + Number(s[1] || 0)) : 0;
+        const p = d.hourly.precipitation_probability;
+        const s = d.hourly.snowfall;
 
-        sum.textContent  = `Väder: ${wx}`;
-        pr.textContent   = `Nederbörd (nästa 2 h): ${maxP !== null ? maxP + " %" : "N/A"}`;
-        snow.textContent = `Snörisk (nästa 2 h): ${snowSum > 0 ? "Ja (" + snowSum.toFixed(1) + " mm)" : "Nej"}`;
-        temp.textContent = (typeof t === "number") ? `Temperatur: ${t}°C` : "Temperatur: N/A";
-      } catch (e) {
-        sum.textContent  = "Väder: N/A";
-        pr.textContent   = "Nederbörd (nästa 2 h): N/A";
-        snow.textContent = "Snörisk (nästa 2 h): N/A";
-        temp.textContent = "Temperatur: N/A";
+        document.getElementById("temp").textContent = "Temperatur: " + temp + "°C";
+        document.getElementById("wx-summary").textContent = "Väder: " + describeWeather(wc);
+        document.getElementById("wx-precip").textContent = "Nederbörd: " + p[0] + " %";
+        document.getElementById("wx-snow").textContent = "Snö (2h): " + s[0] + " mm";
+
+      } catch(e) {
         console.warn("Weather error:", e);
       }
     }
     updateWeather();
-    setInterval(updateWeather, 300000);
   </script>
 
-  <!-- ===== ARCGIS (3D) ===== -->
+  <!-- ARCGIS 3D MAP -->
   <script>
     require([
       "esri/Map",
       "esri/views/SceneView",
       "esri/layers/SceneLayer",
       "esri/layers/GeoJSONLayer"
-    ], function (Map, SceneView, SceneLayer, GeoJSONLayer) {
+    ], function(Map, SceneView, SceneLayer, GeoJSONLayer) {
 
-      /* === Map === */
-      const map = new Map({ basemap: "satellite", ground: "world-elevation" });
+      const map = new Map({
+        basemap: "satellite",
+        ground: "world-elevation"
+      });
 
-      /* === 3D View === */
       const view = new SceneView({
         container: "sceneView",
         map,
-        camera: { position: { latitude: 57.796, longitude: 14.200, z: 1800 }, tilt: 45 }
+        camera: { position:{ latitude:57.796, longitude:14.20, z:1800 }, tilt:45 }
       });
 
-      /* === 3D Buildings (global scene layer) === */
-      const buildings3D = new SceneLayer({
-        portalItem: { id: "c444b24b184c4523a5dc96248bfea4e1" },
-        visible: true
+      /* === 3D BYGGNADER === */
+      const buildings = new SceneLayer({
+        portalItem:{ id:"c444b24b184c4523a5dc96248bfea4e1" },
+        visible:true
       });
-      map.add(buildings3D);
+      map.add(buildings);
 
-      /* === Oxnehaga polygon (GeoJSON) === */
+      /* === OXNEHAGA POLYGON === */
       const ox = new GeoJSONLayer({
-        url: "./data/Oxnehaga-Area.geojson",
-        title: "Oxnehaga Area",
-        renderer: {
-          type: "simple",
-          symbol: { type: "simple-fill", color: [0,100,255,0.25], outline: { color: [0,100,255], width: 2 } }
+        url:"./data/Oxnehaga-Area.geojson",
+        renderer:{
+          type:"simple",
+          symbol:{
+            type:"simple-fill",
+            color:[0,100,255,0.25],
+            outline:{ color:[0,100,255], width:2 }
+          }
         },
-        elevationInfo: { mode: "on-the-ground" },
-        visible: true
+        elevationInfo:{ mode:"on-the-ground" },
+        visible:true
       });
       map.add(ox);
 
-      /* === Bus stops (GeoJSON points) === */
+      /* === BUSSHÅLLPLATSER === */
       const bus = new GeoJSONLayer({
-        url: "./data/Busshallplaster_oxnehaga.geojson",
-        title: "Busshållplatser",
-        renderer: {
-          type: "simple",
-          symbol: {
-            type: "simple-marker",
-            color: [0,120,255,0.95],
-            size: 7,
-            outline: { color: "white", width: 1 }
+        url:"./data/Busshallplaster_oxnehaga.geojson",   <!-- ditt nya namn -->
+        title:"Busshållplatser",
+        renderer:{
+          type:"simple",
+          symbol:{
+            type:"simple-marker",
+            color:[0,120,255,0.95],
+            size:8,
+            outline:{ color:"white", width:1 }
           }
         },
-        elevationInfo: { mode: "on-the-ground" },
-        visible: true
+        popupTemplate:{
+          title:"Busshållplats",
+          content:[
+            { type:"fields", fieldInfos:[] }   // Visa ALLA attribut tills vi vet vilka du vill ha
+          ]
+        },
+        elevationInfo:{ mode:"on-the-ground" },
+        visible:true
       });
       map.add(bus);
 
-      /* === BYGGNADER (GeoJSON) — med popup + etiketter === */
-      const bygg = new GeoJSONLayer({
-        url: "./data/Main_byggnad.geojson.json",
-        title: "Byggnader (GeoJSON)",
-        renderer: {
-          type: "simple",
-          symbol: {
-            type: "simple-fill",
-            color: [255, 215, 0, 0.25],            /* guld-transparent */
-            outline: { color: [255, 215, 0], width: 1.5 }
-          }
-        },
-        elevationInfo: { mode: "on-the-ground" },
-
-        /* Popup: visa ALLA fält så du ser vad som finns.
-           När du bestämt vilka du vill ha, byter vi till en snygg mall. */
-        popupTemplate: {
-          title: "{name}",   /* Om fältet saknas visas bara tom titel; vi fixar efter prov */
-          content: [{ type: "fields", fieldInfos: [] }]
-        },
-
-        /* Etiketter: visa första fält som finns av name/Namn/byggnad/Building/OBJECTID */
-        labelingInfo: [{
-          symbol: {
-            type: "text",
-            color: "#ffd700",
-            haloColor: "#000000",
-            haloSize: 1.5,
-            font: { size: 10, weight: "bold", family: "Arial" }
-          },
-          labelPlacement: "always-horizontal",
-          labelExpressionInfo: {
-            /* Arcade: coalesce på vanliga namn-fält */
-            expression: `
-              var t = DefaultValue($feature.name,
-                        DefaultValue($feature.Namn,
-                          DefaultValue($feature.byggnad,
-                            DefaultValue($feature.Building, Text($feature.OBJECTID))
-                          )
-                        )
-                      );
-              return t;
-            `
-          },
-          minScale: 0,   /* visas i alla skalor – kan justeras t.ex. 5000 */
-          maxScale: 0
-        }],
-
-        visible: true
-      });
-      map.add(bygg);
-
-      /* === Auto-zoom to Oxnehaga (behåll som tidigare) === */
+      /* === AUTO-ZOOM === */
       view.whenLayerView(ox).then(() => {
         ox.queryExtent().then((res) => {
-          if (res && res.extent) {
-            view.goTo({ target: res.extent, tilt: 38 }, { duration: 1200 });
-          }
+          view.goTo({ target: res.extent, tilt:38 }, { duration:1200 });
         });
       });
 
-      /* === Menu switches === */
-      const swBuildings3D = document.getElementById("swBuildings3D");
-      const swOx         = document.getElementById("swOx");
-      const swBus        = document.getElementById("swBus");
-      const swBygg       = document.getElementById("swBygg");
+      /* === SWITCHAR === */
+      swBuildings.onchange = () => buildings.visible = swBuildings.checked;
+      swOx.onchange        = () => ox.visible        = swOx.checked;
+      swBus.onchange       = () => bus.visible       = swBus.checked;
 
-      swBuildings3D.addEventListener("change", () => { buildings3D.visible = swBuildings3D.checked; });
-      swOx.addEventListener("change",         () => { ox.visible           = swOx.checked;          });
-      swBus.addEventListener("change",        () => { bus.visible          = swBus.checked;         });
-      swBygg.addEventListener("change",       () => { bygg.visible         = swBygg.checked;        });
     });
   </script>
 
 </body>
 </html>
+``
