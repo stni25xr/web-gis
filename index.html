@@ -153,6 +153,13 @@
     </div>
 
     <div class="panel-section">
+      <div class="panel-title">Avgångar (busshållplats)</div>
+      <div id="depHint">Klicka på en busshållplats</div>
+      <div id="depMeta" style="font-size:12px;color:#64748b;margin-top:6px;"></div>
+      <ul id="depList"></ul>
+    </div>
+
+    <div class="panel-section">
       <div class="panel-title">Unika attribut</div>
       <div class="field-row">
         <select id="uniqueLayer"></select>
@@ -253,6 +260,8 @@
       "esri/layers/SceneLayer",
       "esri/layers/GeoJSONLayer"
     ], function (Map, SceneView, SceneLayer, GeoJSONLayer) {
+
+      const RESROBOT_KEY = "a1ba6c34-9ea5-4b8f-907e-d4c18a3f58ec"; // Trafiklab ResRobot v2.1 API-nyckel
 
       const map = new Map({ basemap: "satellite", ground: "world-elevation" });
 
@@ -384,6 +393,9 @@
       // ===== Right panel: attribut + unika värden =====
       const attrHint = document.getElementById("attrHint");
       const attrTable = document.getElementById("attrTable");
+      const depHint = document.getElementById("depHint");
+      const depList = document.getElementById("depList");
+      const depMeta = document.getElementById("depMeta");
       const uniqueLayer = document.getElementById("uniqueLayer");
       const uniqueField = document.getElementById("uniqueField");
       const uniqueList = document.getElementById("uniqueList");
@@ -442,6 +454,12 @@
         lastHighlight = null;
       }
 
+      function clearDepartures(message) {
+        depList.innerHTML = "";
+        depMeta.textContent = "";
+        depHint.textContent = message || "Klicka på en busshållplats";
+      }
+
       function renderAttributes(attrs) {
         attrTable.innerHTML = "";
         if (!attrs) return;
@@ -463,6 +481,72 @@
         });
       }
 
+      async function fetchStopIdByName(name) {
+        const url = "https://api.resrobot.se/v2.1/location.name"
+          + "?input=" + encodeURIComponent(name + "?")
+          + "&format=json"
+          + "&accessId=" + encodeURIComponent(RESROBOT_KEY);
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Stop lookup HTTP " + res.status);
+        const data = await res.json();
+        const stop = data?.StopLocation?.[0];
+        return stop?.id || null;
+      }
+
+      function formatDeparture(dep) {
+        const time = dep.rtTime || dep.time || "";
+        const line = dep.transportNumber || dep.name || "";
+        const dir = dep.direction || "";
+        return `${time}  ${line} → ${dir}`.trim();
+      }
+
+      async function loadDeparturesForStopName(name) {
+        if (!RESROBOT_KEY) {
+          clearDepartures("Lägg in din ResRobot API‑nyckel i koden");
+          return;
+        }
+        depHint.textContent = "Hämtar avgångar…";
+        depList.innerHTML = "";
+        depMeta.textContent = "";
+
+        try {
+          const stopId = await fetchStopIdByName(name);
+          if (!stopId) {
+            clearDepartures("Hittade ingen matchande hållplats");
+            return;
+          }
+
+          const url = "https://api.resrobot.se/v2.1/departureBoard"
+            + "?id=" + encodeURIComponent(stopId)
+            + "&format=json"
+            + "&duration=60"
+            + "&maxJourneys=8"
+            + "&accessId=" + encodeURIComponent(RESROBOT_KEY);
+
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("DepartureBoard HTTP " + res.status);
+          const data = await res.json();
+          const deps = data?.DepartureBoard?.Departure || [];
+
+          if (deps.length === 0) {
+            clearDepartures("Inga avgångar just nu");
+            return;
+          }
+
+          depHint.textContent = "";
+          deps.forEach((d) => {
+            const li = document.createElement("li");
+            li.textContent = formatDeparture(d);
+            depList.appendChild(li);
+          });
+          depMeta.textContent = "Nästa 60 min";
+        } catch (e) {
+          clearDepartures("Kunde inte hämta avgångar");
+          console.warn("Departures error:", e);
+        }
+      }
+
       view.on("click", (event) => {
         view.hitTest(event).then((hit) => {
           const found = hit.results.find((r) => r.graphic);
@@ -473,6 +557,7 @@
             attrTable.innerHTML = "";
             lastSelection = null;
             clearHighlight();
+            clearDepartures();
             return;
           }
           attrHint.style.display = "none";
@@ -482,6 +567,7 @@
             lastHighlight = lv.highlight(lastSelection.graphic);
           });
           renderAttributes(found.graphic.attributes);
+          loadDeparturesForStopName(found.graphic.attributes?.Hplnamn || "");
         });
       });
 
@@ -578,5 +664,6 @@
   </script>
 </body>
 </html>
+
 
 
