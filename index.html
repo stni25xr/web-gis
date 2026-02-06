@@ -481,9 +481,24 @@
         });
       }
 
+      async function fetchStopIdByCoords(lat, lon) {
+        const url = "https://api.resrobot.se/v2.1/location.nearbystops"
+          + "?originCoordLat=" + encodeURIComponent(lat)
+          + "&originCoordLong=" + encodeURIComponent(lon)
+          + "&maxNo=1&r=50"
+          + "&format=json"
+          + "&accessId=" + encodeURIComponent(RESROBOT_KEY);
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Stop lookup HTTP " + res.status);
+        const data = await res.json();
+        const stop = data?.StopLocation?.[0];
+        return stop?.id || null;
+      }
+
       async function fetchStopIdByName(name) {
         const url = "https://api.resrobot.se/v2.1/location.name"
-          + "?input=" + encodeURIComponent(name + "?")
+          + "?input=" + encodeURIComponent(name)
           + "&format=json"
           + "&accessId=" + encodeURIComponent(RESROBOT_KEY);
 
@@ -501,7 +516,7 @@
         return `${time}  ${line} → ${dir}`.trim();
       }
 
-      async function loadDeparturesForStopName(name) {
+      async function loadDeparturesForStop(geom, name) {
         if (!RESROBOT_KEY) {
           clearDepartures("Lägg in din ResRobot API‑nyckel i koden");
           return;
@@ -511,7 +526,17 @@
         depMeta.textContent = "";
 
         try {
-          const stopId = await fetchStopIdByName(name);
+          let stopId = null;
+          if (geom && geom.type === "point") {
+            const lon = geom.longitude ?? geom.x ?? (geom.coordinates ? geom.coordinates[0] : null);
+            const lat = geom.latitude ?? geom.y ?? (geom.coordinates ? geom.coordinates[1] : null);
+            if (lat !== null && lon !== null) {
+              stopId = await fetchStopIdByCoords(lat, lon);
+            }
+          }
+          if (!stopId && name) {
+            stopId = await fetchStopIdByName(name);
+          }
           if (!stopId) {
             clearDepartures("Hittade ingen matchande hållplats");
             return;
@@ -567,7 +592,7 @@
             lastHighlight = lv.highlight(lastSelection.graphic);
           });
           renderAttributes(found.graphic.attributes);
-          loadDeparturesForStopName(found.graphic.attributes?.Hplnamn || "");
+          loadDeparturesForStop(found.graphic.geometry, found.graphic.attributes?.Hplnamn || "");
         });
       });
 
@@ -664,6 +689,7 @@
   </script>
 </body>
 </html>
+
 
 
 
