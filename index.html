@@ -550,7 +550,7 @@
           const url = "https://api.resrobot.se/v2.1/departureBoard"
             + "?id=" + encodeURIComponent(stopId)
             + "&format=json"
-            + "&duration=60"
+            + "&duration=1440"
             + "&maxJourneys=8"
             + "&accessId=" + encodeURIComponent(RESROBOT_KEY);
 
@@ -570,7 +570,7 @@
             li.textContent = formatDeparture(d);
             depList.appendChild(li);
           });
-          depMeta.textContent = "Nästa 60 min";
+          depMeta.textContent = "Nästa 24 h";
         } catch (e) {
           clearDepartures("Kunde inte hämta avgångar");
           console.warn("Departures error:", e);
