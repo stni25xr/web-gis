@@ -492,7 +492,12 @@
         const res = await fetch(url);
         if (!res.ok) throw new Error("Stop lookup HTTP " + res.status);
         const data = await res.json();
-        const stop = data?.StopLocation?.[0];
+        // v2.1 can return StopLocation directly or within stopLocationOrCoordLocation
+        const direct = data?.StopLocation?.[0];
+        if (direct?.id) return direct.id;
+        const mixed = data?.stopLocationOrCoordLocation || data?.StopLocationOrCoordLocation || [];
+        const first = mixed[0];
+        const stop = first?.StopLocation || first?.stopLocation || first;
         return stop?.id || null;
       }
 
