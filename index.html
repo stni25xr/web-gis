@@ -571,7 +571,7 @@
             const text = data?.errorText || "Okänt fel";
             throw new Error(`${code}: ${text}`);
           }
-          const deps = data?.DepartureBoard?.Departure || [];
+          const deps = data?.DepartureBoard?.Departure || data?.Departure || [];
 
           if (deps.length === 0) {
             clearDepartures("Inga avgångar just nu");
