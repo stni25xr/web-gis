@@ -561,6 +561,7 @@
 
           if (deps.length === 0) {
             clearDepartures("Inga avgångar just nu");
+            depMeta.textContent = `Hållplats‑ID: ${stopId}`;
             return;
           }
 
@@ -570,9 +571,10 @@
             li.textContent = formatDeparture(d);
             depList.appendChild(li);
           });
-          depMeta.textContent = "Nästa 24 h";
+          depMeta.textContent = `Nästa 24 h • Hållplats‑ID: ${stopId}`;
         } catch (e) {
           clearDepartures("Kunde inte hämta avgångar");
+          depMeta.textContent = String(e && e.message ? e.message : e);
           console.warn("Departures error:", e);
         }
       }
