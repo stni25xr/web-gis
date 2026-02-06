@@ -451,6 +451,14 @@
         view.hitTest(event).then((hit) => {
           const found = hit.results.find((r) => r.graphic);
           if (!found) return;
+          if (found.graphic.layer !== bus) {
+            attrHint.style.display = "block";
+            attrHint.textContent = "Klicka på en busshållplats för att se attribut";
+            attrTable.innerHTML = "";
+            lastSelection = null;
+            clearHighlight();
+            return;
+          }
           attrHint.style.display = "none";
           lastSelection = { graphic: found.graphic, layer: found.graphic.layer };
           clearHighlight();
@@ -554,3 +562,4 @@
   </script>
 </body>
 </html>
+
