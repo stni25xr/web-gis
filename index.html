@@ -116,6 +116,30 @@
         <span class="slider"></span>
       </label>
     </div>
+
+    <div class="switch-row">
+      <span class="switch-label">Visa busshållplatser</span>
+      <label class="switch" aria-label="Visa busshållplatser">
+        <input id="swBus" type="checkbox" checked />
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="switch-row">
+      <span class="switch-label">Visa kommunal mark</span>
+      <label class="switch" aria-label="Visa kommunal mark">
+        <input id="swMark" type="checkbox" checked />
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="switch-row">
+      <span class="switch-label">Visa vatten</span>
+      <label class="switch" aria-label="Visa vatten">
+        <input id="swWater" type="checkbox" checked />
+        <span class="slider"></span>
+      </label>
+    </div>
   </aside>
 
   <!-- INFO PANEL -->
@@ -256,6 +280,50 @@
       });
       map.add(ox);
 
+      const bus = new GeoJSONLayer({
+        url: "./data/Busshallplaster_oxnehaga.geojson",
+        elevationInfo: { mode: "relative-to-ground", offset: 1 },
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-marker",
+            color: [255, 140, 0],
+            size: 7,
+            outline: { color: "white", width: 1 }
+          }
+        },
+        visible: true
+      });
+      map.add(bus);
+
+      const mark = new GeoJSONLayer({
+        url: "./data/Komunal_mark.geojson",
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-fill",
+            color: [0, 160, 80, 0.35],
+            outline: { color: [0, 120, 60], width: 1 }
+          }
+        },
+        visible: true
+      });
+      map.add(mark);
+
+      const water = new GeoJSONLayer({
+        url: "./data/Vatten_jonkoping_01.geojson",
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-fill",
+            color: [0, 150, 200, 0.4],
+            outline: { color: [0, 120, 180], width: 1 }
+          }
+        },
+        visible: true
+      });
+      map.add(water);
+
       // Auto‑zoom när lagret är redo
       view.whenLayerView(ox).then(() => {
         ox.queryExtent().then((res) => {
@@ -268,9 +336,15 @@
       // Switchar
       const swBuildings = document.getElementById("swBuildings");
       const swOx = document.getElementById("swOx");
+      const swBus = document.getElementById("swBus");
+      const swMark = document.getElementById("swMark");
+      const swWater = document.getElementById("swWater");
 
       swBuildings.addEventListener("change", () => buildings.visible = swBuildings.checked);
       swOx.addEventListener("change", () => ox.visible = swOx.checked);
+      swBus.addEventListener("change", () => bus.visible = swBus.checked);
+      swMark.addEventListener("change", () => mark.visible = swMark.checked);
+      swWater.addEventListener("change", () => water.visible = swWater.checked);
 
       // ===== Right panel: attribut + unika värden =====
       const attrHint = document.getElementById("attrHint");
@@ -283,7 +357,10 @@
 
       const layerOptions = [
         { id: "buildings", title: "Byggnader", layer: buildings },
-        { id: "ox", title: "Oxnehaga", layer: ox }
+        { id: "ox", title: "Oxnehaga", layer: ox },
+        { id: "bus", title: "Busshållplatser", layer: bus },
+        { id: "mark", title: "Kommunal mark", layer: mark },
+        { id: "water", title: "Vatten", layer: water }
       ];
 
       function isFieldUsable(f) {
@@ -392,3 +469,4 @@
   </script>
 </body>
 </html>
+
