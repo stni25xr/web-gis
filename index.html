@@ -481,7 +481,15 @@
         });
       }
 
-      async function fetchStopIdByCoords(lat, lon) {
+      function normalizeStopLocation(stop) {
+        if (!stop) return null;
+        const id = stop.id || stop.ID || null;
+        const extId = stop.extId || stop.extid || stop.ExtId || null;
+        const name = stop.name || stop.Name || null;
+        return { id, extId, name };
+      }
+
+      async function fetchStopByCoords(lat, lon) {
         const url = "https://api.resrobot.se/v2.1/location.nearbystops"
           + "?originCoordLat=" + encodeURIComponent(lat)
           + "&originCoordLong=" + encodeURIComponent(lon)
@@ -493,15 +501,15 @@
         if (!res.ok) throw new Error("Stop lookup HTTP " + res.status);
         const data = await res.json();
         // v2.1 can return StopLocation directly or within stopLocationOrCoordLocation
-        const direct = data?.StopLocation?.[0];
-        if (direct?.id) return direct.id;
+        const direct = normalizeStopLocation(data?.StopLocation?.[0]);
+        if (direct) return direct;
         const mixed = data?.stopLocationOrCoordLocation || data?.StopLocationOrCoordLocation || [];
         const first = mixed[0];
-        const stop = first?.StopLocation || first?.stopLocation || first;
-        return stop?.id || null;
+        const stop = normalizeStopLocation(first?.StopLocation || first?.stopLocation || first);
+        return stop || null;
       }
 
-      async function fetchStopIdByName(name) {
+      async function fetchStopByName(name) {
         const url = "https://api.resrobot.se/v2.1/location.name"
           + "?input=" + encodeURIComponent(name)
           + "&format=json"
@@ -510,8 +518,8 @@
         const res = await fetch(url);
         if (!res.ok) throw new Error("Stop lookup HTTP " + res.status);
         const data = await res.json();
-        const stop = data?.StopLocation?.[0];
-        return stop?.id || null;
+        const stop = normalizeStopLocation(data?.StopLocation?.[0]);
+        return stop || null;
       }
 
       function formatDeparture(dep) {
@@ -531,22 +539,23 @@
         depMeta.textContent = "";
 
         try {
-          let stopId = null;
+          let stop = null;
           if (geom && geom.type === "point") {
             const lon = geom.longitude ?? geom.x ?? (geom.coordinates ? geom.coordinates[0] : null);
             const lat = geom.latitude ?? geom.y ?? (geom.coordinates ? geom.coordinates[1] : null);
             if (lat !== null && lon !== null) {
-              stopId = await fetchStopIdByCoords(lat, lon);
+              stop = await fetchStopByCoords(lat, lon);
             }
           }
-          if (!stopId && name) {
-            stopId = await fetchStopIdByName(name);
+          if (!stop && name) {
+            stop = await fetchStopByName(name);
           }
-          if (!stopId) {
+          if (!stop || !(stop.extId || stop.id)) {
             clearDepartures("Hittade ingen matchande hållplats");
             return;
           }
 
+          const stopId = stop.extId || stop.id;
           const url = "https://api.resrobot.se/v2.1/departureBoard"
             + "?id=" + encodeURIComponent(stopId)
             + "&format=json"
