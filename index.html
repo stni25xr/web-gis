@@ -489,11 +489,11 @@
         return { id, extId, name };
       }
 
-      async function fetchStopByCoords(lat, lon) {
+      async function fetchStopByCoords(lat, lon, radius) {
         const url = "https://api.resrobot.se/v2.1/location.nearbystops"
           + "?originCoordLat=" + encodeURIComponent(lat)
           + "&originCoordLong=" + encodeURIComponent(lon)
-          + "&maxNo=1&r=50"
+          + "&maxNo=1&r=" + encodeURIComponent(radius)
           + "&format=json"
           + "&accessId=" + encodeURIComponent(RESROBOT_KEY);
 
@@ -509,17 +509,20 @@
         return stop || null;
       }
 
-      async function fetchStopByName(name) {
-        const url = "https://api.resrobot.se/v2.1/location.name"
-          + "?input=" + encodeURIComponent(name)
-          + "&format=json"
-          + "&accessId=" + encodeURIComponent(RESROBOT_KEY);
+      function isValidStopId(stop) {
+        if (!stop) return false;
+        if (stop.extId) return true;
+        if (!stop.id) return false;
+        return !String(stop.id).startsWith("A=");
+      }
 
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("Stop lookup HTTP " + res.status);
-        const data = await res.json();
-        const stop = normalizeStopLocation(data?.StopLocation?.[0]);
-        return stop || null;
+      async function findNearbyStop(lat, lon) {
+        const radii = [50, 150, 400];
+        for (const r of radii) {
+          const stop = await fetchStopByCoords(lat, lon, r);
+          if (isValidStopId(stop)) return stop;
+        }
+        return null;
       }
 
       function formatDeparture(dep) {
@@ -544,11 +547,8 @@
             const lon = geom.longitude ?? geom.x ?? (geom.coordinates ? geom.coordinates[0] : null);
             const lat = geom.latitude ?? geom.y ?? (geom.coordinates ? geom.coordinates[1] : null);
             if (lat !== null && lon !== null) {
-              stop = await fetchStopByCoords(lat, lon);
+              stop = await findNearbyStop(lat, lon);
             }
-          }
-          if (!stop && name) {
-            stop = await fetchStopByName(name);
           }
           if (!stop || !(stop.extId || stop.id)) {
             clearDepartures("Hittade ingen matchande hållplats");
