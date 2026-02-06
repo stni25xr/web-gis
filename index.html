@@ -6,8 +6,8 @@
   <title>STN25XR | Öxnehaga | Huskvarna</title>
 
   <!-- ArcGIS JavaScript API (RIKTIGA TAGGAR) -->
-  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css" />
-  <script src="https://js.arcgis.com/4.30/"></script>
+  https://js.arcgis.com/4.30/esri/themes/light/main.css
+  https://js.arcgis.com/4.30/</script>
 
   <style>
     /* ===== Global ===== */
@@ -210,3 +210,102 @@
           type: "simple",
           symbol: { type: "simple-fill", color: [0,100,255,0.25], outline: { color: [0,100,255], width: 2 } }
         },
+        elevationInfo: { mode: "on-the-ground" },
+        visible: true
+      });
+      map.add(ox);
+
+      /* === Bus stops (GeoJSON points) === */
+      const bus = new GeoJSONLayer({
+        url: "./data/Busshallplaster_oxnehaga.geojson",
+        title: "Busshållplatser",
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-marker",
+            color: [0,120,255,0.95],
+            size: 7,
+            outline: { color: "white", width: 1 }
+          }
+        },
+        elevationInfo: { mode: "on-the-ground" },
+        visible: true
+      });
+      map.add(bus);
+
+      /* === BYGGNADER (GeoJSON) — med popup + etiketter === */
+      const bygg = new GeoJSONLayer({
+        url: "./data/Main_byggnad.geojson.json",
+        title: "Byggnader (GeoJSON)",
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-fill",
+            color: [255, 215, 0, 0.25],            /* guld-transparent */
+            outline: { color: [255, 215, 0], width: 1.5 }
+          }
+        },
+        elevationInfo: { mode: "on-the-ground" },
+
+        /* Popup: visa ALLA fält så du ser vad som finns.
+           När du bestämt vilka du vill ha, byter vi till en snygg mall. */
+        popupTemplate: {
+          title: "{name}",   /* Om fältet saknas visas bara tom titel; vi fixar efter prov */
+          content: [{ type: "fields", fieldInfos: [] }]
+        },
+
+        /* Etiketter: visa första fält som finns av name/Namn/byggnad/Building/OBJECTID */
+        labelingInfo: [{
+          symbol: {
+            type: "text",
+            color: "#ffd700",
+            haloColor: "#000000",
+            haloSize: 1.5,
+            font: { size: 10, weight: "bold", family: "Arial" }
+          },
+          labelPlacement: "always-horizontal",
+          labelExpressionInfo: {
+            /* Arcade: coalesce på vanliga namn-fält */
+            expression: `
+              var t = DefaultValue($feature.name,
+                        DefaultValue($feature.Namn,
+                          DefaultValue($feature.byggnad,
+                            DefaultValue($feature.Building, Text($feature.OBJECTID))
+                          )
+                        )
+                      );
+              return t;
+            `
+          },
+          minScale: 0,   /* visas i alla skalor – kan justeras t.ex. 5000 */
+          maxScale: 0
+        }],
+
+        visible: true
+      });
+      map.add(bygg);
+
+      /* === Auto-zoom to Oxnehaga (behåll som tidigare) === */
+      view.whenLayerView(ox).then(() => {
+        ox.queryExtent().then((res) => {
+          if (res && res.extent) {
+            view.goTo({ target: res.extent, tilt: 38 }, { duration: 1200 });
+          }
+        });
+      });
+
+      /* === Menu switches === */
+      const swBuildings3D = document.getElementById("swBuildings3D");
+      const swOx         = document.getElementById("swOx");
+      const swBus        = document.getElementById("swBus");
+      const swBygg       = document.getElementById("swBygg");
+
+      swBuildings3D.addEventListener("change", () => { buildings3D.visible = swBuildings3D.checked; });
+      swOx.addEventListener("change",         () => { ox.visible           = swOx.checked;          });
+      swBus.addEventListener("change",        () => { bus.visible          = swBus.checked;         });
+      swBygg.addEventListener("change",       () => { bygg.visible         = swBygg.checked;        });
+    });
+  </script>
+
+</body>
+</html>
