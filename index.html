@@ -559,13 +559,18 @@
           const url = "https://api.resrobot.se/v2.1/departureBoard"
             + "?id=" + encodeURIComponent(stopId)
             + "&format=json"
-            + "&duration=1440"
+            + "&duration=720"
             + "&maxJourneys=8"
             + "&accessId=" + encodeURIComponent(RESROBOT_KEY);
 
           const res = await fetch(url);
-          if (!res.ok) throw new Error("DepartureBoard HTTP " + res.status);
-          const data = await res.json();
+          let data = null;
+          try { data = await res.json(); } catch (e) { /* ignore */ }
+          if (!res.ok) {
+            const code = data?.errorCode || "HTTP " + res.status;
+            const text = data?.errorText || "Okänt fel";
+            throw new Error(`${code}: ${text}`);
+          }
           const deps = data?.DepartureBoard?.Departure || [];
 
           if (deps.length === 0) {
@@ -580,7 +585,7 @@
             li.textContent = formatDeparture(d);
             depList.appendChild(li);
           });
-          depMeta.textContent = `Nästa 24 h • Hållplats‑ID: ${stopId}`;
+          depMeta.textContent = `Nästa 12 h • Hållplats‑ID: ${stopId}`;
         } catch (e) {
           clearDepartures("Kunde inte hämta avgångar");
           depMeta.textContent = String(e && e.message ? e.message : e);
