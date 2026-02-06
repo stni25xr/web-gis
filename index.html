@@ -517,7 +517,7 @@
       }
 
       async function findNearbyStop(lat, lon) {
-        const radii = [50, 150, 400];
+        const radii = [20, 150, 400];
         for (const r of radii) {
           const stop = await fetchStopByCoords(lat, lon, r);
           if (isValidStopId(stop)) return stop;
