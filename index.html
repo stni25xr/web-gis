@@ -461,6 +461,38 @@
         });
       });
 
+      function formatWhereValue(field, value, layer) {
+        const fld = (layer.fields || []).find((f) => f.name === field);
+        const type = fld?.type || "";
+        if (type === "string" || type === "date") {
+          const safe = String(value).replace(/'/g, "''");
+          return `'${safe}'`;
+        }
+        return String(value);
+      }
+
+      async function highlightByValue(layer, field, value) {
+        try {
+          const where = `${field} = ${formatWhereValue(field, value, layer)}`;
+          const result = await layer.queryFeatures({
+            where,
+            outFields: [field],
+            returnGeometry: true
+          });
+
+          if (!result.features || result.features.length === 0) return;
+          const features = result.features;
+
+          view.goTo(features, { duration: 900 });
+          view.whenLayerView(layer).then((lv) => {
+            clearHighlight();
+            lastHighlight = lv.highlight(features);
+          });
+        } catch (e) {
+          console.warn("Highlight by value error:", e);
+        }
+      }
+
       async function loadUniqueValues() {
         const layer = getLayerById(uniqueLayer.value);
         const field = uniqueField.value;
@@ -486,6 +518,9 @@
           sliced.forEach((v) => {
             const li = document.createElement("li");
             li.textContent = String(v);
+            li.style.cursor = "pointer";
+            li.title = "Klicka för att visa objekt på kartan";
+            li.addEventListener("click", () => highlightByValue(layer, field, v));
             uniqueList.appendChild(li);
           });
 
@@ -513,4 +548,5 @@
   </script>
 </body>
 </html>
+
 
