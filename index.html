@@ -482,8 +482,14 @@
 
           if (!result.features || result.features.length === 0) return;
           const features = result.features;
+          const first = features[0];
+          const geomType = first?.geometry?.type || "";
 
-          view.goTo(features, { duration: 900 });
+          if (geomType === "point") {
+            view.goTo({ target: first, zoom: 19 }, { duration: 900 });
+          } else {
+            view.goTo(features, { duration: 900 });
+          }
           view.whenLayerView(layer).then((lv) => {
             clearHighlight();
             lastHighlight = lv.highlight(features);
@@ -548,5 +554,3 @@
   </script>
 </body>
 </html>
-
-
