@@ -156,6 +156,10 @@
       <div class="panel-title">Avgångar (busshållplats)</div>
       <div id="depHint">Klicka på en busshållplats</div>
       <div id="depMeta" style="font-size:12px;color:#64748b;margin-top:6px;"></div>
+      <div style="margin-top:6px;">
+        <a id="depLink" href="https://www.jlt.se/tidtabeller/" target="_blank" rel="noopener"
+           style="font-size:12px;color:#2563eb;text-decoration:none;">Öppna tidtabell online</a>
+      </div>
       <ul id="depList"></ul>
     </div>
 
@@ -560,7 +564,7 @@
             + "?id=" + encodeURIComponent(stopId)
             + "&format=json"
             + "&duration=720"
-            + "&maxJourneys=8"
+            + "&maxJourneys=5"
             + "&accessId=" + encodeURIComponent(RESROBOT_KEY);
 
           const res = await fetch(url);
@@ -571,7 +575,7 @@
             const text = data?.errorText || "Okänt fel";
             throw new Error(`${code}: ${text}`);
           }
-          const deps = data?.DepartureBoard?.Departure || data?.Departure || [];
+          const deps = (data?.DepartureBoard?.Departure || data?.Departure || []).slice(0, 5);
 
           if (deps.length === 0) {
             clearDepartures("Inga avgångar just nu");
