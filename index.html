@@ -737,6 +737,7 @@
             svcIndex.push({ id, key: g.key, name, feature: f });
           });
         });
+        svcHint.textContent = `Förskola: ${svc.forskola.length}, Grund: ${svc.grund.length}, Gymn: ${svc.gymn.length}, Vård: ${svc.vard.length}`;
       }
 
       async function fillServiceSelect() {
@@ -746,6 +747,13 @@
         placeholder.value = "";
         placeholder.textContent = "Välj service…";
         svcSelect.appendChild(placeholder);
+        if (!svcIndex.length) {
+          const empty = document.createElement("option");
+          empty.value = "";
+          empty.textContent = "Inga service‑objekt";
+          svcSelect.appendChild(empty);
+          return;
+        }
         svcIndex.forEach((s) => {
           const opt = document.createElement("option");
           opt.value = s.id;
