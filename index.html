@@ -735,7 +735,6 @@
         groups.forEach((g) => {
           g.items.forEach((f, i) => {
             const name = f.attributes?.name || f.attributes?.category || "Okänd";
-            if (name !== "Gethagens f rskola") return;
             const id = `${g.key}:${i}`;
             svcIndex.push({ id, key: g.key, name, feature: f });
           });
