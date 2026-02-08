@@ -258,6 +258,9 @@
     <div class="panel-section">
       <div class="panel-title">Avstånd till service</div>
       <div id="svcHint">Klicka på kartan för att räkna avstånd</div>
+      <div class="field-row" style="margin-top:6px;">
+        <select id="svcSelect"></select>
+      </div>
       <div id="svcList" style="font-size:13px;color:#0f172a;"></div>
     </div>
 
@@ -599,6 +602,7 @@
       const depMeta = document.getElementById("depMeta");
       const svcHint = document.getElementById("svcHint");
       const svcList = document.getElementById("svcList");
+      const svcSelect = document.getElementById("svcSelect");
       const uniqueLayer = document.getElementById("uniqueLayer");
       const uniqueField = document.getElementById("uniqueField");
       const uniqueList = document.getElementById("uniqueList");
@@ -658,6 +662,7 @@
       let lastMeasurePoint = null;
       let lastNearestFeature = null;
       let svcCache = null;
+      let svcIndex = [];
 
       function clearHighlight() {
         if (lastHighlight && typeof lastHighlight.remove === "function") {
@@ -692,6 +697,47 @@
           vard: vd.features || []
         };
         return svcCache;
+      }
+
+      function labelForService(key) {
+        if (key === "forskola") return "Förskola";
+        if (key === "grund") return "Grundskola";
+        if (key === "gymn") return "Gymnasieskola";
+        if (key === "vard") return "Vårdcentral";
+        return "Service";
+      }
+
+      async function buildServiceIndex() {
+        const svc = await getServiceFeatures();
+        const groups = [
+          { key: "forskola", items: svc.forskola },
+          { key: "grund", items: svc.grund },
+          { key: "gymn", items: svc.gymn },
+          { key: "vard", items: svc.vard }
+        ];
+        svcIndex = [];
+        groups.forEach((g) => {
+          g.items.forEach((f, i) => {
+            const name = f.attributes?.name || f.attributes?.category || "Okänd";
+            const id = `${g.key}:${i}`;
+            svcIndex.push({ id, key: g.key, name, feature: f });
+          });
+        });
+      }
+
+      async function fillServiceSelect() {
+        await buildServiceIndex();
+        svcSelect.innerHTML = "";
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Välj service…";
+        svcSelect.appendChild(placeholder);
+        svcIndex.forEach((s) => {
+          const opt = document.createElement("option");
+          opt.value = s.id;
+          opt.textContent = `${labelForService(s.key)} – ${s.name}`;
+          svcSelect.appendChild(opt);
+        });
       }
 
       function formatDistance(meters) {
@@ -816,6 +862,23 @@
           svcHint.textContent = "Kunde inte räkna avstånd";
           svcList.textContent = String(e && e.message ? e.message : e);
         }
+      }
+
+      async function updateSelectedServiceDistance(mapPoint) {
+        if (!svcSelect.value) {
+          svcHint.textContent = "Välj en service i listan";
+          return;
+        }
+        const selected = svcIndex.find((s) => s.id === svcSelect.value);
+        if (!selected) return;
+        const mapPtWgs = toGeographic(mapPoint);
+        const fWgs = toGeographic(selected.feature.geometry);
+        if (!mapPtWgs || !fWgs) return;
+        const d = distanceMeters(mapPtWgs, fWgs);
+        if (d == null) return;
+        svcHint.textContent = "";
+        svcList.innerHTML = `<div><b>${labelForService(selected.key)}</b> – ${selected.name}</div>
+          <div>${formatDistance(d)} • ca ${formatWalkTime(d)} till fots</div>`;
       }
 
       async function drawWalkingRoute() {
@@ -1036,7 +1099,11 @@
       view.on("click", (event) => {
         if (measureEnabled && event.mapPoint) {
           updateNearestStop(event.mapPoint);
-          updateServiceDistances(event.mapPoint);
+          if (svcSelect.value) {
+            updateSelectedServiceDistance(event.mapPoint);
+          } else {
+            updateServiceDistances(event.mapPoint);
+          }
         }
         view.hitTest(event).then((hit) => {
           const found = hit.results.find((r) => r.graphic);
@@ -1079,6 +1146,14 @@
       });
       nearClearRouteBtn.addEventListener("click", () => {
         clearRoute();
+      });
+
+      fillServiceSelect();
+      svcSelect.addEventListener("change", () => {
+        if (!svcSelect.value) {
+          svcHint.textContent = "Klicka på kartan för att räkna avstånd";
+          svcList.innerHTML = "";
+        }
       });
 
       function formatWhereValue(field, value, layer) {
