@@ -33,7 +33,9 @@
     .switch-label { font-size:14px; user-select:none; }
     .legend { margin-top:18px; border-top:1px solid #2f3742; padding-top:12px; }
     .legend details { color:#cbd5e1; }
-    .legend summary { cursor:pointer; font-size:14px; list-style:none; }
+    .legend summary { cursor:pointer; font-size:14px; list-style:none; display:flex; align-items:center; justify-content:space-between; }
+    .legend summary::after { content:"▸"; color:#94a3b8; transition:transform .2s; }
+    .legend details[open] summary::after { transform:rotate(90deg); }
     .legend summary::-webkit-details-marker { display:none; }
     .legend-item { display:flex; align-items:center; gap:8px; margin:10px 0; font-size:13px; }
     .legend-swatch { width:16px; height:16px; border-radius:4px; border:1px solid rgba(255,255,255,.2); }
