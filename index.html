@@ -722,6 +722,14 @@
         if (key === "vard") return "Vårdcentral";
         return "Service";
       }
+      function cleanName(name) {
+        if (!name) return name;
+        return String(name)
+          .replace(/ f rskola/gi, " förskola")
+          .replace(/f rskola/gi, "förskola")
+          .replace(/Gxnehaga/gi, "Öxnehaga")
+          .replace(/Oxnehaga/gi, "Öxnehaga");
+      }
 
       async function buildServiceIndex() {
         const svc = await getServiceFeatures();
@@ -734,7 +742,7 @@
         svcIndex = [];
         groups.forEach((g) => {
           g.items.forEach((f, i) => {
-            const name = f.attributes?.name || f.attributes?.category || "Okänd";
+            const name = cleanName(f.attributes?.name || f.attributes?.category || "Okänd");
             const id = `${g.key}:${i}`;
             svcIndex.push({ id, key: g.key, name, feature: f });
           });
@@ -760,7 +768,7 @@
           svcIndex.forEach((s) => {
             const opt = document.createElement("option");
             opt.value = s.id;
-            opt.textContent = `${labelForService(s.key)} – ${s.name}`;
+          opt.textContent = `${labelForService(s.key)} – ${cleanName(s.name)}`;
             svcSelect.appendChild(opt);
           });
         } catch (e) {
@@ -879,7 +887,7 @@
               if (!gWgs) continue;
               const d = distanceMeters(mapPtWgs, gWgs);
               if (d == null) continue;
-              const name = f.attributes?.name || f.attributes?.category || "Okänd";
+              const name = cleanName(f.attributes?.name || f.attributes?.category || "Okänd");
               entries.push({ name, d });
             }
             entries.sort((a, b) => a.d - b.d);
