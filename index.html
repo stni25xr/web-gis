@@ -701,10 +701,10 @@
         if (svcCache) return svcCache;
         await Promise.all([forskola.load(), grund.load(), gymn.load(), vard.load()]);
         const [forsk, gr, gy, vd] = await Promise.all([
-          forskola.queryFeatures({ where: "1=1", outFields: ["name", "category"], returnGeometry: true }),
-          grund.queryFeatures({ where: "1=1", outFields: ["name", "category"], returnGeometry: true }),
-          gymn.queryFeatures({ where: "1=1", outFields: ["name", "category"], returnGeometry: true }),
-          vard.queryFeatures({ where: "1=1", outFields: ["name", "category"], returnGeometry: true })
+          forskola.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true }),
+          grund.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true }),
+          gymn.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true }),
+          vard.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true })
         ]);
         svcCache = {
           forskola: forsk.features || [],
