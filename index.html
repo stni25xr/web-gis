@@ -427,7 +427,10 @@
           symbol: { type: "simple-fill", color: [0,100,255,0.25], outline: { color: [0,100,255], width: 2 } }
         },
         visible: true,
-        popupEnabled: false
+        popupTemplate: {
+          title: "Attribut",
+          content: [{ type: "fields" }]
+        }
       });
       map.add(ox);
 
@@ -483,7 +486,10 @@
           }
         },
         visible: true,
-        popupEnabled: false
+        popupTemplate: {
+          title: "Attribut",
+          content: [{ type: "fields" }]
+        }
       });
       map.add(mark);
 
@@ -498,7 +504,10 @@
           }
         },
         visible: true,
-        popupEnabled: false
+        popupTemplate: {
+          title: "Attribut",
+          content: [{ type: "fields" }]
+        }
       });
       map.add(water);
 
@@ -514,7 +523,11 @@
             outline: { color: "white", width: 1 }
           }
         },
-        visible: true
+        visible: true,
+        popupTemplate: {
+          title: "{name}",
+          content: [{ type: "fields" }]
+        }
       });
       map.add(forskola);
 
@@ -530,7 +543,11 @@
             outline: { color: "white", width: 1 }
           }
         },
-        visible: true
+        visible: true,
+        popupTemplate: {
+          title: "{name}",
+          content: [{ type: "fields" }]
+        }
       });
       map.add(grund);
 
@@ -546,7 +563,11 @@
             outline: { color: "white", width: 1 }
           }
         },
-        visible: true
+        visible: true,
+        popupTemplate: {
+          title: "{name}",
+          content: [{ type: "fields" }]
+        }
       });
       map.add(gymn);
 
@@ -562,7 +583,11 @@
             outline: { color: "white", width: 1 }
           }
         },
-        visible: true
+        visible: true,
+        popupTemplate: {
+          title: "{name}",
+          content: [{ type: "fields" }]
+        }
       });
       map.add(vard);
 
