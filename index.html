@@ -565,7 +565,7 @@
         } catch (e) {
           nearHint.textContent = "Kunde inte beräkna avstånd";
           nearResult.textContent = "";
-          nearMeta.textContent = "";
+          nearMeta.textContent = String(e && e.message ? e.message : e);
           console.warn("Nearest stop error:", e);
         }
       }
