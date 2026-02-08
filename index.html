@@ -1169,7 +1169,7 @@
         clearRoute();
       });
 
-      fillServiceSelect();
+      setTimeout(fillServiceSelect, 800);
       svcSelect.addEventListener("change", () => {
         if (!svcSelect.value) {
           svcHint.textContent = "Välj en service och klicka Mät avstånd";
