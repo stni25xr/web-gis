@@ -195,6 +195,13 @@
     </div>
 
     <div class="panel-section">
+      <div class="panel-title">Närmsta busshållplats</div>
+      <div id="nearHint">Klicka på kartan för att mäta</div>
+      <div id="nearResult" style="font-size:13px;color:#0f172a;"></div>
+      <div id="nearMeta" style="font-size:12px;color:#64748b;margin-top:4px;"></div>
+    </div>
+
+    <div class="panel-section">
       <div class="panel-title">Avgångar (busshållplats)</div>
       <div id="depHint">Klicka på en busshållplats</div>
       <div id="depMeta" style="font-size:12px;color:#64748b;margin-top:6px;"></div>
@@ -304,8 +311,9 @@
       "esri/Map",
       "esri/views/SceneView",
       "esri/layers/SceneLayer",
-      "esri/layers/GeoJSONLayer"
-    ], function (Map, SceneView, SceneLayer, GeoJSONLayer) {
+      "esri/layers/GeoJSONLayer",
+      "esri/geometry/geometryEngine"
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, geometryEngine) {
 
       const RESROBOT_KEY = "a1ba6c34-9ea5-4b8f-907e-d4c18a3f58ec"; // Trafiklab ResRobot v2.1 API-nyckel
 
@@ -439,6 +447,9 @@
       // ===== Right panel: attribut + unika värden =====
       const attrHint = document.getElementById("attrHint");
       const attrTable = document.getElementById("attrTable");
+      const nearHint = document.getElementById("nearHint");
+      const nearResult = document.getElementById("nearResult");
+      const nearMeta = document.getElementById("nearMeta");
       const depHint = document.getElementById("depHint");
       const depList = document.getElementById("depList");
       const depMeta = document.getElementById("depMeta");
@@ -492,12 +503,67 @@
 
       let lastSelection = null;
       let lastHighlight = null;
+      let busFeaturesCache = null;
 
       function clearHighlight() {
         if (lastHighlight && typeof lastHighlight.remove === "function") {
           lastHighlight.remove();
         }
         lastHighlight = null;
+      }
+
+      async function getBusFeatures() {
+        if (busFeaturesCache) return busFeaturesCache;
+        const res = await bus.queryFeatures({
+          where: "1=1",
+          outFields: ["Nr", "Hplnamn"],
+          returnGeometry: true
+        });
+        busFeaturesCache = res.features || [];
+        return busFeaturesCache;
+      }
+
+      function formatDistance(meters) {
+        if (meters >= 1000) return (meters / 1000).toFixed(2) + " km";
+        return Math.round(meters) + " m";
+      }
+
+      function formatWalkTime(meters) {
+        const minutes = meters / 83.333; // ~5 km/h
+        return Math.max(1, Math.round(minutes)) + " min";
+      }
+
+      async function updateNearestStop(mapPoint) {
+        try {
+          const features = await getBusFeatures();
+          if (!features.length) {
+            nearHint.textContent = "Inga busshållplatser hittades";
+            nearResult.textContent = "";
+            nearMeta.textContent = "";
+            return;
+          }
+          let best = null;
+          let bestDist = Infinity;
+          for (const f of features) {
+            if (!f.geometry) continue;
+            const d = geometryEngine.distance(mapPoint, f.geometry, "meters", true);
+            if (d < bestDist) {
+              bestDist = d;
+              best = f;
+            }
+          }
+          if (!best) return;
+          nearHint.textContent = "";
+          const name = best.attributes?.Hplnamn || "Okänd hållplats";
+          const nr = best.attributes?.Nr != null ? ` (${best.attributes.Nr})` : "";
+          nearResult.textContent = `${name}${nr}`;
+          nearMeta.textContent = `${formatDistance(bestDist)} • ca ${formatWalkTime(bestDist)} till fots`;
+        } catch (e) {
+          nearHint.textContent = "Kunde inte beräkna avstånd";
+          nearResult.textContent = "";
+          nearMeta.textContent = "";
+          console.warn("Nearest stop error:", e);
+        }
       }
 
       function clearDepartures(message) {
@@ -640,6 +706,7 @@
       }
 
       view.on("click", (event) => {
+        if (event.mapPoint) updateNearestStop(event.mapPoint);
         view.hitTest(event).then((hit) => {
           const found = hit.results.find((r) => r.graphic);
           if (!found) return;
