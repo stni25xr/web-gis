@@ -31,6 +31,7 @@
     }
     .switch-row { display:flex; justify-content:space-between; align-items:center; margin:14px 0; }
     .switch-label { font-size:14px; user-select:none; }
+    .section-label { font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:#94a3b8; margin:18px 0 6px; }
     .legend { margin-top:18px; border-top:1px solid #2f3742; padding-top:12px; }
     .legend details { color:#cbd5e1; }
     .legend summary { cursor:pointer; font-size:14px; list-style:none; display:flex; align-items:center; justify-content:space-between; }
@@ -157,6 +158,35 @@
       </label>
     </div>
 
+    <div class="section-label">Service</div>
+    <div class="switch-row">
+      <span class="switch-label">Förskolor</span>
+      <label class="switch" aria-label="Förskolor">
+        <input id="swForskola" type="checkbox" checked />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="switch-row">
+      <span class="switch-label">Grundskolor</span>
+      <label class="switch" aria-label="Grundskolor">
+        <input id="swGrund" type="checkbox" checked />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="switch-row">
+      <span class="switch-label">Gymnasieskolor</span>
+      <label class="switch" aria-label="Gymnasieskolor">
+        <input id="swGymn" type="checkbox" checked />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="switch-row">
+      <span class="switch-label">Vårdcentral</span>
+      <label class="switch" aria-label="Vårdcentral">
+        <input id="swVard" type="checkbox" checked />
+        <span class="slider"></span>
+      </label>
+    </div>
     <div class="legend">
       <details>
         <summary>Symbolförklaring</summary>
@@ -179,6 +209,22 @@
         <div class="legend-item">
           <span class="legend-swatch" style="background:rgba(0,150,200,0.4); border-color:#0a78b4;"></span>
           <span>Vatten</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch" style="background:#ff5252;"></span>
+          <span>Förskolor</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch" style="background:#3b82f6;"></span>
+          <span>Grundskolor</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch" style="background:#eab308;"></span>
+          <span>Gymnasieskolor</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch" style="background:#10b981;"></span>
+          <span>Vårdcentral</span>
         </div>
       </details>
     </div>
@@ -207,6 +253,12 @@
         <button id="nearRouteBtn" type="button">Visa gångväg</button>
         <button id="nearClearRouteBtn" type="button">Rensa rutt</button>
       </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Avstånd till service</div>
+      <div id="svcHint">Klicka på kartan för att räkna avstånd</div>
+      <div id="svcList" style="font-size:13px;color:#0f172a;"></div>
     </div>
 
     <div class="panel-section">
@@ -438,6 +490,70 @@
       });
       map.add(water);
 
+      const forskola = new GeoJSONLayer({
+        url: "./data/Forskola.geojson",
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-marker",
+            style: "triangle",
+            color: [255, 82, 82],
+            size: 8,
+            outline: { color: "white", width: 1 }
+          }
+        },
+        visible: true
+      });
+      map.add(forskola);
+
+      const grund = new GeoJSONLayer({
+        url: "./data/GrundskolaPoint.geojson",
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-marker",
+            style: "diamond",
+            color: [59, 130, 246],
+            size: 8,
+            outline: { color: "white", width: 1 }
+          }
+        },
+        visible: true
+      });
+      map.add(grund);
+
+      const gymn = new GeoJSONLayer({
+        url: "./data/Gymnasieskolal.geojson",
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-marker",
+            style: "square",
+            color: [234, 179, 8],
+            size: 8,
+            outline: { color: "white", width: 1 }
+          }
+        },
+        visible: true
+      });
+      map.add(gymn);
+
+      const vard = new GeoJSONLayer({
+        url: "./data/VardcentralPoin.geojson",
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-marker",
+            style: "cross",
+            color: [16, 185, 129],
+            size: 10,
+            outline: { color: "white", width: 1 }
+          }
+        },
+        visible: true
+      });
+      map.add(vard);
+
       // Auto‑zoom när lagret är redo
       view.whenLayerView(ox).then(() => {
         ox.queryExtent().then((res) => {
@@ -453,12 +569,20 @@
       const swBus = document.getElementById("swBus");
       const swMark = document.getElementById("swMark");
       const swWater = document.getElementById("swWater");
+      const swForskola = document.getElementById("swForskola");
+      const swGrund = document.getElementById("swGrund");
+      const swGymn = document.getElementById("swGymn");
+      const swVard = document.getElementById("swVard");
 
       swBuildings.addEventListener("change", () => buildings.visible = swBuildings.checked);
       swOx.addEventListener("change", () => ox.visible = swOx.checked);
       swBus.addEventListener("change", () => bus.visible = swBus.checked);
       swMark.addEventListener("change", () => mark.visible = swMark.checked);
       swWater.addEventListener("change", () => water.visible = swWater.checked);
+      swForskola.addEventListener("change", () => forskola.visible = swForskola.checked);
+      swGrund.addEventListener("change", () => grund.visible = swGrund.checked);
+      swGymn.addEventListener("change", () => gymn.visible = swGymn.checked);
+      swVard.addEventListener("change", () => vard.visible = swVard.checked);
 
       // ===== Right panel: attribut + unika värden =====
       const attrHint = document.getElementById("attrHint");
@@ -473,6 +597,8 @@
       const depHint = document.getElementById("depHint");
       const depList = document.getElementById("depList");
       const depMeta = document.getElementById("depMeta");
+      const svcHint = document.getElementById("svcHint");
+      const svcList = document.getElementById("svcList");
       const uniqueLayer = document.getElementById("uniqueLayer");
       const uniqueField = document.getElementById("uniqueField");
       const uniqueList = document.getElementById("uniqueList");
@@ -484,7 +610,11 @@
         { id: "ox", title: "Oxnehaga", layer: ox },
         { id: "bus", title: "Busshållplatser", layer: bus },
         { id: "mark", title: "Kommunal mark", layer: mark },
-        { id: "water", title: "Vatten", layer: water }
+        { id: "water", title: "Vatten", layer: water },
+        { id: "forskola", title: "Förskolor", layer: forskola },
+        { id: "grund", title: "Grundskolor", layer: grund },
+        { id: "gymn", title: "Gymnasieskolor", layer: gymn },
+        { id: "vard", title: "Vårdcentral", layer: vard }
       ];
 
       function isFieldUsable(f) {
@@ -527,6 +657,7 @@
       let measureEnabled = false;
       let lastMeasurePoint = null;
       let lastNearestFeature = null;
+      let svcCache = null;
 
       function clearHighlight() {
         if (lastHighlight && typeof lastHighlight.remove === "function") {
@@ -544,6 +675,23 @@
         });
         busFeaturesCache = res.features || [];
         return busFeaturesCache;
+      }
+
+      async function getServiceFeatures() {
+        if (svcCache) return svcCache;
+        const [forsk, gr, gy, vd] = await Promise.all([
+          forskola.queryFeatures({ where: "1=1", outFields: ["name", "category"], returnGeometry: true }),
+          grund.queryFeatures({ where: "1=1", outFields: ["name", "category"], returnGeometry: true }),
+          gymn.queryFeatures({ where: "1=1", outFields: ["name", "category"], returnGeometry: true }),
+          vard.queryFeatures({ where: "1=1", outFields: ["name", "category"], returnGeometry: true })
+        ]);
+        svcCache = {
+          forskola: forsk.features || [],
+          grund: gr.features || [],
+          gymn: gy.features || [],
+          vard: vd.features || []
+        };
+        return svcCache;
       }
 
       function formatDistance(meters) {
@@ -564,6 +712,20 @@
           return webMercatorUtils.webMercatorToGeographic(pt);
         }
         return null;
+      }
+
+      function distanceMeters(a, b) {
+        const lon1 = a.longitude ?? a.x;
+        const lat1 = a.latitude ?? a.y;
+        const lon2 = b.longitude ?? b.x;
+        const lat2 = b.latitude ?? b.y;
+        if (!isFinite(lon1) || !isFinite(lat1) || !isFinite(lon2) || !isFinite(lat2)) return null;
+        const line = new Polyline({
+          paths: [[[lon1, lat1], [lon2, lat2]]],
+          spatialReference: { wkid: 4326 }
+        });
+        const d = geometryEngine.geodesicLength(line, "meters");
+        return isFinite(d) ? d : null;
       }
 
       async function updateNearestStop(mapPoint) {
@@ -613,6 +775,46 @@
           nearResult.textContent = "";
           nearMeta.textContent = String(e && e.message ? e.message : e);
           console.warn("Nearest stop error:", e);
+        }
+      }
+
+      async function updateServiceDistances(mapPoint) {
+        try {
+          const mapPtWgs = toGeographic(mapPoint);
+          if (!mapPtWgs) throw new Error("Okänt koordinatsystem");
+
+          const svc = await getServiceFeatures();
+          const groups = [
+            { key: "forskola", label: "Förskolor", items: svc.forskola },
+            { key: "grund", label: "Grundskolor", items: svc.grund },
+            { key: "gymn", label: "Gymnasieskolor", items: svc.gymn },
+            { key: "vard", label: "Vårdcentral", items: svc.vard }
+          ];
+
+          const lines = [];
+          for (const g of groups) {
+            if (!g.items.length) {
+              lines.push(`<div style="margin:6px 0;"><b>${g.label}:</b> Inga data</div>`);
+              continue;
+            }
+            const entries = [];
+            for (const f of g.items) {
+              const gWgs = toGeographic(f.geometry);
+              if (!gWgs) continue;
+              const d = distanceMeters(mapPtWgs, gWgs);
+              if (d == null) continue;
+              const name = f.attributes?.name || f.attributes?.category || "Okänd";
+              entries.push({ name, d });
+            }
+            entries.sort((a, b) => a.d - b.d);
+            const list = entries.map((e) => `<div>${e.name} • ${formatDistance(e.d)}</div>`).join("");
+            lines.push(`<div style="margin:6px 0;"><b>${g.label}:</b>${list || " Inga data"}</div>`);
+          }
+          svcHint.textContent = "";
+          svcList.innerHTML = lines.join("");
+        } catch (e) {
+          svcHint.textContent = "Kunde inte räkna avstånd";
+          svcList.textContent = String(e && e.message ? e.message : e);
         }
       }
 
@@ -832,7 +1034,10 @@
       }
 
       view.on("click", (event) => {
-        if (measureEnabled && event.mapPoint) updateNearestStop(event.mapPoint);
+        if (measureEnabled && event.mapPoint) {
+          updateNearestStop(event.mapPoint);
+          updateServiceDistances(event.mapPoint);
+        }
         view.hitTest(event).then((hit) => {
           const found = hit.results.find((r) => r.graphic);
           if (!found) return;
