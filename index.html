@@ -199,6 +199,10 @@
       <div id="nearHint">Klicka på kartan för att mäta</div>
       <div id="nearResult" style="font-size:13px;color:#0f172a;"></div>
       <div id="nearMeta" style="font-size:12px;color:#64748b;margin-top:4px;"></div>
+      <div class="field-row" style="margin-top:8px;">
+        <button id="nearMeasureBtn" type="button">Mät avstånd</button>
+        <button id="nearResetBtn" type="button">Nollställ</button>
+      </div>
     </div>
 
     <div class="panel-section">
@@ -452,6 +456,8 @@
       const nearHint = document.getElementById("nearHint");
       const nearResult = document.getElementById("nearResult");
       const nearMeta = document.getElementById("nearMeta");
+      const nearMeasureBtn = document.getElementById("nearMeasureBtn");
+      const nearResetBtn = document.getElementById("nearResetBtn");
       const depHint = document.getElementById("depHint");
       const depList = document.getElementById("depList");
       const depMeta = document.getElementById("depMeta");
@@ -506,6 +512,7 @@
       let lastSelection = null;
       let lastHighlight = null;
       let busFeaturesCache = null;
+      let measureEnabled = false;
 
       function clearHighlight() {
         if (lastHighlight && typeof lastHighlight.remove === "function") {
@@ -573,6 +580,12 @@
           nearMeta.textContent = String(e && e.message ? e.message : e);
           console.warn("Nearest stop error:", e);
         }
+      }
+
+      function resetNearest() {
+        nearHint.textContent = "Klicka på kartan för att mäta";
+        nearResult.textContent = "";
+        nearMeta.textContent = "";
       }
 
       function clearDepartures(message) {
@@ -715,7 +728,7 @@
       }
 
       view.on("click", (event) => {
-        if (event.mapPoint) updateNearestStop(event.mapPoint);
+        if (measureEnabled && event.mapPoint) updateNearestStop(event.mapPoint);
         view.hitTest(event).then((hit) => {
           const found = hit.results.find((r) => r.graphic);
           if (!found) return;
@@ -737,6 +750,19 @@
           renderAttributes(found.graphic.attributes);
           loadDeparturesForStop(found.graphic.geometry, found.graphic.attributes?.Hplnamn || "");
         });
+      });
+
+      nearMeasureBtn.addEventListener("click", () => {
+        measureEnabled = !measureEnabled;
+        nearMeasureBtn.textContent = measureEnabled ? "Mätning: PÅ" : "Mät avstånd";
+        if (measureEnabled) {
+          nearHint.textContent = "Klicka på kartan för att mäta";
+        }
+      });
+      nearResetBtn.addEventListener("click", () => {
+        measureEnabled = false;
+        nearMeasureBtn.textContent = "Mät avstånd";
+        resetNearest();
       });
 
       function formatWhereValue(field, value, layer) {
