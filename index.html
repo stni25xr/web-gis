@@ -699,6 +699,7 @@
 
       async function getServiceFeatures() {
         if (svcCache) return svcCache;
+        await Promise.all([forskola.load(), grund.load(), gymn.load(), vard.load()]);
         const [forsk, gr, gy, vd] = await Promise.all([
           forskola.queryFeatures({ where: "1=1", outFields: ["name", "category"], returnGeometry: true }),
           grund.queryFeatures({ where: "1=1", outFields: ["name", "category"], returnGeometry: true }),
@@ -742,25 +743,31 @@
       }
 
       async function fillServiceSelect() {
-        await buildServiceIndex();
-        svcSelect.innerHTML = "";
-        const placeholder = document.createElement("option");
-        placeholder.value = "";
-        placeholder.textContent = "Välj service…";
-        svcSelect.appendChild(placeholder);
-        if (!svcIndex.length) {
-          const empty = document.createElement("option");
-          empty.value = "";
-          empty.textContent = "Inga service‑objekt";
-          svcSelect.appendChild(empty);
-          return;
+        try {
+          await buildServiceIndex();
+          svcSelect.innerHTML = "";
+          const placeholder = document.createElement("option");
+          placeholder.value = "";
+          placeholder.textContent = "Välj service…";
+          svcSelect.appendChild(placeholder);
+          if (!svcIndex.length) {
+            const empty = document.createElement("option");
+            empty.value = "";
+            empty.textContent = "Inga service‑objekt";
+            svcSelect.appendChild(empty);
+            return;
+          }
+          svcIndex.forEach((s) => {
+            const opt = document.createElement("option");
+            opt.value = s.id;
+            opt.textContent = `${labelForService(s.key)} – ${s.name}`;
+            svcSelect.appendChild(opt);
+          });
+        } catch (e) {
+          svcHint.textContent = "Kunde inte ladda service‑listan";
+          svcList.textContent = String(e && e.message ? e.message : e);
+          console.warn("Service select error:", e);
         }
-        svcIndex.forEach((s) => {
-          const opt = document.createElement("option");
-          opt.value = s.id;
-          opt.textContent = `${labelForService(s.key)} – ${s.name}`;
-          svcSelect.appendChild(opt);
-        });
       }
 
       function formatDistance(meters) {
