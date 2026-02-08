@@ -313,9 +313,8 @@
       "esri/layers/SceneLayer",
       "esri/layers/GeoJSONLayer",
       "esri/geometry/geometryEngine",
-      "esri/geometry/SpatialReference",
-      "esri/geometry/projection"
-    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, geometryEngine, SpatialReference, projection) {
+      "esri/geometry/support/webMercatorUtils"
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, geometryEngine, webMercatorUtils) {
 
       const RESROBOT_KEY = "a1ba6c34-9ea5-4b8f-907e-d4c18a3f58ec"; // Trafiklab ResRobot v2.1 API-nyckel
 
@@ -537,9 +536,7 @@
 
       async function updateNearestStop(mapPoint) {
         try {
-          await projection.load();
-          const wgs84 = SpatialReference.WGS84;
-          const mapPtWgs = projection.project(mapPoint, wgs84);
+          const mapPtWgs = webMercatorUtils.webMercatorToGeographic(mapPoint) || mapPoint;
 
           const features = await getBusFeatures();
           if (!features.length) {
@@ -552,7 +549,7 @@
           let bestDist = Infinity;
           for (const f of features) {
             if (!f.geometry) continue;
-            const fWgs = projection.project(f.geometry, wgs84);
+            const fWgs = webMercatorUtils.webMercatorToGeographic(f.geometry) || f.geometry;
             const d = geometryEngine.geodesicDistance(mapPtWgs, fWgs, "meters");
             if (d < bestDist) {
               bestDist = d;
