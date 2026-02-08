@@ -203,6 +203,10 @@
         <button id="nearMeasureBtn" type="button">Mät avstånd</button>
         <button id="nearResetBtn" type="button">Nollställ</button>
       </div>
+      <div class="field-row" style="margin-top:6px;">
+        <button id="nearRouteBtn" type="button">Visa gångväg</button>
+        <button id="nearClearRouteBtn" type="button">Rensa rutt</button>
+      </div>
     </div>
 
     <div class="panel-section">
@@ -318,12 +322,18 @@
       "esri/layers/GeoJSONLayer",
       "esri/geometry/geometryEngine",
       "esri/geometry/support/webMercatorUtils",
-      "esri/geometry/Polyline"
-    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, geometryEngine, webMercatorUtils, Polyline) {
+      "esri/geometry/Polyline",
+      "esri/layers/GraphicsLayer",
+      "esri/Graphic"
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, geometryEngine, webMercatorUtils, Polyline, GraphicsLayer, Graphic) {
 
       const RESROBOT_KEY = "a1ba6c34-9ea5-4b8f-907e-d4c18a3f58ec"; // Trafiklab ResRobot v2.1 API-nyckel
+      const ORS_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImE5ZjkyNWU1MGY0MzRiNzE4YmYyOGE4ZjQ0N2JmNzczIiwiaCI6Im11cm11cjY0In0="; // openrouteservice API-nyckel behövs för gångrutt
 
       const map = new Map({ basemap: "satellite", ground: "world-elevation" });
+
+      const routeLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 } });
+      map.add(routeLayer);
 
       const view = new SceneView({
         container: "sceneView",
@@ -458,6 +468,8 @@
       const nearMeta = document.getElementById("nearMeta");
       const nearMeasureBtn = document.getElementById("nearMeasureBtn");
       const nearResetBtn = document.getElementById("nearResetBtn");
+      const nearRouteBtn = document.getElementById("nearRouteBtn");
+      const nearClearRouteBtn = document.getElementById("nearClearRouteBtn");
       const depHint = document.getElementById("depHint");
       const depList = document.getElementById("depList");
       const depMeta = document.getElementById("depMeta");
@@ -513,6 +525,8 @@
       let lastHighlight = null;
       let busFeaturesCache = null;
       let measureEnabled = false;
+      let lastMeasurePoint = null;
+      let lastNearestFeature = null;
 
       function clearHighlight() {
         if (lastHighlight && typeof lastHighlight.remove === "function") {
@@ -556,6 +570,7 @@
         try {
           const mapPtWgs = toGeographic(mapPoint);
           if (!mapPtWgs) throw new Error("Okänt koordinatsystem");
+          lastMeasurePoint = mapPtWgs;
 
           const features = await getBusFeatures();
           if (!features.length) {
@@ -587,6 +602,7 @@
             }
           }
           if (!best) return;
+          lastNearestFeature = best;
           nearHint.textContent = "";
           const name = best.attributes?.Hplnamn || "Okänd hållplats";
           const nr = best.attributes?.Nr != null ? ` (${best.attributes.Nr})` : "";
@@ -598,6 +614,76 @@
           nearMeta.textContent = String(e && e.message ? e.message : e);
           console.warn("Nearest stop error:", e);
         }
+      }
+
+      async function drawWalkingRoute() {
+        if (!ORS_KEY) {
+          nearMeta.textContent = "Lägg in din openrouteservice API‑nyckel i koden";
+          return;
+        }
+        if (!lastMeasurePoint || !lastNearestFeature) {
+          nearMeta.textContent = "Mät först en punkt på kartan";
+          return;
+        }
+        const end = toGeographic(lastNearestFeature.geometry);
+        if (!end) {
+          nearMeta.textContent = "Kunde inte läsa hållplatsens position";
+          return;
+        }
+
+        const sLon = lastMeasurePoint.longitude ?? lastMeasurePoint.x;
+        const sLat = lastMeasurePoint.latitude ?? lastMeasurePoint.y;
+        const eLon = end.longitude ?? end.x;
+        const eLat = end.latitude ?? end.y;
+
+        const straight = new Polyline({
+          paths: [[[sLon, sLat], [eLon, eLat]]],
+          spatialReference: { wkid: 4326 }
+        });
+        const straightMeters = geometryEngine.geodesicLength(straight, "meters");
+        if (straightMeters > 6000) {
+          nearMeta.textContent = "Rutt är längre än 6 km (ORS‑gräns för gång)";
+          return;
+        }
+
+        const url = "https://api.openrouteservice.org/v2/directions/foot-walking/geojson";
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": ORS_KEY
+          },
+          body: JSON.stringify({ coordinates: [[sLon, sLat], [eLon, eLat]] })
+        });
+        const data = await res.json();
+        const feat = data?.features?.[0];
+        const coords = feat?.geometry?.coordinates;
+        const summary = feat?.properties?.summary;
+        if (!coords || coords.length < 2) {
+          nearMeta.textContent = "Ingen rutt hittades";
+          return;
+        }
+
+        routeLayer.removeAll();
+        const route = new Polyline({
+          paths: [coords],
+          spatialReference: { wkid: 4326 }
+        });
+        const graphic = new Graphic({
+          geometry: route,
+          symbol: { type: "simple-line", color: "#00E5FF", width: 3 }
+        });
+        routeLayer.add(graphic);
+
+        if (summary?.distance != null && summary?.duration != null) {
+          const dist = formatDistance(summary.distance);
+          const mins = Math.max(1, Math.round(summary.duration / 60));
+          nearMeta.textContent = `${dist} • ca ${mins} min (gångväg)`;
+        }
+      }
+
+      function clearRoute() {
+        routeLayer.removeAll();
       }
 
       function resetNearest() {
@@ -781,6 +867,13 @@
         measureEnabled = false;
         nearMeasureBtn.textContent = "Mät avstånd";
         resetNearest();
+        clearRoute();
+      });
+      nearRouteBtn.addEventListener("click", () => {
+        drawWalkingRoute();
+      });
+      nearClearRouteBtn.addEventListener("click", () => {
+        clearRoute();
       });
 
       function formatWhereValue(field, value, layer) {
