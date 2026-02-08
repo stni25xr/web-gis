@@ -558,11 +558,17 @@
           for (const f of features) {
             if (!f.geometry) continue;
             const fWgs = webMercatorUtils.webMercatorToGeographic(f.geometry) || f.geometry;
+            const lon1 = mapPtWgs.longitude ?? mapPtWgs.x;
+            const lat1 = mapPtWgs.latitude ?? mapPtWgs.y;
+            const lon2 = fWgs.longitude ?? fWgs.x;
+            const lat2 = fWgs.latitude ?? fWgs.y;
+            if (!isFinite(lon1) || !isFinite(lat1) || !isFinite(lon2) || !isFinite(lat2)) continue;
             const line = new Polyline({
-              paths: [[[mapPtWgs.longitude, mapPtWgs.latitude], [fWgs.longitude, fWgs.latitude]]],
+              paths: [[[lon1, lat1], [lon2, lat2]]],
               spatialReference: { wkid: 4326 }
             });
             const d = geometryEngine.geodesicLength(line, "meters");
+            if (!isFinite(d)) continue;
             if (d < bestDist) {
               bestDist = d;
               best = f;
