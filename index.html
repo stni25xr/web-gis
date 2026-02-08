@@ -312,8 +312,10 @@
       "esri/views/SceneView",
       "esri/layers/SceneLayer",
       "esri/layers/GeoJSONLayer",
-      "esri/geometry/geometryEngine"
-    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, geometryEngine) {
+      "esri/geometry/geometryEngine",
+      "esri/geometry/SpatialReference",
+      "esri/geometry/projection"
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, geometryEngine, SpatialReference, projection) {
 
       const RESROBOT_KEY = "a1ba6c34-9ea5-4b8f-907e-d4c18a3f58ec"; // Trafiklab ResRobot v2.1 API-nyckel
 
@@ -535,6 +537,10 @@
 
       async function updateNearestStop(mapPoint) {
         try {
+          await projection.load();
+          const wgs84 = SpatialReference.WGS84;
+          const mapPtWgs = projection.project(mapPoint, wgs84);
+
           const features = await getBusFeatures();
           if (!features.length) {
             nearHint.textContent = "Inga busshållplatser hittades";
@@ -546,7 +552,8 @@
           let bestDist = Infinity;
           for (const f of features) {
             if (!f.geometry) continue;
-            const d = geometryEngine.distance(mapPoint, f.geometry, "meters", true);
+            const fWgs = projection.project(f.geometry, wgs84);
+            const d = geometryEngine.geodesicDistance(mapPtWgs, fWgs, "meters");
             if (d < bestDist) {
               bestDist = d;
               best = f;
