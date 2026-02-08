@@ -1169,7 +1169,9 @@
         clearRoute();
       });
 
-      setTimeout(fillServiceSelect, 800);
+      Promise.all([forskola.when(), grund.when(), gymn.when(), vard.when()])
+        .then(fillServiceSelect)
+        .catch(() => fillServiceSelect());
       svcSelect.addEventListener("change", () => {
         if (!svcSelect.value) {
           svcHint.textContent = "Välj en service och klicka Mät avstånd";
