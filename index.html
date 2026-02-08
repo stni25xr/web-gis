@@ -1188,12 +1188,14 @@
       Promise.all([forskola.when(), grund.when(), gymn.when(), vard.when()])
         .then(fillServiceSelect)
         .catch(() => fillServiceSelect());
+      view.when().then(() => { fillServiceSelect(); });
       svcSelect.addEventListener("change", () => {
         if (!svcSelect.value) {
           svcHint.textContent = "Välj en service och klicka Mät avstånd";
           svcList.innerHTML = "";
         }
       });
+      svcSelect.addEventListener("focus", () => { fillServiceSelect(); });
 
       svcMeasureBtn.addEventListener("click", () => {
         if (!svcSelect.value) {
