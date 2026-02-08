@@ -877,23 +877,33 @@
         const d = distanceMeters(mapPtWgs, fWgs);
         if (d == null) return;
         svcHint.textContent = "";
-        svcList.innerHTML = `<div><b>${labelForService(selected.key)}</b> – ${selected.name}</div>
-          <div>${formatDistance(d)} • ca ${formatWalkTime(d)} till fots</div>`;
+        const header = `<div><b>${labelForService(selected.key)}</b> – ${selected.name}</div>`;
+        svcList.innerHTML = `${header}<div>${formatDistance(d)} • ca ${formatWalkTime(d)} till fots</div>`;
+
+        const summary = await drawWalkingRouteToFeature(selected.feature, (msg) => {
+          svcList.innerHTML = `${header}<div>${msg}</div>`;
+        });
+        if (summary?.distance != null && summary?.duration != null) {
+          const dist = formatDistance(summary.distance);
+          const mins = Math.max(1, Math.round(summary.duration / 60));
+          svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>`;
+        }
       }
 
-      async function drawWalkingRoute() {
+      async function drawWalkingRouteToFeature(targetFeature, setStatus) {
+        const status = typeof setStatus === "function" ? setStatus : () => {};
         if (!ORS_KEY) {
-          nearMeta.textContent = "Lägg in din openrouteservice API‑nyckel i koden";
-          return;
+          status("Lägg in din openrouteservice API‑nyckel i koden");
+          return null;
         }
-        if (!lastMeasurePoint || !lastNearestFeature) {
-          nearMeta.textContent = "Mät först en punkt på kartan";
-          return;
+        if (!lastMeasurePoint || !targetFeature) {
+          status("Mät först en punkt på kartan");
+          return null;
         }
-        const end = toGeographic(lastNearestFeature.geometry);
+        const end = toGeographic(targetFeature.geometry);
         if (!end) {
-          nearMeta.textContent = "Kunde inte läsa hållplatsens position";
-          return;
+          status("Kunde inte läsa positionen");
+          return null;
         }
 
         const sLon = lastMeasurePoint.longitude ?? lastMeasurePoint.x;
@@ -907,8 +917,8 @@
         });
         const straightMeters = geometryEngine.geodesicLength(straight, "meters");
         if (straightMeters > 6000) {
-          nearMeta.textContent = "Rutt är längre än 6 km (ORS‑gräns för gång)";
-          return;
+          status("Rutt är längre än 6 km (ORS‑gräns för gång)");
+          return null;
         }
 
         const url = "https://api.openrouteservice.org/v2/directions/foot-walking/geojson";
@@ -925,8 +935,8 @@
         const coords = feat?.geometry?.coordinates;
         const summary = feat?.properties?.summary;
         if (!coords || coords.length < 2) {
-          nearMeta.textContent = "Ingen rutt hittades";
-          return;
+          status("Ingen rutt hittades");
+          return null;
         }
 
         routeLayer.removeAll();
@@ -940,11 +950,7 @@
         });
         routeLayer.add(graphic);
 
-        if (summary?.distance != null && summary?.duration != null) {
-          const dist = formatDistance(summary.distance);
-          const mins = Math.max(1, Math.round(summary.duration / 60));
-          nearMeta.textContent = `${dist} • ca ${mins} min (gångväg)`;
-        }
+        return summary || null;
       }
 
       function clearRoute() {
@@ -1142,7 +1148,7 @@
         clearRoute();
       });
       nearRouteBtn.addEventListener("click", () => {
-        drawWalkingRoute();
+        drawWalkingRouteToFeature(lastNearestFeature, (msg) => { nearMeta.textContent = msg; });
       });
       nearClearRouteBtn.addEventListener("click", () => {
         clearRoute();
