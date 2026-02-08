@@ -542,9 +542,20 @@
         return Math.max(1, Math.round(minutes)) + " min";
       }
 
+      function toGeographic(pt) {
+        if (!pt) return null;
+        const sr = pt.spatialReference;
+        if (sr && (sr.isWGS84 || sr.wkid === 4326)) return pt;
+        if (sr && (sr.isWebMercator || sr.wkid === 3857 || sr.wkid === 102100)) {
+          return webMercatorUtils.webMercatorToGeographic(pt);
+        }
+        return null;
+      }
+
       async function updateNearestStop(mapPoint) {
         try {
-          const mapPtWgs = webMercatorUtils.webMercatorToGeographic(mapPoint) || mapPoint;
+          const mapPtWgs = toGeographic(mapPoint);
+          if (!mapPtWgs) throw new Error("Okänt koordinatsystem");
 
           const features = await getBusFeatures();
           if (!features.length) {
@@ -557,7 +568,8 @@
           let bestDist = Infinity;
           for (const f of features) {
             if (!f.geometry) continue;
-            const fWgs = webMercatorUtils.webMercatorToGeographic(f.geometry) || f.geometry;
+            const fWgs = toGeographic(f.geometry);
+            if (!fWgs) continue;
             const lon1 = mapPtWgs.longitude ?? mapPtWgs.x;
             const lat1 = mapPtWgs.latitude ?? mapPtWgs.y;
             const lon2 = fWgs.longitude ?? fWgs.x;
