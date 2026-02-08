@@ -261,6 +261,14 @@
       <div class="field-row" style="margin-top:6px;">
         <select id="svcSelect"></select>
       </div>
+      <div class="field-row" style="margin-top:6px;">
+        <button id="svcMeasureBtn" type="button">Mät avstånd</button>
+        <button id="svcResetBtn" type="button">Nollställ</button>
+      </div>
+      <div class="field-row" style="margin-top:6px;">
+        <button id="svcRouteBtn" type="button">Visa gångväg</button>
+        <button id="svcClearRouteBtn" type="button">Rensa rutt</button>
+      </div>
       <div id="svcList" style="font-size:13px;color:#0f172a;"></div>
     </div>
 
@@ -603,6 +611,10 @@
       const svcHint = document.getElementById("svcHint");
       const svcList = document.getElementById("svcList");
       const svcSelect = document.getElementById("svcSelect");
+      const svcMeasureBtn = document.getElementById("svcMeasureBtn");
+      const svcResetBtn = document.getElementById("svcResetBtn");
+      const svcRouteBtn = document.getElementById("svcRouteBtn");
+      const svcClearRouteBtn = document.getElementById("svcClearRouteBtn");
       const uniqueLayer = document.getElementById("uniqueLayer");
       const uniqueField = document.getElementById("uniqueField");
       const uniqueList = document.getElementById("uniqueList");
@@ -663,6 +675,8 @@
       let lastNearestFeature = null;
       let svcCache = null;
       let svcIndex = [];
+      let svcMeasureEnabled = false;
+      let lastSvcMeasurePoint = null;
 
       function clearHighlight() {
         if (lastHighlight && typeof lastHighlight.remove === "function") {
@@ -874,6 +888,7 @@
         const mapPtWgs = toGeographic(mapPoint);
         const fWgs = toGeographic(selected.feature.geometry);
         if (!mapPtWgs || !fWgs) return;
+        lastSvcMeasurePoint = mapPtWgs;
         const d = distanceMeters(mapPtWgs, fWgs);
         if (d == null) return;
         svcHint.textContent = "";
@@ -1106,7 +1121,7 @@
         if (measureEnabled && event.mapPoint) {
           updateNearestStop(event.mapPoint);
           if (svcSelect.value) {
-            updateSelectedServiceDistance(event.mapPoint);
+            if (svcMeasureEnabled) updateSelectedServiceDistance(event.mapPoint);
           } else {
             updateServiceDistances(event.mapPoint);
           }
@@ -1157,9 +1172,45 @@
       fillServiceSelect();
       svcSelect.addEventListener("change", () => {
         if (!svcSelect.value) {
-          svcHint.textContent = "Klicka på kartan för att räkna avstånd";
+          svcHint.textContent = "Välj en service och klicka Mät avstånd";
           svcList.innerHTML = "";
         }
+      });
+
+      svcMeasureBtn.addEventListener("click", () => {
+        if (!svcSelect.value) {
+          svcHint.textContent = "Välj en service i listan";
+          return;
+        }
+        svcMeasureEnabled = !svcMeasureEnabled;
+        svcMeasureBtn.textContent = svcMeasureEnabled ? "Mätning: PÅ" : "Mät avstånd";
+        if (svcMeasureEnabled) {
+          svcHint.textContent = "Klicka på kartan för att mäta";
+        }
+      });
+      svcResetBtn.addEventListener("click", () => {
+        svcMeasureEnabled = false;
+        svcMeasureBtn.textContent = "Mät avstånd";
+        svcHint.textContent = "Välj en service och klicka Mät avstånd";
+        svcList.innerHTML = "";
+        lastSvcMeasurePoint = null;
+      });
+      svcRouteBtn.addEventListener("click", () => {
+        if (!svcSelect.value) {
+          svcHint.textContent = "Välj en service i listan";
+          return;
+        }
+        const selected = svcIndex.find((s) => s.id === svcSelect.value);
+        if (!selected) return;
+        if (!lastSvcMeasurePoint) {
+          svcHint.textContent = "Mät först en punkt på kartan";
+          return;
+        }
+        lastMeasurePoint = lastSvcMeasurePoint;
+        drawWalkingRouteToFeature(selected.feature, (msg) => { svcList.innerHTML = `<div>${msg}</div>`; });
+      });
+      svcClearRouteBtn.addEventListener("click", () => {
+        clearRoute();
       });
 
       function formatWhereValue(field, value, layer) {
