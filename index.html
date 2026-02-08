@@ -1137,11 +1137,11 @@
       view.on("click", (event) => {
         if (measureEnabled && event.mapPoint) {
           updateNearestStop(event.mapPoint);
-          if (svcSelect.value) {
-            if (svcMeasureEnabled) updateSelectedServiceDistance(event.mapPoint);
-          } else {
-            updateServiceDistances(event.mapPoint);
-          }
+        }
+        if (svcMeasureEnabled && event.mapPoint) {
+          updateSelectedServiceDistance(event.mapPoint);
+        } else if (event.mapPoint && !svcSelect.value) {
+          updateServiceDistances(event.mapPoint);
         }
         view.hitTest(event).then((hit) => {
           const found = hit.results.find((r) => r.graphic);
