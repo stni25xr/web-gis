@@ -313,8 +313,9 @@
       "esri/layers/SceneLayer",
       "esri/layers/GeoJSONLayer",
       "esri/geometry/geometryEngine",
-      "esri/geometry/support/webMercatorUtils"
-    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, geometryEngine, webMercatorUtils) {
+      "esri/geometry/support/webMercatorUtils",
+      "esri/geometry/Polyline"
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, geometryEngine, webMercatorUtils, Polyline) {
 
       const RESROBOT_KEY = "a1ba6c34-9ea5-4b8f-907e-d4c18a3f58ec"; // Trafiklab ResRobot v2.1 API-nyckel
 
@@ -550,7 +551,11 @@
           for (const f of features) {
             if (!f.geometry) continue;
             const fWgs = webMercatorUtils.webMercatorToGeographic(f.geometry) || f.geometry;
-            const d = geometryEngine.geodesicDistance(mapPtWgs, fWgs, "meters");
+            const line = new Polyline({
+              paths: [[[mapPtWgs.longitude, mapPtWgs.latitude], [fWgs.longitude, fWgs.latitude]]],
+              spatialReference: { wkid: 4326 }
+            });
+            const d = geometryEngine.geodesicLength(line, "meters");
             if (d < bestDist) {
               bestDist = d;
               best = f;
