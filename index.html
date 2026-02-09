@@ -398,6 +398,8 @@
 
       const routeLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 } });
       map.add(routeLayer);
+      const corridorLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 1 } });
+      map.add(corridorLayer);
 
       const view = new SceneView({
         container: "sceneView",
@@ -418,6 +420,13 @@
         popupEnabled: false
       });
       map.add(buildings);
+
+      const buildingFootprints = new GeoJSONLayer({
+        url: "./data/Main_byggnad.geojson",
+        visible: false,
+        popupEnabled: false
+      });
+      map.add(buildingFootprints);
 
       // Oxnehaga (din GeoJSON)
       const ox = new GeoJSONLayer({
@@ -703,6 +712,7 @@
       let svcIndex = [];
       let svcMeasureEnabled = false;
       let lastSvcMeasurePoint = null;
+      let lastRouteGeometry = null;
 
       function clearHighlight() {
         if (lastHighlight && typeof lastHighlight.remove === "function") {
@@ -1004,21 +1014,55 @@
         }
 
         routeLayer.removeAll();
+        corridorLayer.removeAll();
         const route = new Polyline({
           paths: [coords],
           spatialReference: { wkid: 4326 }
         });
+        lastRouteGeometry = route;
         const graphic = new Graphic({
           geometry: route,
           symbol: { type: "simple-line", color: "#00E5FF", width: 3 }
         });
         routeLayer.add(graphic);
 
+        // Build corridor and clip with buildings
+        try {
+          const corridor = geometryEngine.geodesicBuffer(route, 25, "meters");
+          await buildingFootprints.load();
+          const bRes = await buildingFootprints.queryFeatures({
+            geometry: corridor,
+            spatialRelationship: "intersects",
+            returnGeometry: true,
+            outFields: ["*"]
+          });
+          const bGeoms = (bRes.features || []).map((f) => f.geometry).filter(Boolean);
+          let corridorClipped = corridor;
+          if (bGeoms.length) {
+            const union = geometryEngine.union(bGeoms);
+            const diff = geometryEngine.difference(corridor, union);
+            if (diff) corridorClipped = diff;
+          }
+          const corridorGraphic = new Graphic({
+            geometry: corridorClipped,
+            symbol: {
+              type: "simple-fill",
+              color: [0, 229, 255, 0.15],
+              outline: { color: [0, 229, 255, 0.6], width: 1 }
+            }
+          });
+          corridorLayer.add(corridorGraphic);
+        } catch (e) {
+          console.warn("Corridor error:", e);
+        }
+
         return summary || null;
       }
 
       function clearRoute() {
         routeLayer.removeAll();
+        corridorLayer.removeAll();
+        lastRouteGeometry = null;
       }
 
       function resetNearest() {
