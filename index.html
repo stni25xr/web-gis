@@ -713,6 +713,7 @@
       let svcMeasureEnabled = false;
       let lastSvcMeasurePoint = null;
       let lastRouteGeometry = null;
+      let routeBusy = false;
 
       function clearHighlight() {
         if (lastHighlight && typeof lastHighlight.remove === "function") {
@@ -966,97 +967,105 @@
 
       async function drawWalkingRouteToFeature(targetFeature, setStatus) {
         const status = typeof setStatus === "function" ? setStatus : () => {};
-        if (!ORS_KEY) {
-          status("Lägg in din openrouteservice API‑nyckel i koden");
-          return null;
-        }
-        if (!lastMeasurePoint || !targetFeature) {
-          status("Mät först en punkt på kartan");
-          return null;
-        }
-        const end = toGeographic(targetFeature.geometry);
-        if (!end) {
-          status("Kunde inte läsa positionen");
-          return null;
-        }
-
-        const sLon = lastMeasurePoint.longitude ?? lastMeasurePoint.x;
-        const sLat = lastMeasurePoint.latitude ?? lastMeasurePoint.y;
-        const eLon = end.longitude ?? end.x;
-        const eLat = end.latitude ?? end.y;
-
-        const straight = new Polyline({
-          paths: [[[sLon, sLat], [eLon, eLat]]],
-          spatialReference: { wkid: 4326 }
-        });
-        const straightMeters = geometryEngine.geodesicLength(straight, "meters");
-        if (straightMeters > 6000) {
-          status("Rutt är längre än 6 km (ORS‑gräns för gång)");
-          return null;
-        }
-
-        const url = "https://api.openrouteservice.org/v2/directions/foot-walking/geojson";
-        const res = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": ORS_KEY
-          },
-          body: JSON.stringify({ coordinates: [[sLon, sLat], [eLon, eLat]] })
-        });
-        const data = await res.json();
-        const feat = data?.features?.[0];
-        const coords = feat?.geometry?.coordinates;
-        const summary = feat?.properties?.summary;
-        if (!coords || coords.length < 2) {
-          status("Ingen rutt hittades");
-          return null;
-        }
-
-        routeLayer.removeAll();
-        corridorLayer.removeAll();
-        const route = new Polyline({
-          paths: [coords],
-          spatialReference: { wkid: 4326 }
-        });
-        lastRouteGeometry = route;
-        const graphic = new Graphic({
-          geometry: route,
-          symbol: { type: "simple-line", color: "#00E5FF", width: 3 }
-        });
-        routeLayer.add(graphic);
-
-        // Build corridor and clip with buildings
+        if (routeBusy) return null;
+        routeBusy = true;
         try {
-          const corridor = geometryEngine.geodesicBuffer(route, 25, "meters");
-          await buildingFootprints.load();
-          const bRes = await buildingFootprints.queryFeatures({
-            geometry: corridor,
-            spatialRelationship: "intersects",
-            returnGeometry: true,
-            outFields: ["*"]
-          });
-          const bGeoms = (bRes.features || []).map((f) => f.geometry).filter(Boolean);
-          let corridorClipped = corridor;
-          if (bGeoms.length) {
-            const union = geometryEngine.union(bGeoms);
-            const diff = geometryEngine.difference(corridor, union);
-            if (diff) corridorClipped = diff;
+          if (!ORS_KEY) {
+            status("Lägg in din openrouteservice API‑nyckel i koden");
+            return null;
           }
-          const corridorGraphic = new Graphic({
-            geometry: corridorClipped,
-            symbol: {
-              type: "simple-fill",
-              color: [0, 229, 255, 0.15],
-              outline: { color: [0, 229, 255, 0.6], width: 1 }
-            }
-          });
-          corridorLayer.add(corridorGraphic);
-        } catch (e) {
-          console.warn("Corridor error:", e);
-        }
+          if (!lastMeasurePoint || !targetFeature) {
+            status("Mät först en punkt på kartan");
+            return null;
+          }
+          const end = toGeographic(targetFeature.geometry);
+          if (!end) {
+            status("Kunde inte läsa positionen");
+            return null;
+          }
 
-        return summary || null;
+          const sLon = lastMeasurePoint.longitude ?? lastMeasurePoint.x;
+          const sLat = lastMeasurePoint.latitude ?? lastMeasurePoint.y;
+          const eLon = end.longitude ?? end.x;
+          const eLat = end.latitude ?? end.y;
+
+          const straight = new Polyline({
+            paths: [[[sLon, sLat], [eLon, eLat]]],
+            spatialReference: { wkid: 4326 }
+          });
+          const straightMeters = geometryEngine.geodesicLength(straight, "meters");
+          if (straightMeters > 6000) {
+            status("Rutt är längre än 6 km (ORS‑gräns för gång)");
+            return null;
+          }
+
+          const url = "https://api.openrouteservice.org/v2/directions/foot-walking/geojson";
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": ORS_KEY
+            },
+            body: JSON.stringify({ coordinates: [[sLon, sLat], [eLon, eLat]] })
+          });
+          const data = await res.json();
+          const feat = data?.features?.[0];
+          const coords = feat?.geometry?.coordinates;
+          const summary = feat?.properties?.summary;
+          if (!coords || coords.length < 2) {
+            status("Ingen rutt hittades");
+            return null;
+          }
+
+          routeLayer.removeAll();
+          corridorLayer.removeAll();
+          const route = new Polyline({
+            paths: [coords],
+            spatialReference: { wkid: 4326 }
+          });
+          lastRouteGeometry = route;
+          const graphic = new Graphic({
+            geometry: route,
+            symbol: { type: "simple-line", color: "#00E5FF", width: 3 }
+          });
+          routeLayer.add(graphic);
+
+          // Build corridor and clip with buildings
+          try {
+            const corridorWidth = 50;
+            const corridor = geometryEngine.geodesicBuffer(route, corridorWidth, "meters");
+            await buildingFootprints.load();
+            const bRes = await buildingFootprints.queryFeatures({
+              geometry: corridor,
+              spatialRelationship: "intersects",
+              returnGeometry: true,
+              outFields: ["*"]
+            });
+            const bGeoms = (bRes.features || []).map((f) => f.geometry).filter(Boolean);
+            let corridorClipped = corridor;
+            if (bGeoms.length) {
+              const union = geometryEngine.union(bGeoms);
+              const unionBuffered = geometryEngine.geodesicBuffer(union, corridorWidth, "meters");
+              const diff = geometryEngine.difference(corridor, unionBuffered);
+              if (diff) corridorClipped = diff;
+            }
+            const corridorGraphic = new Graphic({
+              geometry: corridorClipped,
+              symbol: {
+                type: "simple-fill",
+                color: [0, 229, 255, 0.15],
+                outline: { color: [0, 229, 255, 0.6], width: 1 }
+              }
+            });
+            corridorLayer.add(corridorGraphic);
+          } catch (e) {
+            console.warn("Corridor error:", e);
+          }
+
+          return summary || null;
+        } finally {
+          routeBusy = false;
+        }
       }
 
       function clearRoute() {
