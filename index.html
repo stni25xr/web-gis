@@ -1045,8 +1045,7 @@
             let corridorClipped = corridor;
             if (bGeoms.length) {
               const union = geometryEngine.union(bGeoms);
-              const unionBuffered = geometryEngine.geodesicBuffer(union, corridorWidth, "meters");
-              const diff = geometryEngine.difference(corridor, unionBuffered);
+              const diff = geometryEngine.difference(corridor, union);
               if (diff) corridorClipped = diff;
             }
             const corridorGraphic = new Graphic({
