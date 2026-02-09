@@ -847,6 +847,16 @@
         const d = geometryEngine.geodesicLength(line, "meters");
         return isFinite(d) ? d : null;
       }
+      function destinationPoint(lon, lat, bearingDeg, distanceMeters) {
+        const R = 6371000;
+        const brng = bearingDeg * Math.PI / 180;
+        const d = distanceMeters / R;
+        const lat1 = lat * Math.PI / 180;
+        const lon1 = lon * Math.PI / 180;
+        const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng));
+        const lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+        return { lon: lon2 * 180 / Math.PI, lat: lat2 * 180 / Math.PI };
+      }
 
       async function updateNearestStop(mapPoint) {
         try {
@@ -1044,8 +1054,24 @@
             const bGeoms = (bRes.features || []).map((f) => f.geometry).filter(Boolean);
             let corridorClipped = corridor;
             if (bGeoms.length) {
-              const union = geometryEngine.union(bGeoms);
-              const diff = geometryEngine.difference(corridor, union);
+              const heading = (view.camera.heading || 0);
+              const behindBearing = (heading + 180) % 360;
+              const shadowLen = 200;
+              const shadows = [];
+              bGeoms.forEach((g) => {
+                const c = geometryEngine.centroid(g);
+                const cWgs = toGeographic(c);
+                if (!cWgs) return;
+                const p = destinationPoint(cWgs.longitude, cWgs.latitude, behindBearing, shadowLen);
+                const shadowLine = new Polyline({
+                  paths: [[[cWgs.longitude, cWgs.latitude], [p.lon, p.lat]]],
+                  spatialReference: { wkid: 4326 }
+                });
+                const shadow = geometryEngine.geodesicBuffer(shadowLine, corridorWidth, "meters");
+                shadows.push(shadow);
+              });
+              const shadowUnion = shadows.length ? geometryEngine.union(shadows) : null;
+              const diff = shadowUnion ? geometryEngine.difference(corridor, shadowUnion) : corridor;
               if (diff) corridorClipped = diff;
             }
             const corridorGraphic = new Graphic({
