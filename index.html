@@ -494,12 +494,7 @@
       let mapShot = null;
       try {
         if (window.appView && typeof window.appView.takeScreenshot === "function") {
-          await window.appView.when();
-          mapShot = await window.appView.takeScreenshot({
-            format: "png",
-            quality: 100,
-            area: { x: 0, y: 0, width: window.appView.width, height: window.appView.height }
-          });
+          mapShot = await window.appView.takeScreenshot({ format: "png", quality: 100 });
         }
       } catch (e) {
         console.warn("Map screenshot error:", e);
@@ -510,8 +505,7 @@
       const domCanvas = await html2canvas(document.body, {
         useCORS: true,
         backgroundColor: "#f8fafc",
-        scale,
-        ignoreElements: (el) => el && el.id === "sceneView"
+        scale
       });
       if (scene) scene.style.visibility = prevVisibility;
 
@@ -537,8 +531,6 @@
         } catch (e) {
           console.warn("Map draw error:", e);
         }
-      } else {
-        console.warn("Map screenshot missing");
       }
       return out;
     }
