@@ -634,15 +634,12 @@
       // Oxnehaga (din GeoJSON)
       const ox = new GeoJSONLayer({
         url: "./data/Oxnehaga-Area.geojson",
+        popupEnabled: false,
         renderer: {
           type: "simple",
           symbol: { type: "simple-fill", color: [0, 0, 0, 0], outline: { color: [251, 146, 60], width: 2 } }
         },
-        visible: true,
-        popupTemplate: {
-          title: "Attribut",
-          content: [{ type: "fields" }]
-        }
+        visible: true
       });
       map.add(ox);
 
