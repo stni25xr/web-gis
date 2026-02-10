@@ -56,6 +56,27 @@
       background-repeat: no-repeat;
       background-position: center;
     }
+    .legend-cap {
+      width:18px; height:18px; border-radius:4px;
+      background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cpolygon points='32,8 4,22 32,36 60,22' fill='%232563eb'/%3E%3Cpolygon points='16,28 32,36 48,28 48,40 32,48 16,40' fill='%231d4ed8'/%3E%3Ccircle cx='60' cy='22' r='3' fill='%2393c5fd'/%3E%3Crect x='57' y='25' width='2' height='12' fill='%2393c5fd'/%3E%3C/svg%3E");
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+    .legend-police {
+      width:18px; height:18px; border-radius:4px;
+      background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cpath d='M32 6 L54 14 L50 42 C45 52 38 57 32 58 C26 57 19 52 14 42 L10 14 Z' fill='%231d4ed8'/%3E%3Cpath d='M32 14 L36 24 L47 24 L38 30 L41 40 L32 34 L23 40 L26 30 L17 24 L28 24 Z' fill='%23f8fafc'/%3E%3C/svg%3E");
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+    .legend-fire {
+      width:18px; height:18px; border-radius:4px;
+      background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cpath d='M32 6 C24 16 38 22 28 32 C22 38 22 46 32 54 C42 46 44 38 38 30 C46 24 40 16 32 6 Z' fill='%23ef4444'/%3E%3Cpath d='M32 22 C28 28 34 30 30 36 C28 40 28 44 32 48 C36 44 38 40 36 36 C40 32 36 28 32 22 Z' fill='%23f59e0b'/%3E%3C/svg%3E");
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
 
     /* ===== Slide switch ===== */
     .switch { position:relative; width:44px; height:24px; }
@@ -72,7 +93,13 @@
     }
     #info-panel h2 { margin:0 0 10px 0; font-size:16px; color:#1f2937; }
     .panel-section { background:#fff; border:1px solid #e3e7ee; border-radius:10px; padding:12px; margin-bottom:12px; box-shadow:0 1px 2px rgba(15,23,42,.05); }
-    .panel-title { font-size:13px; letter-spacing:.02em; text-transform:uppercase; color:#64748b; margin:0 0 8px 0; }
+    .panel-title { font-size:13px; letter-spacing:.02em; text-transform:uppercase; color:#64748b; margin:0; }
+    .panel-section details { margin:0; }
+    .panel-section summary { cursor:pointer; list-style:none; display:flex; align-items:center; justify-content:space-between; }
+    .panel-section summary::-webkit-details-marker { display:none; }
+    .panel-section summary::after { content:"▸"; color:#94a3b8; transition:transform .2s; font-size:16px; }
+    .panel-section details[open] summary::after { transform:rotate(90deg); }
+    .panel-body { margin-top:8px; }
     #attrHint { color:#475569; font-size:13px; }
     #attrTable { width:100%; border-collapse:collapse; font-size:13px; }
     #attrTable td { padding:5px 4px; border-bottom:1px solid #eef2f7; vertical-align:top; }
@@ -282,15 +309,15 @@
           <span>Vatten</span>
         </div>
         <div class="legend-item">
-          <span class="legend-swatch" style="background:#ff5252;"></span>
+          <span class="legend-cap"></span>
           <span>Förskolor</span>
         </div>
         <div class="legend-item">
-          <span class="legend-swatch" style="background:#3b82f6;"></span>
+          <span class="legend-cap"></span>
           <span>Grundskolor</span>
         </div>
         <div class="legend-item">
-          <span class="legend-swatch" style="background:#eab308;"></span>
+          <span class="legend-cap"></span>
           <span>Gymnasieskolor</span>
         </div>
         <div class="legend-item">
@@ -298,11 +325,11 @@
           <span>Vårdcentral</span>
         </div>
         <div class="legend-item">
-          <span class="legend-swatch" style="background:#1d4ed8;"></span>
+          <span class="legend-police"></span>
           <span>Polis</span>
         </div>
         <div class="legend-item">
-          <span class="legend-swatch" style="background:#ef4444;"></span>
+          <span class="legend-fire"></span>
           <span>Räddningstjänst</span>
         </div>
       </details>
@@ -314,65 +341,85 @@
     <h2>Information</h2>
 
     <div class="panel-section">
-      <div class="panel-title">Valt objekt</div>
-      <div id="attrHint">Klicka på ett objekt i kartan</div>
-      <table id="attrTable"></table>
+      <details>
+        <summary class="panel-title">Valt objekt</summary>
+        <div class="panel-body">
+          <div id="attrHint">Klicka på ett objekt i kartan</div>
+          <table id="attrTable"></table>
+        </div>
+      </details>
     </div>
 
     <div class="panel-section">
-      <div class="panel-title">Närmsta busshållplats</div>
-      <div id="nearHint">Klicka på kartan för att mäta</div>
-      <div id="nearResult" style="font-size:13px;color:#0f172a;"></div>
-      <div id="nearMeta" style="font-size:12px;color:#64748b;margin-top:4px;"></div>
-      <div class="field-row" style="margin-top:8px;">
-        <button id="nearMeasureBtn" type="button">Mät avstånd</button>
-        <button id="nearResetBtn" type="button">Nollställ</button>
-      </div>
-      <div class="field-row" style="margin-top:6px;">
-        <button id="nearRouteBtn" type="button">Visa gångväg</button>
-        <button id="nearClearRouteBtn" type="button">Rensa rutt</button>
-      </div>
+      <details>
+        <summary class="panel-title">Närmsta busshållplats</summary>
+        <div class="panel-body">
+          <div id="nearHint">Klicka på kartan för att mäta</div>
+          <div id="nearResult" style="font-size:13px;color:#0f172a;"></div>
+          <div id="nearMeta" style="font-size:12px;color:#64748b;margin-top:4px;"></div>
+          <div class="field-row" style="margin-top:8px;">
+            <button id="nearMeasureBtn" type="button">Mät avstånd</button>
+            <button id="nearResetBtn" type="button">Nollställ</button>
+          </div>
+          <div class="field-row" style="margin-top:6px;">
+            <button id="nearRouteBtn" type="button">Visa gångväg</button>
+            <button id="nearClearRouteBtn" type="button">Rensa rutt</button>
+          </div>
+        </div>
+      </details>
     </div>
 
     <div class="panel-section">
-      <div class="panel-title">Avstånd till service</div>
-      <div id="svcHint">Klicka på kartan för att räkna avstånd</div>
-      <div class="field-row" style="margin-top:6px;">
-        <select id="svcSelect"></select>
-      </div>
-      <div class="field-row" style="margin-top:6px;">
-        <button id="svcMeasureBtn" type="button">Mät avstånd</button>
-        <button id="svcResetBtn" type="button">Nollställ</button>
-      </div>
-      <div class="field-row" style="margin-top:6px;">
-        <button id="svcRouteBtn" type="button">Visa gångväg</button>
-        <button id="svcClearRouteBtn" type="button">Rensa rutt</button>
-      </div>
-      <div id="svcList" style="font-size:13px;color:#0f172a;"></div>
+      <details>
+        <summary class="panel-title">Avstånd till service</summary>
+        <div class="panel-body">
+          <div id="svcHint">Klicka på kartan för att räkna avstånd</div>
+          <div class="field-row" style="margin-top:6px;">
+            <select id="svcSelect"></select>
+          </div>
+          <div class="field-row" style="margin-top:6px;">
+            <button id="svcMeasureBtn" type="button">Mät avstånd</button>
+            <button id="svcResetBtn" type="button">Nollställ</button>
+          </div>
+          <div class="field-row" style="margin-top:6px;">
+            <button id="svcRouteBtn" type="button">Visa gångväg</button>
+            <button id="svcClearRouteBtn" type="button">Rensa rutt</button>
+          </div>
+          <div id="svcList" style="font-size:13px;color:#0f172a;"></div>
+        </div>
+      </details>
     </div>
 
     <div class="panel-section">
-      <div class="panel-title">Avgångar (busshållplats)</div>
-      <div id="depHint">Klicka på en busshållplats</div>
-      <div id="depMeta" style="font-size:12px;color:#64748b;margin-top:6px;"></div>
-      <div style="margin-top:6px;">
-        <a id="depLink" href="https://www.jlt.se/tidtabeller/" target="_blank" rel="noopener"
-           style="font-size:12px;color:#2563eb;text-decoration:none;">Öppna tidtabell online</a>
-      </div>
-      <ul id="depList"></ul>
+      <details>
+        <summary class="panel-title">Avgångar (busshållplats)</summary>
+        <div class="panel-body">
+          <div id="depHint">Klicka på en busshållplats</div>
+          <div id="depMeta" style="font-size:12px;color:#64748b;margin-top:6px;"></div>
+          <div style="margin-top:6px;">
+            <a id="depLink" href="https://www.jlt.se/tidtabeller/" target="_blank" rel="noopener"
+               style="font-size:12px;color:#2563eb;text-decoration:none;">Öppna tidtabell online</a>
+          </div>
+          <ul id="depList"></ul>
+        </div>
+      </details>
     </div>
 
     <div class="panel-section">
-      <div class="panel-title">Unika attribut</div>
-      <div class="field-row">
-        <select id="uniqueLayer"></select>
-        <select id="uniqueField"></select>
-      </div>
-      <div class="field-row">
-        <button id="loadUnique" type="button">Hämta</button>
-        <span id="uniqueMeta" style="font-size:12px;color:#64748b;"></span>
-      </div>
-      <ul id="uniqueList"></ul>
+      <details>
+        <summary class="panel-title">Unika attribut</summary>
+        <div class="panel-body">
+          <div class="field-row">
+            <select id="uniqueLayer"></select>
+            <select id="uniqueField"></select>
+          </div>
+          <div class="field-row">
+            <button id="loadUnique" type="button">Hämta</button>
+            <span id="uniqueMeta" style="font-size:12px;color:#64748b;"></span>
+          </div>
+          <ul id="uniqueList"></ul>
+        </div>
+      </details>
     </div>
   </aside>
 
