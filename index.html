@@ -127,7 +127,7 @@
   <aside id="sidebar" aria-label="Sidomeny">
     <h2>Meny</h2>
 
-    <details class="switch-group" open>
+    <details class="switch-group">
       <summary class="switch-group-title">Baslager</summary>
       <div class="switch-row">
         <span class="switch-label">Baslager</span>
@@ -159,7 +159,7 @@
       </div>
     </details>
 
-    <details class="switch-group" open>
+    <details class="switch-group">
       <summary class="switch-group-title">Område</summary>
       <div class="switch-row">
         <span class="switch-label">Område</span>
@@ -177,7 +177,7 @@
       </div>
     </details>
 
-    <details class="switch-group" open>
+    <details class="switch-group">
       <summary class="switch-group-title">Transport</summary>
       <div class="switch-row">
         <span class="switch-label">Transport</span>
@@ -195,7 +195,7 @@
       </div>
     </details>
 
-    <details class="switch-group" open>
+    <details class="switch-group">
       <summary class="switch-group-title">Service</summary>
       <div class="switch-row">
         <span class="switch-label">Service</span>
@@ -229,6 +229,31 @@
         <span class="switch-label">Vårdcentral</span>
         <label class="switch" aria-label="Vårdcentral">
           <input id="swVard" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </details>
+
+    <details class="switch-group">
+      <summary class="switch-group-title">Trygghet</summary>
+      <div class="switch-row">
+        <span class="switch-label">Trygghet</span>
+        <label class="switch" aria-label="Trygghet">
+          <input id="swSafety" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="switch-row switch-child">
+        <span class="switch-label">Polis</span>
+        <label class="switch" aria-label="Polis">
+          <input id="swPolice" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="switch-row switch-child">
+        <span class="switch-label">Räddningstjänst</span>
+        <label class="switch" aria-label="Räddningstjänst">
+          <input id="swFire" type="checkbox" checked />
           <span class="slider"></span>
         </label>
       </div>
@@ -271,6 +296,14 @@
         <div class="legend-item">
           <span class="legend-swatch" style="background:#10b981;"></span>
           <span>Vårdcentral</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch" style="background:#1d4ed8;"></span>
+          <span>Polis</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch" style="background:#ef4444;"></span>
+          <span>Räddningstjänst</span>
         </div>
       </details>
     </div>
@@ -501,6 +534,29 @@
         + "</svg>"
       );
 
+      const capIcon = "data:image/svg+xml;utf8," + encodeURIComponent(
+        "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>"
+        + "<polygon points='32,8 4,22 32,36 60,22' fill='#111827'/>"
+        + "<polygon points='16,28 32,36 48,28 48,40 32,48 16,40' fill='#1f2937'/>"
+        + "<circle cx='60' cy='22' r='3' fill='#2563eb'/>"
+        + "<rect x='57' y='25' width='2' height='12' fill='#2563eb'/>"
+        + "</svg>"
+      );
+
+      const policeIcon = "data:image/svg+xml;utf8," + encodeURIComponent(
+        "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>"
+        + "<path d='M32 6 L54 14 L50 42 C45 52 38 57 32 58 C26 57 19 52 14 42 L10 14 Z' fill='#1d4ed8'/>"
+        + "<path d='M32 14 L36 24 L47 24 L38 30 L41 40 L32 34 L23 40 L26 30 L17 24 L28 24 Z' fill='#f8fafc'/>"
+        + "</svg>"
+      );
+
+      const fireIcon = "data:image/svg+xml;utf8," + encodeURIComponent(
+        "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>"
+        + "<path d='M32 6 C24 16 38 22 28 32 C22 38 22 46 32 54 C42 46 44 38 38 30 C46 24 40 16 32 6 Z' fill='#ef4444'/>"
+        + "<path d='M32 22 C28 28 34 30 30 36 C28 40 28 44 32 48 C36 44 38 40 36 36 C40 32 36 28 32 22 Z' fill='#f59e0b'/>"
+        + "</svg>"
+      );
+
       const bus = new GeoJSONLayer({
         url: "./data/Busshallplaster_oxnehaga.geojson",
         elevationInfo: { mode: "relative-to-ground", offset: 1 },
@@ -570,11 +626,10 @@
         renderer: {
           type: "simple",
           symbol: {
-            type: "simple-marker",
-            style: "triangle",
-            color: [255, 82, 82],
-            size: 8,
-            outline: { color: "white", width: 1 }
+            type: "picture-marker",
+            url: capIcon,
+            width: 16,
+            height: 16
           }
         },
         visible: true,
@@ -590,11 +645,10 @@
         renderer: {
           type: "simple",
           symbol: {
-            type: "simple-marker",
-            style: "diamond",
-            color: [59, 130, 246],
-            size: 8,
-            outline: { color: "white", width: 1 }
+            type: "picture-marker",
+            url: capIcon,
+            width: 16,
+            height: 16
           }
         },
         visible: true,
@@ -610,11 +664,10 @@
         renderer: {
           type: "simple",
           symbol: {
-            type: "simple-marker",
-            style: "square",
-            color: [234, 179, 8],
-            size: 8,
-            outline: { color: "white", width: 1 }
+            type: "picture-marker",
+            url: capIcon,
+            width: 16,
+            height: 16
           }
         },
         visible: true,
@@ -645,6 +698,52 @@
       });
       map.add(vard);
 
+      const police = new GeoJSONLayer({
+        url: "data:application/json;utf8," + encodeURIComponent(JSON.stringify({
+          type: "FeatureCollection",
+          features: [{
+            type: "Feature",
+            properties: { name: "Polisen Jönköping" },
+            geometry: { type: "Point", coordinates: [14.170999, 57.780667] }
+          }]
+        })),
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "picture-marker",
+            url: policeIcon,
+            width: 18,
+            height: 18
+          }
+        },
+        visible: true,
+        popupTemplate: { title: "{name}", content: [{ type: "fields" }] }
+      });
+      map.add(police);
+
+      const fire = new GeoJSONLayer({
+        url: "data:application/json;utf8," + encodeURIComponent(JSON.stringify({
+          type: "FeatureCollection",
+          features: [{
+            type: "Feature",
+            properties: { name: "Räddningstjänsten Huskvarna" },
+            geometry: { type: "Point", coordinates: [14.27955692260687, 57.78795689226685] }
+          }]
+        })),
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "picture-marker",
+            url: fireIcon,
+            width: 18,
+            height: 18
+          }
+        },
+        visible: true,
+        popupTemplate: { title: "{name}", content: [{ type: "fields" }] }
+      });
+      map.add(fire);
+
       // Auto‑zoom när lagret är redo
       view.whenLayerView(ox).then(() => {
         ox.queryExtent().then((res) => {
@@ -659,6 +758,7 @@
       const swArea = document.getElementById("swArea");
       const swTransport = document.getElementById("swTransport");
       const swService = document.getElementById("swService");
+      const swSafety = document.getElementById("swSafety");
       const swBuildings = document.getElementById("swBuildings");
       const swOx = document.getElementById("swOx");
       const swBus = document.getElementById("swBus");
@@ -668,6 +768,8 @@
       const swGrund = document.getElementById("swGrund");
       const swGymn = document.getElementById("swGymn");
       const swVard = document.getElementById("swVard");
+      const swPolice = document.getElementById("swPolice");
+      const swFire = document.getElementById("swFire");
 
       swBuildings.addEventListener("change", () => buildings.visible = swBuildings.checked);
       swOx.addEventListener("change", () => ox.visible = swOx.checked);
@@ -678,6 +780,8 @@
       swGrund.addEventListener("change", () => grund.visible = swGrund.checked);
       swGymn.addEventListener("change", () => gymn.visible = swGymn.checked);
       swVard.addEventListener("change", () => vard.visible = swVard.checked);
+      swPolice.addEventListener("change", () => police.visible = swPolice.checked);
+      swFire.addEventListener("change", () => fire.visible = swFire.checked);
 
       function bindGroup(parent, children) {
         const syncParent = () => {
@@ -701,6 +805,7 @@
       bindGroup(swArea, [swOx]);
       bindGroup(swTransport, [swBus]);
       bindGroup(swService, [swForskola, swGrund, swGymn, swVard]);
+      bindGroup(swSafety, [swPolice, swFire]);
 
       // ===== Right panel: attribut + unika värden =====
       const attrHint = document.getElementById("attrHint");
