@@ -31,6 +31,10 @@
     }
     .switch-row { display:flex; justify-content:space-between; align-items:center; margin:14px 0; }
     .switch-label { font-size:14px; user-select:none; }
+    .switch-group { margin-top:10px; padding-top:10px; border-top:1px solid #2f3742; }
+    .switch-group:first-of-type { border-top:none; padding-top:0; margin-top:0; }
+    .switch-group-title { font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:#94a3b8; margin:6px 0; }
+    .switch-child { padding-left:14px; }
     .section-label { font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:#94a3b8; margin:18px 0 6px; }
     .legend { margin-top:18px; border-top:1px solid #2f3742; padding-top:12px; }
     .legend details { color:#cbd5e1; }
@@ -119,74 +123,111 @@
   <aside id="sidebar" aria-label="Sidomeny">
     <h2>Meny</h2>
 
-    <div class="switch-row">
-      <span class="switch-label">Visa byggnader</span>
-      <label class="switch" aria-label="Visa byggnader">
-        <input id="swBuildings" type="checkbox" checked />
-        <span class="slider"></span>
-      </label>
+    <div class="switch-group">
+      <div class="switch-group-title">Baslager</div>
+      <div class="switch-row">
+        <span class="switch-label">Baslager</span>
+        <label class="switch" aria-label="Baslager">
+          <input id="swBase" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="switch-row switch-child">
+        <span class="switch-label">Byggnader</span>
+        <label class="switch" aria-label="Byggnader">
+          <input id="swBuildings" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="switch-row switch-child">
+        <span class="switch-label">Kommunal mark</span>
+        <label class="switch" aria-label="Kommunal mark">
+          <input id="swMark" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="switch-row switch-child">
+        <span class="switch-label">Vatten</span>
+        <label class="switch" aria-label="Vatten">
+          <input id="swWater" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
     </div>
 
-    <div class="switch-row">
-      <span class="switch-label">Visa Oxnehaga</span>
-      <label class="switch" aria-label="Visa Oxnehaga">
-        <input id="swOx" type="checkbox" checked />
-        <span class="slider"></span>
-      </label>
+    <div class="switch-group">
+      <div class="switch-group-title">Område</div>
+      <div class="switch-row">
+        <span class="switch-label">Område</span>
+        <label class="switch" aria-label="Område">
+          <input id="swArea" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="switch-row switch-child">
+        <span class="switch-label">Öxnehaga</span>
+        <label class="switch" aria-label="Öxnehaga">
+          <input id="swOx" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
     </div>
 
-    <div class="switch-row">
-      <span class="switch-label">Visa busshållplatser</span>
-      <label class="switch" aria-label="Visa busshållplatser">
-        <input id="swBus" type="checkbox" checked />
-        <span class="slider"></span>
-      </label>
+    <div class="switch-group">
+      <div class="switch-group-title">Transport</div>
+      <div class="switch-row">
+        <span class="switch-label">Transport</span>
+        <label class="switch" aria-label="Transport">
+          <input id="swTransport" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="switch-row switch-child">
+        <span class="switch-label">Busshållplatser</span>
+        <label class="switch" aria-label="Busshållplatser">
+          <input id="swBus" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
     </div>
 
-    <div class="switch-row">
-      <span class="switch-label">Visa kommunal mark</span>
-      <label class="switch" aria-label="Visa kommunal mark">
-        <input id="swMark" type="checkbox" checked />
-        <span class="slider"></span>
-      </label>
-    </div>
-
-    <div class="switch-row">
-      <span class="switch-label">Visa vatten</span>
-      <label class="switch" aria-label="Visa vatten">
-        <input id="swWater" type="checkbox" checked />
-        <span class="slider"></span>
-      </label>
-    </div>
-
-    <div class="section-label">Service</div>
-    <div class="switch-row">
-      <span class="switch-label">Förskolor</span>
-      <label class="switch" aria-label="Förskolor">
-        <input id="swForskola" type="checkbox" checked />
-        <span class="slider"></span>
-      </label>
-    </div>
-    <div class="switch-row">
-      <span class="switch-label">Grundskolor</span>
-      <label class="switch" aria-label="Grundskolor">
-        <input id="swGrund" type="checkbox" checked />
-        <span class="slider"></span>
-      </label>
-    </div>
-    <div class="switch-row">
-      <span class="switch-label">Gymnasieskolor</span>
-      <label class="switch" aria-label="Gymnasieskolor">
-        <input id="swGymn" type="checkbox" checked />
-        <span class="slider"></span>
-      </label>
-    </div>
-    <div class="switch-row">
-      <span class="switch-label">Vårdcentral</span>
-      <label class="switch" aria-label="Vårdcentral">
-        <input id="swVard" type="checkbox" checked />
-        <span class="slider"></span>
-      </label>
+    <div class="switch-group">
+      <div class="switch-group-title">Service</div>
+      <div class="switch-row">
+        <span class="switch-label">Service</span>
+        <label class="switch" aria-label="Service">
+          <input id="swService" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="switch-row switch-child">
+        <span class="switch-label">Förskolor</span>
+        <label class="switch" aria-label="Förskolor">
+          <input id="swForskola" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="switch-row switch-child">
+        <span class="switch-label">Grundskolor</span>
+        <label class="switch" aria-label="Grundskolor">
+          <input id="swGrund" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="switch-row switch-child">
+        <span class="switch-label">Gymnasieskolor</span>
+        <label class="switch" aria-label="Gymnasieskolor">
+          <input id="swGymn" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="switch-row switch-child">
+        <span class="switch-label">Vårdcentral</span>
+        <label class="switch" aria-label="Vårdcentral">
+          <input id="swVard" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
     </div>
     <div class="legend">
       <details>
@@ -353,7 +394,7 @@
         const maxP = p.length ? Math.max(p[0] ?? 0, p[1] ?? 0) : null;
         const snowSum = s.length ? (Number(s[0] || 0) + Number(s[1] || 0)) : 0;
 
-        sum.textContent  = `Väder: ${wx}`;
+        sum.textContent  = `Väder (Huskvarna): ${wx}`;
         pr.textContent   = `Nederbörd (nästa 2 h): ${maxP !== null ? maxP + " %" : "N/A"}`;
         snow.textContent = `Snörisk (nästa 2 h): ${snowSum > 0 ? "Ja (" + snowSum.toFixed(1) + " mm)" : "Nej"}`;
         temp.textContent = (typeof t === "number") ? `Temperatur: ${t}°C` : "Temperatur: N/A";
@@ -433,7 +474,7 @@
         url: "./data/Oxnehaga-Area.geojson",
         renderer: {
           type: "simple",
-          symbol: { type: "simple-fill", color: [0,100,255,0.25], outline: { color: [0,100,255], width: 2 } }
+          symbol: { type: "simple-fill", color: [0,0,0,0], outline: { color: [0,100,255], width: 2 } }
         },
         visible: true,
         popupTemplate: {
@@ -610,6 +651,10 @@
       });
 
       // Switchar
+      const swBase = document.getElementById("swBase");
+      const swArea = document.getElementById("swArea");
+      const swTransport = document.getElementById("swTransport");
+      const swService = document.getElementById("swService");
       const swBuildings = document.getElementById("swBuildings");
       const swOx = document.getElementById("swOx");
       const swBus = document.getElementById("swBus");
@@ -629,6 +674,29 @@
       swGrund.addEventListener("change", () => grund.visible = swGrund.checked);
       swGymn.addEventListener("change", () => gymn.visible = swGymn.checked);
       swVard.addEventListener("change", () => vard.visible = swVard.checked);
+
+      function bindGroup(parent, children) {
+        const syncParent = () => {
+          const checkedCount = children.filter((c) => c.checked).length;
+          parent.checked = checkedCount === children.length;
+          parent.indeterminate = checkedCount > 0 && checkedCount < children.length;
+        };
+        parent.addEventListener("change", () => {
+          const val = parent.checked;
+          parent.indeterminate = false;
+          children.forEach((c) => {
+            c.checked = val;
+            c.dispatchEvent(new Event("change"));
+          });
+        });
+        children.forEach((c) => c.addEventListener("change", syncParent));
+        syncParent();
+      }
+
+      bindGroup(swBase, [swBuildings, swMark, swWater]);
+      bindGroup(swArea, [swOx]);
+      bindGroup(swTransport, [swBus]);
+      bindGroup(swService, [swForskola, swGrund, swGymn, swVard]);
 
       // ===== Right panel: attribut + unika värden =====
       const attrHint = document.getElementById("attrHint");
