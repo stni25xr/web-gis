@@ -595,7 +595,7 @@
       });
 
       view.highlightOptions = {
-        color: "#00E5FF",
+        color: "#7dd3fc",
         haloOpacity: 0.8,
         fillOpacity: 0.25
       };
@@ -1292,7 +1292,7 @@
         }
       }
 
-      async function drawDrivingRouteToFeature(targetFeature, setStatus) {
+      async function drawDrivingRouteToFeature(targetFeature, safetyColor, setStatus) {
         const status = typeof setStatus === "function" ? setStatus : () => {};
         if (!ORS_KEY) {
           status("Lägg in din openrouteservice API‑nyckel i koden");
@@ -1330,7 +1330,7 @@
         const route = new Polyline({ paths: [coords], spatialReference: { wkid: 4326 } });
         safetyRouteLayer.add(new Graphic({
           geometry: route,
-          symbol: { type: "simple-line", color: "#22c55e", width: 3 }
+          symbol: { type: "simple-line", color: safetyColor || "#1d4ed8", width: 3 }
         }));
         return summary || null;
       }
@@ -1351,7 +1351,8 @@
         safeHint.textContent = "";
         const header = `<div><b>${selected.name}</b></div>`;
         safeList.innerHTML = `${header}<div>${formatDistance(d)} • ca ${formatWalkTime(d)} till fots</div>`;
-        const summary = await drawDrivingRouteToFeature(selected.feature, (msg) => {
+        const driveColor = selected.key === "fire" ? "#ef4444" : "#1d4ed8";
+        const summary = await drawDrivingRouteToFeature(selected.feature, driveColor, (msg) => {
           safeList.innerHTML = `${header}<div>${msg}</div>`;
         });
         if (summary?.distance != null && summary?.duration != null) {
@@ -1422,7 +1423,7 @@
           lastRouteGeometry = route;
           const graphic = new Graphic({
             geometry: route,
-            symbol: { type: "simple-line", color: "#00E5FF", width: 3 }
+            symbol: { type: "simple-line", color: "#7dd3fc", width: 3 }
           });
           routeLayer.add(graphic);
 
@@ -1448,8 +1449,8 @@
               geometry: corridorClipped,
               symbol: {
                 type: "simple-fill",
-                color: [0, 229, 255, 0.15],
-                outline: { color: [0, 229, 255, 0.6], width: 1 }
+                color: [125, 211, 252, 0.18],
+                outline: { color: [125, 211, 252, 0.7], width: 1 }
               }
             });
             corridorLayer.add(corridorGraphic);
@@ -1760,7 +1761,8 @@
           safeHint.textContent = "Mät först en punkt på kartan";
           return;
         }
-        drawDrivingRouteToFeature(selected.feature, (msg) => { safeList.innerHTML = `<div>${msg}</div>`; });
+        const driveColor = selected.key === "fire" ? "#ef4444" : "#1d4ed8";
+        drawDrivingRouteToFeature(selected.feature, driveColor, (msg) => { safeList.innerHTML = `<div>${msg}</div>`; });
       });
       safeClearRouteBtn.addEventListener("click", () => {
         clearSafetyRoute();
