@@ -84,6 +84,13 @@
       background-repeat: no-repeat;
       background-position: center;
     }
+    .legend-shelter {
+      width:18px; height:18px; border-radius:4px;
+      background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect x='8' y='10' width='48' height='44' rx='8' fill='%230f766e'/%3E%3Cpath d='M20 34 L32 22 L44 34' stroke='%23ffffff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='20' y='34' width='24' height='14' rx='3' fill='%23134e4a'/%3E%3C/svg%3E");
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
 
     /* ===== Slide switch ===== */
     .switch { position:relative; width:44px; height:24px; }
@@ -297,6 +304,13 @@
           <span class="slider"></span>
         </label>
       </div>
+      <div class="switch-row switch-child">
+        <span class="switch-label">Skyddsrum</span>
+        <label class="switch" aria-label="Skyddsrum">
+          <input id="swShelter" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
     </details>
     <div class="legend">
       <details>
@@ -348,6 +362,10 @@
         <div class="legend-item">
           <span class="legend-hospital"></span>
           <span>Länssjukhuset Ryhov</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-shelter"></span>
+          <span>Skyddsrum</span>
         </div>
       </details>
     </div>
@@ -585,12 +603,13 @@
       "esri/views/SceneView",
       "esri/layers/SceneLayer",
       "esri/layers/GeoJSONLayer",
+      "esri/layers/FeatureLayer",
       "esri/geometry/geometryEngine",
       "esri/geometry/support/webMercatorUtils",
       "esri/geometry/Polyline",
       "esri/layers/GraphicsLayer",
       "esri/Graphic"
-    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, geometryEngine, webMercatorUtils, Polyline, GraphicsLayer, Graphic) {
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, geometryEngine, webMercatorUtils, Polyline, GraphicsLayer, Graphic) {
 
       const RESROBOT_KEY = "a1ba6c34-9ea5-4b8f-907e-d4c18a3f58ec"; // Trafiklab ResRobot v2.1 API-nyckel
       const ORS_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImE5ZjkyNWU1MGY0MzRiNzE4YmYyOGE4ZjQ0N2JmNzczIiwiaCI6Im11cm11cjY0In0="; // openrouteservice API-nyckel behövs för gångrutt
@@ -686,6 +705,14 @@
         + "<rect x='10' y='10' width='44' height='44' rx='8' fill='#059669'/>"
         + "<rect x='29' y='18' width='6' height='28' fill='#ffffff'/>"
         + "<rect x='18' y='29' width='28' height='6' fill='#ffffff'/>"
+        + "</svg>"
+      );
+
+      const shelterIcon = "data:image/svg+xml;utf8," + encodeURIComponent(
+        "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>"
+        + "<rect x='8' y='10' width='48' height='44' rx='8' fill='#0f766e'/>"
+        + "<path d='M20 34 L32 22 L44 34' stroke='#ffffff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/>"
+        + "<rect x='20' y='34' width='24' height='14' rx='3' fill='#134e4a'/>"
         + "</svg>"
       );
 
@@ -898,6 +925,22 @@
       });
       map.add(hospital);
 
+      const shelter = new FeatureLayer({
+        url: "https://services6.arcgis.com/NThLsKaeOKhGxBBE/arcgis/rest/services/Skyddsrum_220225/FeatureServer/1",
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "picture-marker",
+            url: shelterIcon,
+            width: 16,
+            height: 16
+          }
+        },
+        visible: true,
+        popupTemplate: { title: "Skyddsrum", content: [{ type: "fields" }] }
+      });
+      map.add(shelter);
+
       // Auto‑zoom när lagret är redo
       view.whenLayerView(ox).then(() => {
         ox.queryExtent().then((res) => {
@@ -925,6 +968,7 @@
       const swPolice = document.getElementById("swPolice");
       const swFire = document.getElementById("swFire");
       const swHospital = document.getElementById("swHospital");
+      const swShelter = document.getElementById("swShelter");
 
       swBuildings.addEventListener("change", () => buildings.visible = swBuildings.checked);
       swOx.addEventListener("change", () => ox.visible = swOx.checked);
@@ -938,6 +982,7 @@
       swPolice.addEventListener("change", () => police.visible = swPolice.checked);
       swFire.addEventListener("change", () => fire.visible = swFire.checked);
       swHospital.addEventListener("change", () => hospital.visible = swHospital.checked);
+      swShelter.addEventListener("change", () => shelter.visible = swShelter.checked);
 
       function bindGroup(parent, children) {
         const syncParent = () => {
@@ -961,7 +1006,7 @@
       bindGroup(swArea, [swOx]);
       bindGroup(swTransport, [swBus]);
       bindGroup(swService, [swForskola, swGrund, swGymn, swVard]);
-      bindGroup(swSafety, [swPolice, swFire, swHospital]);
+      bindGroup(swSafety, [swPolice, swFire, swHospital, swShelter]);
 
       // ===== Right panel: attribut + unika värden =====
       const attrHint = document.getElementById("attrHint");
@@ -1129,16 +1174,26 @@
         svcHint.textContent = `Förskola: ${svc.forskola.length}, Grund: ${svc.grund.length}, Gymn: ${svc.gymn.length}, Vård: ${svc.vard.length}`;
       }
       async function buildSafetyIndex() {
-        await Promise.all([police.load(), fire.load(), hospital.load()]);
-        const [pRes, fRes, hRes] = await Promise.all([
+        await Promise.all([police.load(), fire.load(), hospital.load(), shelter.load()]);
+        const oxExtent = await ox.queryExtent();
+        const filterGeom = oxExtent?.extent ? oxExtent.extent.expand(2) : null;
+        const [pRes, fRes, hRes, sRes] = await Promise.all([
           police.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true }),
           fire.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true }),
-          hospital.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true })
+          hospital.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true }),
+          shelter.queryFeatures({
+            where: "1=1",
+            outFields: ["*"],
+            returnGeometry: true,
+            geometry: filterGeom || undefined,
+            spatialRelationship: filterGeom ? "intersects" : undefined
+          })
         ]);
         safetyIndex = [];
         (pRes.features || []).forEach((f, i) => safetyIndex.push({ id: `police:${i}`, key: "police", name: f.attributes?.name || "Polis", feature: f }));
         (fRes.features || []).forEach((f, i) => safetyIndex.push({ id: `fire:${i}`, key: "fire", name: f.attributes?.name || "Räddningstjänst", feature: f }));
         (hRes.features || []).forEach((f, i) => safetyIndex.push({ id: `hospital:${i}`, key: "hospital", name: f.attributes?.name || "Sjukhus", feature: f }));
+        (sRes.features || []).forEach((f, i) => safetyIndex.push({ id: `shelter:${i}`, key: "shelter", name: f.attributes?.namn || f.attributes?.name || "Skyddsrum", feature: f }));
       }
 
       async function fillServiceSelect() {
