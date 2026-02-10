@@ -72,7 +72,14 @@
     }
     .legend-fire {
       width:18px; height:18px; border-radius:4px;
-      background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cpath d='M32 6 C24 16 38 22 28 32 C22 38 22 46 32 54 C42 46 44 38 38 30 C46 24 40 16 32 6 Z' fill='%23ef4444'/%3E%3Cpath d='M32 22 C28 28 34 30 30 36 C28 40 28 44 32 48 C36 44 38 40 36 36 C40 32 36 28 32 22 Z' fill='%23f59e0b'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cpath d='M10 36 C10 22 20 12 32 12 C44 12 54 22 54 36 L54 40 L10 40 Z' fill='%23ef4444'/%3E%3Crect x='8' y='38' width='48' height='8' rx='4' fill='%23f59e0b'/%3E%3Crect x='30' y='12' width='4' height='10' fill='%23f8fafc'/%3E%3C/svg%3E");
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+    .legend-hospital {
+      width:18px; height:18px; border-radius:4px;
+      background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect x='10' y='10' width='44' height='44' rx='8' fill='%23059669'/%3E%3Crect x='29' y='18' width='6' height='28' fill='%23ffffff'/%3E%3Crect x='18' y='29' width='28' height='6' fill='%23ffffff'/%3E%3C/svg%3E");
       background-size: contain;
       background-repeat: no-repeat;
       background-position: center;
@@ -285,6 +292,13 @@
           <span class="slider"></span>
         </label>
       </div>
+      <div class="switch-row switch-child">
+        <span class="switch-label">Länssjukhuset Ryhov</span>
+        <label class="switch" aria-label="Länssjukhuset Ryhov">
+          <input id="swHospital" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
     </details>
     <div class="legend">
       <details>
@@ -294,7 +308,7 @@
           <span>Byggnader</span>
         </div>
         <div class="legend-item">
-          <span class="legend-swatch" style="background:rgba(0,100,255,0.25); border-color:#0a6cff;"></span>
+          <span class="legend-swatch" style="background:rgba(249,115,22,0.25); border-color:#fb923c;"></span>
           <span>Oxnehaga</span>
         </div>
         <div class="legend-item">
@@ -332,6 +346,10 @@
         <div class="legend-item">
           <span class="legend-fire"></span>
           <span>Räddningstjänst</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-hospital"></span>
+          <span>Länssjukhuset Ryhov</span>
         </div>
       </details>
     </div>
@@ -620,7 +638,7 @@
         url: "./data/Oxnehaga-Area.geojson",
         renderer: {
           type: "simple",
-          symbol: { type: "simple-fill", color: [0,0,0,0], outline: { color: [0,100,255], width: 2 } }
+          symbol: { type: "simple-fill", color: [249, 115, 22, 0.2], outline: { color: [251, 146, 60], width: 2 } }
         },
         visible: true,
         popupTemplate: {
@@ -661,8 +679,18 @@
 
       const fireIcon = "data:image/svg+xml;utf8," + encodeURIComponent(
         "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>"
-        + "<path d='M32 6 C24 16 38 22 28 32 C22 38 22 46 32 54 C42 46 44 38 38 30 C46 24 40 16 32 6 Z' fill='#ef4444'/>"
-        + "<path d='M32 22 C28 28 34 30 30 36 C28 40 28 44 32 48 C36 44 38 40 36 36 C40 32 36 28 32 22 Z' fill='#f59e0b'/>"
+        + "<path d='M10 36 C10 22 20 12 32 12 C44 12 54 22 54 36 L54 40 L10 40 Z' fill='#ef4444'/>"
+        + "<rect x='8' y='38' width='48' height='8' rx='4' fill='#f59e0b'/>"
+        + "<rect x='30' y='12' width='4' height='10' fill='#f8fafc'/>"
+        + "<rect x='18' y='22' width='28' height='10' rx='5' fill='rgba(255,255,255,0.15)'/>"
+        + "</svg>"
+      );
+
+      const hospitalIcon = "data:image/svg+xml;utf8," + encodeURIComponent(
+        "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>"
+        + "<rect x='10' y='10' width='44' height='44' rx='8' fill='#059669'/>"
+        + "<rect x='29' y='18' width='6' height='28' fill='#ffffff'/>"
+        + "<rect x='18' y='29' width='28' height='6' fill='#ffffff'/>"
         + "</svg>"
       );
 
@@ -821,8 +849,8 @@
           symbol: {
             type: "picture-marker",
             url: policeIcon,
-            width: 16,
-            height: 16
+            width: 18,
+            height: 18
           }
         },
         visible: true,
@@ -844,14 +872,37 @@
           symbol: {
             type: "picture-marker",
             url: fireIcon,
-            width: 16,
-            height: 16
+            width: 18,
+            height: 18
           }
         },
         visible: true,
         popupTemplate: { title: "{name}", content: [{ type: "fields" }] }
       });
       map.add(fire);
+
+      const hospital = new GeoJSONLayer({
+        url: "data:application/json;utf8," + encodeURIComponent(JSON.stringify({
+          type: "FeatureCollection",
+          features: [{
+            type: "Feature",
+            properties: { name: "Länssjukhuset Ryhov" },
+            geometry: { type: "Point", coordinates: [14.194491812814103, 57.76701786162326] }
+          }]
+        })),
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "picture-marker",
+            url: hospitalIcon,
+            width: 18,
+            height: 18
+          }
+        },
+        visible: true,
+        popupTemplate: { title: "{name}", content: [{ type: "fields" }] }
+      });
+      map.add(hospital);
 
       // Auto‑zoom när lagret är redo
       view.whenLayerView(ox).then(() => {
@@ -879,6 +930,7 @@
       const swVard = document.getElementById("swVard");
       const swPolice = document.getElementById("swPolice");
       const swFire = document.getElementById("swFire");
+      const swHospital = document.getElementById("swHospital");
 
       swBuildings.addEventListener("change", () => buildings.visible = swBuildings.checked);
       swOx.addEventListener("change", () => ox.visible = swOx.checked);
@@ -891,6 +943,7 @@
       swVard.addEventListener("change", () => vard.visible = swVard.checked);
       swPolice.addEventListener("change", () => police.visible = swPolice.checked);
       swFire.addEventListener("change", () => fire.visible = swFire.checked);
+      swHospital.addEventListener("change", () => hospital.visible = swHospital.checked);
 
       function bindGroup(parent, children) {
         const syncParent = () => {
@@ -914,7 +967,7 @@
       bindGroup(swArea, [swOx]);
       bindGroup(swTransport, [swBus]);
       bindGroup(swService, [swForskola, swGrund, swGymn, swVard]);
-      bindGroup(swSafety, [swPolice, swFire]);
+      bindGroup(swSafety, [swPolice, swFire, swHospital]);
 
       // ===== Right panel: attribut + unika värden =====
       const attrHint = document.getElementById("attrHint");
@@ -1082,14 +1135,16 @@
         svcHint.textContent = `Förskola: ${svc.forskola.length}, Grund: ${svc.grund.length}, Gymn: ${svc.gymn.length}, Vård: ${svc.vard.length}`;
       }
       async function buildSafetyIndex() {
-        await Promise.all([police.load(), fire.load()]);
-        const [pRes, fRes] = await Promise.all([
+        await Promise.all([police.load(), fire.load(), hospital.load()]);
+        const [pRes, fRes, hRes] = await Promise.all([
           police.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true }),
-          fire.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true })
+          fire.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true }),
+          hospital.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true })
         ]);
         safetyIndex = [];
         (pRes.features || []).forEach((f, i) => safetyIndex.push({ id: `police:${i}`, key: "police", name: f.attributes?.name || "Polis", feature: f }));
         (fRes.features || []).forEach((f, i) => safetyIndex.push({ id: `fire:${i}`, key: "fire", name: f.attributes?.name || "Räddningstjänst", feature: f }));
+        (hRes.features || []).forEach((f, i) => safetyIndex.push({ id: `hospital:${i}`, key: "hospital", name: f.attributes?.name || "Sjukhus", feature: f }));
       }
 
       async function fillServiceSelect() {
@@ -1351,7 +1406,11 @@
         safeHint.textContent = "";
         const header = `<div><b>${selected.name}</b></div>`;
         safeList.innerHTML = `${header}<div>${formatDistance(d)} • ca ${formatWalkTime(d)} till fots</div>`;
-        const driveColor = selected.key === "fire" ? "#ef4444" : "#1d4ed8";
+        const driveColor = selected.key === "fire"
+          ? "#ef4444"
+          : selected.key === "hospital"
+            ? "#7dd3fc"
+            : "#1d4ed8";
         const summary = await drawDrivingRouteToFeature(selected.feature, driveColor, (msg) => {
           safeList.innerHTML = `${header}<div>${msg}</div>`;
         });
