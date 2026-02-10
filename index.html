@@ -18,6 +18,12 @@
       height: 90px; background:#f8fafc; border-bottom:1px solid #d7dee6;
       padding:0 20px; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box;
     }
+    #header-left { display:flex; align-items:center; gap:12px; }
+    .export-btn {
+      background:#0f172a; color:#fff; border:none; border-radius:8px; padding:6px 10px;
+      font-size:12px; cursor:pointer;
+    }
+    .export-btn:disabled { background:#94a3b8; cursor:not-allowed; }
     #header-info { text-align:right; font-size:13px; line-height:1.35; max-width:45%; }
     #clock { color:#666; }
 
@@ -141,13 +147,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 <body>
 
   <!-- HEADER -->
   <div id="header">
-    <div id="header-title">STN25XR | Öxnehaga | Huskvarna</div>
-      <div id="header-info">
+    <div id="header-left">
+      <div id="header-title">STN25XR | Öxnehaga | Huskvarna</div>
+      <button id="exportPng" class="export-btn" type="button">Exportera PNG</button>
+      <button id="exportPdf" class="export-btn" type="button">Exportera PDF</button>
+    </div>
+    <div id="header-info">
       <div>Öxnehaga i Huskvarna – ca 3400 invånare</div>
       <div id="wx-summary">Väder: …</div>
       <div id="elprice">Elpris (SE3, Huskvarna): …</div>
@@ -471,6 +483,71 @@
       if (el) el.textContent = new Date().toLocaleTimeString("sv-SE");
     }
     setInterval(updateClock, 1000); updateClock();
+  </script>
+
+  <!-- EXPORT (PNG / PDF) -->
+  <script>
+    async function capturePageCanvas() {
+      if (typeof html2canvas !== "function") throw new Error("html2canvas saknas");
+      return await html2canvas(document.body, {
+        useCORS: true,
+        backgroundColor: "#f8fafc",
+        scale: 2
+      });
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function exportPng() {
+      const btn = document.getElementById("exportPng");
+      if (btn) btn.disabled = true;
+      try {
+        const canvas = await capturePageCanvas();
+        canvas.toBlob((blob) => {
+          if (blob) downloadBlob(blob, "oxnehaga-export.png");
+        }, "image/png");
+      } catch (e) {
+        console.warn("PNG export error:", e);
+        alert("Kunde inte exportera PNG.");
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function exportPdf() {
+      const btn = document.getElementById("exportPdf");
+      if (btn) btn.disabled = true;
+      try {
+        const canvas = await capturePageCanvas();
+        const imgData = canvas.toDataURL("image/png");
+        const { jsPDF } = window.jspdf || {};
+        if (!jsPDF) throw new Error("jsPDF saknas");
+        const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [canvas.width, canvas.height] });
+        pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+        pdf.save("oxnehaga-export.pdf");
+      } catch (e) {
+        console.warn("PDF export error:", e);
+        alert("Kunde inte exportera PDF.");
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      const pngBtn = document.getElementById("exportPng");
+      const pdfBtn = document.getElementById("exportPdf");
+      if (pngBtn) pngBtn.addEventListener("click", exportPng);
+      if (pdfBtn) pdfBtn.addEventListener("click", exportPdf);
+    });
   </script>
 
   <!-- WEATHER -->
