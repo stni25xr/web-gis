@@ -489,50 +489,11 @@
   <script>
     async function capturePageCanvas() {
       if (typeof html2canvas !== "function") throw new Error("html2canvas saknas");
-      const scale = 2;
-      const scene = document.getElementById("sceneView");
-      let mapShot = null;
-      try {
-        if (window.appView && typeof window.appView.takeScreenshot === "function") {
-          mapShot = await window.appView.takeScreenshot({ format: "png", quality: 100 });
-        }
-      } catch (e) {
-        console.warn("Map screenshot error:", e);
-      }
-
-      const prevVisibility = scene ? scene.style.visibility : "";
-      if (scene) scene.style.visibility = "hidden";
-      const domCanvas = await html2canvas(document.body, {
+      return await html2canvas(document.body, {
         useCORS: true,
         backgroundColor: "#f8fafc",
-        scale
+        scale: 2
       });
-      if (scene) scene.style.visibility = prevVisibility;
-
-      const out = document.createElement("canvas");
-      out.width = domCanvas.width;
-      out.height = domCanvas.height;
-      const ctx = out.getContext("2d");
-      ctx.drawImage(domCanvas, 0, 0);
-
-      if (mapShot && mapShot.dataUrl && scene) {
-        const rect = scene.getBoundingClientRect();
-        const img = new Image();
-        img.src = mapShot.dataUrl;
-        try {
-          await img.decode();
-          ctx.drawImage(
-            img,
-            rect.left * scale,
-            rect.top * scale,
-            rect.width * scale,
-            rect.height * scale
-          );
-        } catch (e) {
-          console.warn("Map draw error:", e);
-        }
-      }
-      return out;
     }
 
     function downloadBlob(blob, filename) {
@@ -725,7 +686,6 @@
         map,
         camera: { position: { latitude: 57.796, longitude: 14.200, z: 1800 }, tilt: 45 }
       });
-      window.appView = view;
 
       view.highlightOptions = {
         color: "#7dd3fc",
