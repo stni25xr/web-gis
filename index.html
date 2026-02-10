@@ -70,6 +70,13 @@
       background-repeat: no-repeat;
       background-position: center;
     }
+    .legend-daycare {
+      width:18px; height:18px; border-radius:4px;
+      background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect x='12' y='22' width='40' height='30' rx='6' fill='%23f97316'/%3E%3Crect x='18' y='28' width='10' height='10' rx='2' fill='%23fde68a'/%3E%3Crect x='36' y='28' width='10' height='10' rx='2' fill='%23bfdbfe'/%3E%3Crect x='28' y='36' width='8' height='16' rx='2' fill='%230f172a'/%3E%3Cpolygon points='32,10 8,24 56,24' fill='%23fbbf24'/%3E%3Ccircle cx='20' cy='46' r='3' fill='%23fff'/%3E%3Ccircle cx='44' cy='46' r='3' fill='%23fff'/%3E%3C/svg%3E");
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
     .legend-police {
       width:18px; height:18px; border-radius:4px;
       background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cpath d='M32 6 L54 14 L50 42 C45 52 38 57 32 58 C26 57 19 52 14 42 L10 14 Z' fill='%231d4ed8'/%3E%3Cpath d='M32 14 L36 24 L47 24 L38 30 L41 40 L32 34 L23 40 L26 30 L17 24 L28 24 Z' fill='%23f8fafc'/%3E%3C/svg%3E");
@@ -354,7 +361,7 @@
           <span>Vatten</span>
         </div>
         <div class="legend-item">
-          <span class="legend-cap"></span>
+          <span class="legend-daycare"></span>
           <span>Förskolor</span>
         </div>
         <div class="legend-item">
@@ -704,6 +711,18 @@
         + "</svg>"
       );
 
+      const daycareIcon = "data:image/svg+xml;utf8," + encodeURIComponent(
+        "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>"
+        + "<rect x='12' y='22' width='40' height='30' rx='6' fill='#f97316'/>"
+        + "<rect x='18' y='28' width='10' height='10' rx='2' fill='#fde68a'/>"
+        + "<rect x='36' y='28' width='10' height='10' rx='2' fill='#bfdbfe'/>"
+        + "<rect x='28' y='36' width='8' height='16' rx='2' fill='#0f172a'/>"
+        + "<polygon points='32,10 8,24 56,24' fill='#fbbf24'/>"
+        + "<circle cx='20' cy='46' r='3' fill='#fff'/>"
+        + "<circle cx='44' cy='46' r='3' fill='#fff'/>"
+        + "</svg>"
+      );
+
       const policeIcon = "data:image/svg+xml;utf8," + encodeURIComponent(
         "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>"
         + "<path d='M32 6 L54 14 L50 42 C45 52 38 57 32 58 C26 57 19 52 14 42 L10 14 Z' fill='#1d4ed8'/>"
@@ -806,7 +825,7 @@
           type: "simple",
           symbol: {
             type: "picture-marker",
-            url: capIcon,
+            url: daycareIcon,
             width: 16,
             height: 16
           }
