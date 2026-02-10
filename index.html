@@ -147,11 +147,9 @@
   <!-- HEADER -->
   <div id="header">
     <div id="header-title">STN25XR | Öxnehaga | Huskvarna</div>
-    <div id="header-info">
+      <div id="header-info">
       <div>Öxnehaga i Huskvarna – ca 3400 invånare</div>
       <div id="wx-summary">Väder: …</div>
-      <div id="wx-precip">Nederbörd (nästa 2 h): …</div>
-      <div id="wx-snow">Snörisk (nästa 2 h): …</div>
       <div id="elprice">Elpris (SE3, Huskvarna): …</div>
       <div id="temp">Temperatur: …</div>
       <div>Tid: <span id="clock">00:00:00</span></div>
@@ -638,7 +636,7 @@
         url: "./data/Oxnehaga-Area.geojson",
         renderer: {
           type: "simple",
-          symbol: { type: "simple-fill", color: [249, 115, 22, 0.2], outline: { color: [251, 146, 60], width: 2 } }
+          symbol: { type: "simple-fill", color: [0, 0, 0, 0], outline: { color: [251, 146, 60], width: 2 } }
         },
         visible: true,
         popupTemplate: {
@@ -820,11 +818,10 @@
         renderer: {
           type: "simple",
           symbol: {
-            type: "simple-marker",
-            style: "cross",
-            color: [16, 185, 129],
-            size: 10,
-            outline: { color: "white", width: 1 }
+            type: "picture-marker",
+            url: hospitalIcon,
+            width: 16,
+            height: 16
           }
         },
         visible: true,
@@ -1409,7 +1406,7 @@
         const driveColor = selected.key === "fire"
           ? "#ef4444"
           : selected.key === "hospital"
-            ? "#7dd3fc"
+            ? "#22c55e"
             : "#1d4ed8";
         const summary = await drawDrivingRouteToFeature(selected.feature, driveColor, (msg) => {
           safeList.innerHTML = `${header}<div>${msg}</div>`;
