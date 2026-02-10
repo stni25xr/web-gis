@@ -1175,13 +1175,8 @@
       }
       async function buildSafetyIndex() {
         await Promise.all([police.load(), fire.load(), hospital.load(), shelter.load()]);
-        const schoolPoint = {
-          type: "point",
-          longitude: 14.264003875043274,
-          latitude: 57.7741993886674,
-          spatialReference: { wkid: 4326 }
-        };
-        const filterGeom = geometryEngine.geodesicBuffer(schoolPoint, 1000, "meters");
+        const oxExtent = await ox.queryExtent();
+        const filterGeom = oxExtent?.extent ? oxExtent.extent.expand(2) : null;
         const [pRes, fRes, hRes, sRes] = await Promise.all([
           police.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true }),
           fire.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true }),
@@ -1190,8 +1185,8 @@
             where: "1=1",
             outFields: ["*"],
             returnGeometry: true,
-            geometry: filterGeom,
-            spatialRelationship: "intersects"
+            geometry: filterGeom || undefined,
+            spatialRelationship: filterGeom ? "intersects" : undefined
           })
         ]);
         safetyIndex = [];
