@@ -145,6 +145,7 @@
       <div id="wx-summary">Väder: …</div>
       <div id="wx-precip">Nederbörd (nästa 2 h): …</div>
       <div id="wx-snow">Snörisk (nästa 2 h): …</div>
+      <div id="elprice">Elpris (SE3, Huskvarna): …</div>
       <div id="temp">Temperatur: …</div>
       <div>Tid: <span id="clock">00:00:00</span></div>
     </div>
@@ -492,6 +493,44 @@
     }
     updateWeather();
     setInterval(updateWeather, 300000);
+  </script>
+
+  <!-- ELECTRICITY PRICE (SE3) -->
+  <script>
+    async function updateElPrice() {
+      const el = document.getElementById("elprice");
+      if (!el) return;
+      try {
+        const now = new Date();
+        const d = new Date(now.toLocaleString("sv-SE", { timeZone: "Europe/Stockholm" }));
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        const url = `https://www.elprisetjustnu.se/api/v1/prices/${year}/${month}-${day}_SE3.json`;
+
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+
+        const nowMs = now.getTime();
+        const current = (data || []).find((p) => {
+          const start = Date.parse(p.time_start);
+          const end = Date.parse(p.time_end);
+          return nowMs >= start && nowMs < end;
+        });
+
+        if (current && typeof current.SEK_per_kWh === "number") {
+          el.textContent = `Elpris (SE3, Huskvarna): ${current.SEK_per_kWh.toFixed(2)} kr/kWh`;
+        } else {
+          el.textContent = "Elpris (SE3, Huskvarna): N/A";
+        }
+      } catch (e) {
+        el.textContent = "Elpris (SE3, Huskvarna): N/A";
+        console.warn("Elpris error:", e);
+      }
+    }
+    updateElPrice();
+    setInterval(updateElPrice, 300000);
   </script>
 
   <!-- ARCGIS (3D) -->
