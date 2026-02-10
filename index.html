@@ -516,15 +516,15 @@
         const maxP = p.length ? Math.max(p[0] ?? 0, p[1] ?? 0) : null;
         const snowSum = s.length ? (Number(s[0] || 0) + Number(s[1] || 0)) : 0;
 
-        sum.textContent  = `Väder (Huskvarna): ${wx}`;
-        pr.textContent   = `Nederbörd (nästa 2 h): ${maxP !== null ? maxP + " %" : "N/A"}`;
-        snow.textContent = `Snörisk (nästa 2 h): ${snowSum > 0 ? "Ja (" + snowSum.toFixed(1) + " mm)" : "Nej"}`;
-        temp.textContent = (typeof t === "number") ? `Temperatur: ${t}°C` : "Temperatur: N/A";
+        if (sum) sum.textContent = `Väder (Huskvarna): ${wx}`;
+        if (pr) pr.textContent = `Nederbörd (nästa 2 h): ${maxP !== null ? maxP + " %" : "N/A"}`;
+        if (snow) snow.textContent = `Snörisk (nästa 2 h): ${snowSum > 0 ? "Ja (" + snowSum.toFixed(1) + " mm)" : "Nej"}`;
+        if (temp) temp.textContent = (typeof t === "number") ? `Temperatur: ${t}°C` : "Temperatur: N/A";
       } catch (e) {
-        sum.textContent  = "Väder: N/A";
-        pr.textContent   = "Nederbörd (nästa 2 h): N/A";
-        snow.textContent = "Snörisk (nästa 2 h): N/A";
-        temp.textContent = "Temperatur: N/A";
+        if (sum) sum.textContent = "Väder: N/A";
+        if (pr) pr.textContent = "Nederbörd (nästa 2 h): N/A";
+        if (snow) snow.textContent = "Snörisk (nästa 2 h): N/A";
+        if (temp) temp.textContent = "Temperatur: N/A";
         console.warn("Weather error:", e);
       }
     }
