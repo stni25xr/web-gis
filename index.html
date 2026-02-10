@@ -29,6 +29,10 @@
     #sidebar h2 {
       margin:0 0 12px 0; font-size:16px; color:#ddd; border-bottom:1px solid #444; padding-bottom:8px;
     }
+    #sidebar select {
+      background:#111827; color:#e2e8f0; border:1px solid #374151; padding:4px 6px; border-radius:6px;
+      font-size:12px;
+    }
     .switch-row { display:flex; justify-content:space-between; align-items:center; margin:14px 0; }
     .switch-label { font-size:14px; user-select:none; }
     .switch-group { margin-top:10px; padding-top:10px; border-top:1px solid #2f3742; }
@@ -175,6 +179,13 @@
           <input id="swBase" type="checkbox" checked />
           <span class="slider"></span>
         </label>
+      </div>
+      <div class="switch-row switch-child">
+        <span class="switch-label">Kartvy</span>
+        <select id="basemapSelect" aria-label="Kartvy">
+          <option value="satellite" selected>Satellit</option>
+          <option value="streets-vector">Karta</option>
+        </select>
       </div>
       <div class="switch-row switch-child">
         <span class="switch-label">Byggnader</span>
@@ -956,6 +967,7 @@
       const swTransport = document.getElementById("swTransport");
       const swService = document.getElementById("swService");
       const swSafety = document.getElementById("swSafety");
+      const basemapSelect = document.getElementById("basemapSelect");
       const swBuildings = document.getElementById("swBuildings");
       const swOx = document.getElementById("swOx");
       const swBus = document.getElementById("swBus");
@@ -983,6 +995,11 @@
       swFire.addEventListener("change", () => fire.visible = swFire.checked);
       swHospital.addEventListener("change", () => hospital.visible = swHospital.checked);
       swShelter.addEventListener("change", () => shelter.visible = swShelter.checked);
+      if (basemapSelect) {
+        basemapSelect.addEventListener("change", () => {
+          map.basemap = basemapSelect.value;
+        });
+      }
 
       function bindGroup(parent, children) {
         const syncParent = () => {
