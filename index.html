@@ -15,7 +15,7 @@
 
     /* ===== Header ===== */
     #header {
-      height: 90px; background:#f8fafc; border-bottom:1px solid #d7dee6;
+      height: 110px; background:#f8fafc; border-bottom:1px solid #d7dee6;
       padding:0 20px; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box;
     }
     #header-left { display:flex; align-items:center; gap:12px; }
@@ -26,7 +26,7 @@
 
     /* ===== Sidebar ===== */
     #sidebar {
-      position:fixed; top:70px; left:0; width:260px; height:calc(100% - 70px);
+      position:fixed; top:110px; left:0; width:260px; height:calc(100% - 110px);
       background:#1f232b; color:#fff; padding:20px; box-sizing:border-box; overflow-y:auto; z-index:10;
     }
     #sidebar h2 {
@@ -109,7 +109,7 @@
 
     /* ===== Right Panel ===== */
     #info-panel {
-      position:fixed; top:70px; right:0; width:320px; height:calc(100% - 70px);
+      position:fixed; top:110px; right:0; width:320px; height:calc(100% - 110px);
       background:#f7f9fb; border-left:1px solid #d7dee6; padding:16px; box-sizing:border-box; overflow-y:auto; z-index:10;
     }
     #info-panel h2 { margin:0 0 10px 0; font-size:16px; color:#1f2937; }
@@ -138,7 +138,7 @@
 
     /* ===== Map ===== */
     #sceneView {
-      position:absolute; top:70px; left:260px; right:320px; height:calc(100% - 70px); z-index:1;
+      position:absolute; top:110px; left:260px; right:320px; height:calc(100% - 110px); z-index:1;
     }
 
     @media (max-width: 900px) {
@@ -190,8 +190,8 @@
       <div class="switch-row switch-child">
         <span class="switch-label">Kartvy</span>
         <select id="basemapSelect" aria-label="Kartvy">
-          <option value="satellite" selected>Satellit</option>
-          <option value="streets-vector">Karta</option>
+          <option value="satellite">Satellit</option>
+          <option value="streets-vector" selected>Karta</option>
         </select>
       </div>
       <div class="switch-row switch-child">
@@ -632,7 +632,7 @@
       const RESROBOT_KEY = "a1ba6c34-9ea5-4b8f-907e-d4c18a3f58ec"; // Trafiklab ResRobot v2.1 API-nyckel
       const ORS_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImE5ZjkyNWU1MGY0MzRiNzE4YmYyOGE4ZjQ0N2JmNzczIiwiaCI6Im11cm11cjY0In0="; // openrouteservice API-nyckel behövs för gångrutt
 
-      const map = new Map({ basemap: "satellite", ground: "world-elevation" });
+      const map = new Map({ basemap: "streets-vector", ground: "world-elevation" });
 
       const routeLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 } });
       map.add(routeLayer);
