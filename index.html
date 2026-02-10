@@ -35,11 +35,15 @@
     .switch-group:first-of-type { border-top:none; padding-top:0; margin-top:0; }
     .switch-group-title { font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:#94a3b8; margin:6px 0; }
     .switch-child { padding-left:14px; }
+    .switch-group summary { cursor:pointer; display:flex; align-items:center; justify-content:space-between; list-style:none; }
+    .switch-group summary::-webkit-details-marker { display:none; }
+    .switch-group summary::after { content:"▸"; color:#94a3b8; transition:transform .2s; font-size:16px; }
+    .switch-group[open] summary::after { transform:rotate(90deg); }
     .section-label { font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:#94a3b8; margin:18px 0 6px; }
     .legend { margin-top:18px; border-top:1px solid #2f3742; padding-top:12px; }
     .legend details { color:#cbd5e1; }
     .legend summary { cursor:pointer; font-size:14px; list-style:none; display:flex; align-items:center; justify-content:space-between; }
-    .legend summary::after { content:"▸"; color:#94a3b8; transition:transform .2s; }
+    .legend summary::after { content:"▸"; color:#94a3b8; transition:transform .2s; font-size:16px; }
     .legend details[open] summary::after { transform:rotate(90deg); }
     .legend summary::-webkit-details-marker { display:none; }
     .legend-item { display:flex; align-items:center; gap:8px; margin:10px 0; font-size:13px; }
@@ -123,8 +127,8 @@
   <aside id="sidebar" aria-label="Sidomeny">
     <h2>Meny</h2>
 
-    <div class="switch-group">
-      <div class="switch-group-title">Baslager</div>
+    <details class="switch-group" open>
+      <summary class="switch-group-title">Baslager</summary>
       <div class="switch-row">
         <span class="switch-label">Baslager</span>
         <label class="switch" aria-label="Baslager">
@@ -153,10 +157,10 @@
           <span class="slider"></span>
         </label>
       </div>
-    </div>
+    </details>
 
-    <div class="switch-group">
-      <div class="switch-group-title">Område</div>
+    <details class="switch-group" open>
+      <summary class="switch-group-title">Område</summary>
       <div class="switch-row">
         <span class="switch-label">Område</span>
         <label class="switch" aria-label="Område">
@@ -171,10 +175,10 @@
           <span class="slider"></span>
         </label>
       </div>
-    </div>
+    </details>
 
-    <div class="switch-group">
-      <div class="switch-group-title">Transport</div>
+    <details class="switch-group" open>
+      <summary class="switch-group-title">Transport</summary>
       <div class="switch-row">
         <span class="switch-label">Transport</span>
         <label class="switch" aria-label="Transport">
@@ -189,10 +193,10 @@
           <span class="slider"></span>
         </label>
       </div>
-    </div>
+    </details>
 
-    <div class="switch-group">
-      <div class="switch-group-title">Service</div>
+    <details class="switch-group" open>
+      <summary class="switch-group-title">Service</summary>
       <div class="switch-row">
         <span class="switch-label">Service</span>
         <label class="switch" aria-label="Service">
@@ -228,7 +232,7 @@
           <span class="slider"></span>
         </label>
       </div>
-    </div>
+    </details>
     <div class="legend">
       <details>
         <summary>Symbolförklaring</summary>
