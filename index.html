@@ -564,6 +564,7 @@
   <!-- CHATBOT (Hugging Face) -->
   <script>
     const HF_MODEL = "google/flan-t5-small";
+    const HF_PROXY_URL = ""; // e.g. "https://your-worker.yourname.workers.dev"
     function getToken() {
       return localStorage.getItem("hf_token") || "";
     }
@@ -595,8 +596,9 @@
     }
 
     async function askHF(question) {
+      const useProxy = HF_PROXY_URL && HF_PROXY_URL.trim().length > 0;
       const token = getToken();
-      if (!token) {
+      if (!useProxy && !token) {
         addMsg("Ingen token. Lägg in Hugging Face‑token först.", "bot");
         return;
       }
@@ -605,15 +607,23 @@
       const body = document.getElementById("chatBody");
       const thinking = body.lastChild;
       try {
-        const res = await hfFetch(`https://api-inference.huggingface.co/models/${HF_MODEL}?wait_for_model=true`, {
+        const url = useProxy
+          ? HF_PROXY_URL
+          : `https://api-inference.huggingface.co/models/${HF_MODEL}?wait_for_model=true`;
+        const headers = useProxy
+          ? { "Content-Type": "application/json" }
+          : {
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json"
+            };
+        const bodyPayload = useProxy
+          ? { model: HF_MODEL, inputs: `Svar kort på svenska: ${question}` }
+          : { inputs: `Svar kort på svenska: ${question}` };
+
+        const res = await hfFetch(url, {
           method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            inputs: `Svar kort på svenska: ${question}`
-          })
+          headers,
+          body: JSON.stringify(bodyPayload)
         });
         if (!res.ok) {
           const text = await res.text();
@@ -651,6 +661,12 @@
 
       const saved = getToken();
       if (saved) tokenInput.value = saved;
+      const useProxy = HF_PROXY_URL && HF_PROXY_URL.trim().length > 0;
+      if (useProxy) {
+        const row = document.getElementById("chatTokenRow");
+        if (row) row.style.display = "none";
+        addMsg("Proxy aktiv – token behövs inte i webbläsaren.", "bot");
+      }
 
       save.addEventListener("click", () => {
         setToken(tokenInput.value.trim());
