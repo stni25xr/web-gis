@@ -16,7 +16,7 @@ export default {
       const body = await request.json();
       const model = body.model || "gpt2";
       const inputs = body.inputs || "";
-      const hfRes = await fetch(`https://router.huggingface.co/hf-inference/models/${model}?wait_for_model=true`, {
+      const hfRes = await fetch(`https://api-inference.huggingface.co/models/${model}?wait_for_model=true`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${env.HF_TOKEN}`,
