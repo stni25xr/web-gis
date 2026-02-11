@@ -592,7 +592,7 @@
       const body = document.getElementById("chatBody");
       const thinking = body.lastChild;
       try {
-        const res = await fetch(`https://api-inference.huggingface.co/models/${HF_MODEL}?wait_for_model=true`, {
+        const res = await fetch(`https://api-inference.huggingface.co/models/${HF_MODEL}`, {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${token}`,
@@ -602,12 +602,6 @@
             inputs: `Svar kort på svenska: ${question}`
           })
         });
-        if (!res.ok) {
-          const text = await res.text();
-          const msg = `Fel ${res.status}: ${text || "Okänt fel"}`;
-          thinking.querySelector("span").textContent = msg;
-          return;
-        }
         const data = await res.json();
         let answer = "Kunde inte få svar.";
         if (Array.isArray(data) && data[0]?.generated_text) {
@@ -619,7 +613,7 @@
         }
         thinking.querySelector("span").textContent = answer;
       } catch (e) {
-        thinking.querySelector("span").textContent = "Fel vid anrop (nätverk/CORS).";
+        thinking.querySelector("span").textContent = "Fel vid anrop.";
         console.warn("HF error:", e);
       }
     }
