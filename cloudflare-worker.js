@@ -14,7 +14,7 @@ export default {
     }
     try {
       const body = await request.json();
-      const model = body.model || "gpt2";
+      const model = body.model || "google/flan-t5-small";
       const inputs = body.inputs || "";
       const hfRes = await fetch(`https://api-inference.huggingface.co/models/${model}?wait_for_model=true`, {
         method: "POST",
