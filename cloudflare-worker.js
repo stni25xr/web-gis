@@ -1,5 +1,8 @@
 export default {
   async fetch(request, env) {
+    if (request.method !== "POST") {
+      return new Response("Method Not Allowed", { status: 405 });
+    }
     const origin = request.headers.get("Origin") || "*";
     const corsHeaders = {
       "Access-Control-Allow-Origin": origin,
@@ -8,9 +11,6 @@ export default {
     };
     if (request.method === "OPTIONS") {
       return new Response("", { status: 204, headers: corsHeaders });
-    }
-    if (request.method !== "POST") {
-      return new Response("Method Not Allowed", { status: 405, headers: corsHeaders });
     }
     try {
       const body = await request.json();
