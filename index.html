@@ -145,6 +145,33 @@
       position:absolute; top:110px; left:260px; right:320px; height:calc(100% - 110px); z-index:1;
     }
 
+    /* ===== Chat Widget ===== */
+    #chatbot {
+      position:fixed; right:18px; bottom:18px; width:320px; max-height:60vh; z-index:20;
+      background:#ffffff; border:1px solid #d7dee6; border-radius:12px; box-shadow:0 8px 24px rgba(15,23,42,.15);
+      display:flex; flex-direction:column; overflow:hidden;
+    }
+    #chatbot header {
+      background:#0f172a; color:#fff; padding:10px 12px; font-size:14px; display:flex; justify-content:space-between; align-items:center;
+    }
+    #chatbot .chat-body { padding:10px; overflow:auto; background:#f8fafc; }
+    .chat-msg { margin:6px 0; font-size:13px; line-height:1.35; }
+    .chat-user { text-align:right; }
+    .chat-user span { background:#1f6feb; color:#fff; padding:6px 8px; border-radius:10px; display:inline-block; }
+    .chat-bot span { background:#e2e8f0; color:#0f172a; padding:6px 8px; border-radius:10px; display:inline-block; }
+    #chatbot footer { padding:8px; display:flex; gap:6px; border-top:1px solid #e2e8f0; background:#fff; }
+    #chatInput { flex:1; padding:8px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; }
+    #chatSend { padding:8px 10px; border:none; background:#1f6feb; color:#fff; border-radius:8px; cursor:pointer; }
+    #chatTokenRow { padding:8px; border-top:1px solid #e2e8f0; background:#fff; display:flex; gap:6px; }
+    #hfToken { flex:1; padding:6px; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; }
+    #saveToken { padding:6px 8px; border:none; background:#0f766e; color:#fff; border-radius:8px; cursor:pointer; font-size:12px; }
+    #chatbotToggle {
+      position:fixed; right:18px; bottom:18px; z-index:21;
+      background:#0f172a; color:#fff; border:none; border-radius:999px; padding:10px 14px; cursor:pointer;
+      box-shadow:0 8px 24px rgba(15,23,42,.2);
+    }
+    #chatbot.hidden { display:none; }
+
     @media (max-width: 900px) {
       #sidebar { width:200px; }
       #info-panel { width:260px; }
@@ -501,6 +528,27 @@
     </div>
   </aside>
 
+  <!-- CHATBOT -->
+  <button id="chatbotToggle" type="button">Chat</button>
+  <div id="chatbot" class="hidden" role="dialog" aria-label="Chatbot">
+    <header>
+      <span>Huskvarna‑chat</span>
+      <button id="chatClose" type="button" style="background:transparent;border:none;color:#fff;cursor:pointer;">✕</button>
+    </header>
+    <div class="chat-body" id="chatBody">
+      <div class="chat-msg chat-bot"><span>Hej! Fråga mig om Huskvarna.</span></div>
+      <div class="chat-msg chat-bot"><span>Lägg in en gratis Hugging Face‑token för att aktivera chatten.</span></div>
+    </div>
+    <div id="chatTokenRow">
+      <input id="hfToken" type="password" placeholder="HF token (gratis)" />
+      <button id="saveToken" type="button">Spara</button>
+    </div>
+    <footer>
+      <input id="chatInput" type="text" placeholder="Skriv en fråga..." />
+      <button id="chatSend" type="button">Skicka</button>
+    </footer>
+  </div>
+
   <!-- MAP -->
   <div id="sceneView" role="main" aria-label="3D‑karta"></div>
 
@@ -511,6 +559,94 @@
       if (el) el.textContent = new Date().toLocaleTimeString("sv-SE");
     }
     setInterval(updateClock, 1000); updateClock();
+  </script>
+
+  <!-- CHATBOT (Hugging Face) -->
+  <script>
+    const HF_MODEL = "google/flan-t5-small";
+    function getToken() {
+      return localStorage.getItem("hf_token") || "";
+    }
+    function setToken(token) {
+      localStorage.setItem("hf_token", token);
+    }
+    function addMsg(text, who) {
+      const body = document.getElementById("chatBody");
+      const div = document.createElement("div");
+      div.className = "chat-msg " + (who === "user" ? "chat-user" : "chat-bot");
+      const span = document.createElement("span");
+      span.textContent = text;
+      div.appendChild(span);
+      body.appendChild(div);
+      body.scrollTop = body.scrollHeight;
+    }
+
+    async function askHF(question) {
+      const token = getToken();
+      if (!token) {
+        addMsg("Ingen token. Lägg in Hugging Face‑token först.", "bot");
+        return;
+      }
+      addMsg(question, "user");
+      addMsg("Tänker…", "bot");
+      const body = document.getElementById("chatBody");
+      const thinking = body.lastChild;
+      try {
+        const res = await fetch(`https://api-inference.huggingface.co/models/${HF_MODEL}`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            inputs: `Svar kort på svenska: ${question}`
+          })
+        });
+        const data = await res.json();
+        let answer = "Kunde inte få svar.";
+        if (Array.isArray(data) && data[0]?.generated_text) {
+          answer = data[0].generated_text;
+        } else if (data?.generated_text) {
+          answer = data.generated_text;
+        } else if (data?.error) {
+          answer = data.error;
+        }
+        thinking.querySelector("span").textContent = answer;
+      } catch (e) {
+        thinking.querySelector("span").textContent = "Fel vid anrop.";
+        console.warn("HF error:", e);
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      const chat = document.getElementById("chatbot");
+      const toggle = document.getElementById("chatbotToggle");
+      const close = document.getElementById("chatClose");
+      const send = document.getElementById("chatSend");
+      const input = document.getElementById("chatInput");
+      const tokenInput = document.getElementById("hfToken");
+      const save = document.getElementById("saveToken");
+
+      toggle.addEventListener("click", () => chat.classList.remove("hidden"));
+      close.addEventListener("click", () => chat.classList.add("hidden"));
+
+      const saved = getToken();
+      if (saved) tokenInput.value = saved;
+
+      save.addEventListener("click", () => {
+        setToken(tokenInput.value.trim());
+        addMsg("Token sparad.", "bot");
+      });
+      send.addEventListener("click", () => {
+        const q = input.value.trim();
+        if (!q) return;
+        input.value = "";
+        askHF(q);
+      });
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") send.click();
+      });
+    });
   </script>
 
   <!-- WEATHER -->
