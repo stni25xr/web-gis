@@ -581,6 +581,19 @@
       body.scrollTop = body.scrollHeight;
     }
 
+    async function hfFetch(url, options) {
+      try {
+        return await fetch(url, options);
+      } catch (e) {
+        // Fallback CORS proxies (best-effort for school use)
+        try {
+          return await fetch("https://cors.isomorphic-git.org/" + url, options);
+        } catch (e2) {
+          return await fetch("https://corsproxy.io/?" + encodeURIComponent(url), options);
+        }
+      }
+    }
+
     async function askHF(question) {
       const token = getToken();
       if (!token) {
@@ -592,7 +605,7 @@
       const body = document.getElementById("chatBody");
       const thinking = body.lastChild;
       try {
-        const res = await fetch(`https://api-inference.huggingface.co/models/${HF_MODEL}?wait_for_model=true`, {
+        const res = await hfFetch(`https://api-inference.huggingface.co/models/${HF_MODEL}?wait_for_model=true`, {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${token}`,
