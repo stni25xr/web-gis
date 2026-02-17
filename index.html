@@ -569,7 +569,7 @@
       if (el) el.textContent = text;
     }
 
-    function initIfcViewer() {
+    async function initIfcViewer() {
       if (started) return;
       started = true;
       setStatus("Laddar modell…");
@@ -596,12 +596,25 @@
       const ifcLoader = new IFCLoader();
       ifcLoader.ifcManager.setWasmPath("https://unpkg.com/web-ifc@0.0.57/");
 
-      const modelUrl = "./assets/Project1.ifc";
+      const modelUrl = new URL("./assets/Project1.ifc", window.location.href).href;
+      try {
+        const head = await fetch(modelUrl);
+        if (!head.ok) {
+          setStatus("IFC‑filen kunde inte hämtas (404/åtkomst).");
+          console.warn("IFC fetch error:", head.status);
+          return;
+        }
+      } catch (e) {
+        setStatus("IFC‑filen kunde inte hämtas.");
+        console.warn("IFC fetch error:", e);
+        return;
+      }
+
       ifcLoader.load(modelUrl, (ifcModel) => {
         scene.add(ifcModel);
         setStatus("");
       }, undefined, (err) => {
-        setStatus("Kunde inte ladda IFC‑filen. Kontrollera att filen finns.");
+        setStatus("Kunde inte läsa IFC‑filen (format/fel).");
         console.warn("IFC load error:", err);
       });
 
