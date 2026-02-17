@@ -145,22 +145,6 @@
       position:absolute; top:110px; left:260px; right:320px; height:calc(100% - 110px); z-index:1;
     }
 
-    /* ===== IFC Viewer ===== */
-    #ifcToggle {
-      position:fixed; right:18px; bottom:18px; z-index:30;
-      background:#0f172a; color:#fff; border:none; border-radius:999px; padding:10px 14px; cursor:pointer;
-      box-shadow:0 8px 24px rgba(15,23,42,.2);
-    }
-    #ifcPanel {
-      position:fixed; right:18px; bottom:70px; width:420px; height:320px; z-index:30;
-      background:#fff; border:1px solid #d7dee6; border-radius:12px; overflow:hidden;
-      box-shadow:0 8px 24px rgba(15,23,42,.2); display:none;
-    }
-    #ifcPanel header {
-      background:#0f172a; color:#fff; padding:8px 10px; font-size:13px; display:flex; justify-content:space-between; align-items:center;
-    }
-    #ifcViewer { width:100%; height:calc(100% - 34px); background:#eef2f7; }
-
     @media (max-width: 900px) {
       #sidebar { width:200px; }
       #info-panel { width:260px; }
@@ -517,16 +501,6 @@
     </div>
   </aside>
 
-  <!-- IFC Viewer -->
-  <button id="ifcToggle" type="button">IFC</button>
-  <div id="ifcPanel" role="dialog" aria-label="IFC viewer">
-    <header>
-      <span>IFC‑modell</span>
-      <button id="ifcClose" type="button" style="background:transparent;border:none;color:#fff;cursor:pointer;">✕</button>
-    </header>
-    <div id="ifcViewer"></div>
-  </div>
-
   <!-- MAP -->
   <div id="sceneView" role="main" aria-label="3D‑karta"></div>
 
@@ -537,77 +511,6 @@
       if (el) el.textContent = new Date().toLocaleTimeString("sv-SE");
     }
     setInterval(updateClock, 1000); updateClock();
-  </script>
-
-  <!-- IFC Viewer (three.js + web-ifc) -->
-  <script type="module">
-    import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
-    import { OrbitControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
-    import { IFCLoader } from "https://unpkg.com/web-ifc-three@0.0.151/IFCLoader.js";
-
-    const panel = document.getElementById("ifcPanel");
-    const toggle = document.getElementById("ifcToggle");
-    const closeBtn = document.getElementById("ifcClose");
-    const container = document.getElementById("ifcViewer");
-    let started = false;
-
-    function initIfcViewer() {
-      if (started) return;
-      started = true;
-
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0xf1f5f9);
-
-      const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-      camera.position.set(12, 12, 12);
-
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(container.clientWidth, container.clientHeight);
-      renderer.setPixelRatio(window.devicePixelRatio);
-      container.appendChild(renderer.domElement);
-
-      const controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-
-      const light1 = new THREE.DirectionalLight(0xffffff, 0.9);
-      light1.position.set(10, 20, 10);
-      scene.add(light1);
-      scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-
-      const ifcLoader = new IFCLoader();
-      ifcLoader.ifcManager.setWasmPath("https://unpkg.com/web-ifc@0.0.57/");
-
-      const modelUrl = "./assets/Project1.ifc";
-      ifcLoader.load(modelUrl, (ifcModel) => {
-        scene.add(ifcModel);
-      }, undefined, (err) => {
-        console.warn("IFC load error:", err);
-      });
-
-      function onResize() {
-        const w = container.clientWidth;
-        const h = container.clientHeight;
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
-        renderer.setSize(w, h);
-      }
-      window.addEventListener("resize", onResize);
-
-      function animate() {
-        controls.update();
-        renderer.render(scene, camera);
-        requestAnimationFrame(animate);
-      }
-      animate();
-    }
-
-    toggle.addEventListener("click", () => {
-      panel.style.display = "block";
-      initIfcViewer();
-    });
-    closeBtn.addEventListener("click", () => {
-      panel.style.display = "none";
-    });
   </script>
 
   <!-- WEATHER -->
