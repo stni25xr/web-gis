@@ -524,9 +524,7 @@
       <span>IFC‑modell</span>
       <button id="ifcClose" type="button" style="background:transparent;border:none;color:#fff;cursor:pointer;">✕</button>
     </header>
-    <div id="ifcViewer">
-      <div id="ifcStatus" style="padding:10px;color:#334155;font-size:13px;">Laddar IFC‑viewer…</div>
-    </div>
+    <div id="ifcViewer"></div>
   </div>
 
   <!-- MAP -->
@@ -541,17 +539,6 @@
     setInterval(updateClock, 1000); updateClock();
   </script>
 
-  <!-- IFC UI fallback (shows panel even if module fails) -->
-  <script>
-    window.addEventListener("DOMContentLoaded", () => {
-      const panel = document.getElementById("ifcPanel");
-      const toggle = document.getElementById("ifcToggle");
-      const closeBtn = document.getElementById("ifcClose");
-      if (toggle) toggle.addEventListener("click", () => { panel.style.display = "block"; });
-      if (closeBtn) closeBtn.addEventListener("click", () => { panel.style.display = "none"; });
-    });
-  </script>
-
   <!-- IFC Viewer (three.js + web-ifc) -->
   <script type="module">
     import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
@@ -564,15 +551,9 @@
     const container = document.getElementById("ifcViewer");
     let started = false;
 
-    function setStatus(text) {
-      const el = document.getElementById("ifcStatus");
-      if (el) el.textContent = text;
-    }
-
     function initIfcViewer() {
       if (started) return;
       started = true;
-      setStatus("Laddar modell…");
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xf1f5f9);
@@ -599,9 +580,7 @@
       const modelUrl = "./assets/Project1.ifc";
       ifcLoader.load(modelUrl, (ifcModel) => {
         scene.add(ifcModel);
-        setStatus("");
       }, undefined, (err) => {
-        setStatus("Kunde inte ladda IFC‑filen. Kontrollera att filen finns.");
         console.warn("IFC load error:", err);
       });
 
