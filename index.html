@@ -610,13 +610,22 @@
         return;
       }
 
-      ifcLoader.load(modelUrl, (ifcModel) => {
+      const timeoutMs = 20000;
+      try {
+        const ifcPromise = ifcLoader.loadAsync(modelUrl);
+        const timeout = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("timeout")), timeoutMs);
+        });
+        const ifcModel = await Promise.race([ifcPromise, timeout]);
         scene.add(ifcModel);
         setStatus("");
-      }, undefined, (err) => {
-        setStatus("Kunde inte läsa IFC‑filen (format/fel).");
+      } catch (err) {
+        const msg = err && err.message === "timeout"
+          ? "IFC‑laddning tog för lång tid. Prova igen."
+          : "Kunde inte läsa IFC‑filen (format/fel).";
+        setStatus(msg);
         console.warn("IFC load error:", err);
-      });
+      }
 
       function onResize() {
         const w = container.clientWidth;
