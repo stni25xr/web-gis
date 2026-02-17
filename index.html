@@ -554,6 +554,10 @@
 
   <!-- IFC Viewer (three.js + web-ifc) -->
   <script type="module">
+    import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+    import { OrbitControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+    import { IFCLoader } from "https://unpkg.com/web-ifc-three@0.0.151/IFCLoader.js";
+
     const panel = document.getElementById("ifcPanel");
     const toggle = document.getElementById("ifcToggle");
     const closeBtn = document.getElementById("ifcClose");
@@ -565,27 +569,10 @@
       if (el) el.textContent = text;
     }
 
-    async function loadModules() {
-      try {
-        const THREE = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js");
-        const controlsMod = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js");
-        const ifcMod = await import("https://cdn.jsdelivr.net/npm/web-ifc-three@0.0.151/IFCLoader.js");
-        return { THREE, OrbitControls: controlsMod.OrbitControls, IFCLoader: ifcMod.IFCLoader };
-      } catch (e) {
-        setStatus("Kunde inte ladda 3D‑bibliotek (nätverk).");
-        console.warn("IFC module load error:", e);
-        return null;
-      }
-    }
-
     async function initIfcViewer() {
       if (started) return;
       started = true;
       setStatus("Laddar modell…");
-
-      const mods = await loadModules();
-      if (!mods) return;
-      const { THREE, OrbitControls, IFCLoader } = mods;
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xf1f5f9);
@@ -607,7 +594,7 @@
       scene.add(new THREE.AmbientLight(0xffffff, 0.4));
 
       const ifcLoader = new IFCLoader();
-      ifcLoader.ifcManager.setWasmPath("https://cdn.jsdelivr.net/npm/web-ifc@0.0.57/");
+      ifcLoader.ifcManager.setWasmPath("https://unpkg.com/web-ifc@0.0.57/");
 
       const modelUrl = new URL("./assets/Project1.ifc", window.location.href).href;
       try {
