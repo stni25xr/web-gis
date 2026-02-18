@@ -706,10 +706,13 @@
         renderer: {
           type: "simple",
           symbol: {
-            type: "picture-marker",
-            url: "./assets/house.svg",
-            width: 16,
-            height: 16
+            type: "point-3d",
+            symbolLayers: [{
+              type: "icon",
+              resource: { href: "./assets/house.svg" },
+              size: 12,
+              outline: { color: "white", size: 1 }
+            }]
           }
         },
         visible: true,
