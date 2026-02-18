@@ -663,6 +663,8 @@
       map.add(safetyRouteLayer);
       const bimMarkerLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 3 } });
       map.add(bimMarkerLayer);
+      const bimBuildingLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 0 } });
+      map.add(bimBuildingLayer);
 
       const view = new SceneView({
         container: "sceneView",
@@ -730,6 +732,15 @@
         }).then((res) => {
           const f = res.features && res.features[0];
           if (!f || !f.geometry) return;
+          bimBuildingLayer.removeAll();
+          bimBuildingLayer.add(new Graphic({
+            geometry: f.geometry,
+            symbol: {
+              type: "simple-fill",
+              color: [255, 149, 0, 0.7],
+              outline: { color: [255, 149, 0, 1], width: 1.5 }
+            }
+          }));
           const pt = geometryEngine.centroid(f.geometry);
           if (!pt) return;
           bimMarkerLayer.removeAll();
