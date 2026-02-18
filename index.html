@@ -243,7 +243,7 @@
       <div class="switch-row switch-child">
         <span class="switch-label">Fastighetspunkter</span>
         <label class="switch" aria-label="Fastighetspunkter">
-          <input id="swFastighet" type="checkbox" checked />
+          <input id="swFastighet" type="checkbox" />
           <span class="slider"></span>
         </label>
       </div>
@@ -715,10 +715,19 @@
             }]
           }
         },
-        visible: true,
+        visible: false,
         popupTemplate: {
           title: "Fastighet",
-          content: [{ type: "fields" }]
+          content: [{
+            type: "fields",
+            fieldInfos: [
+              { fieldName: "fastighet", label: "Fastighet" },
+              { fieldName: "trakt", label: "Trakt" },
+              { fieldName: "blockenhet", label: "Blockenhet" },
+              { fieldName: "detaljtyp", label: "Detaljtyp" },
+              { fieldName: "kommunnamn", label: "Kommun" }
+            ]
+          }]
         }
       });
       map.add(fastighet);
