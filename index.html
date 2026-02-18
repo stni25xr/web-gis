@@ -684,8 +684,30 @@
 
       const buildingFootprints = new GeoJSONLayer({
         url: "./data/Main_byggnad.geojson",
-        visible: false,
-        popupEnabled: false
+        visible: true,
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-fill",
+            color: [0, 0, 0, 0],
+            outline: { color: [0, 0, 0, 0], width: 0 }
+          }
+        },
+        popupEnabled: true,
+        popupTemplate: {
+          title: "{byggnadsnamn1}",
+          content: [{
+            type: "fields",
+            fieldInfos: [
+              { fieldName: "objektidentitet", label: "Unik kod" },
+              { fieldName: "byggnadsnamn1", label: "Byggnadsnamn" },
+              { fieldName: "byggnadsnamn2", label: "Byggnadsnamn 2" },
+              { fieldName: "byggnadsnamn3", label: "Byggnadsnamn 3" },
+              { fieldName: "husnummer", label: "Husnummer" },
+              { fieldName: "andamal1", label: "Ändamål" }
+            ]
+          }]
+        }
       });
       map.add(buildingFootprints);
 
