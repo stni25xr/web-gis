@@ -702,24 +702,43 @@
         popupEnabled: true,
         popupTemplate: {
           title: "{byggnadsnamn1}",
-          expressionInfos: [{
-            name: "bimLink",
-            expression: "var id = $feature.objektidentitet; IIF(id == 'e11f4a59-b4e9-4316-8850-3fe72633a93d', '<a href=\"./Project3.html\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-block;margin-top:6px;color:#fff;background:#1f6feb;padding:6px 10px;border-radius:8px;font-size:12px;text-decoration:none;\">Se BIM Model</a>', '')"
-          }],
-          content: [{
-            type: "fields",
-            fieldInfos: [
-              { fieldName: "objektidentitet", label: "Unik kod" },
-              { fieldName: "byggnadsnamn1", label: "Byggnadsnamn" },
-              { fieldName: "byggnadsnamn2", label: "Byggnadsnamn 2" },
-              { fieldName: "byggnadsnamn3", label: "Byggnadsnamn 3" },
-              { fieldName: "husnummer", label: "Husnummer" },
-              { fieldName: "andamal1", label: "Ändamål" }
-            ]
-          }, {
-            type: "text",
-            text: "{expression/bimLink}"
-          }]
+          content: [
+            {
+              type: "fields",
+              fieldInfos: [
+                { fieldName: "objektidentitet", label: "Unik kod" },
+                { fieldName: "byggnadsnamn1", label: "Byggnadsnamn" },
+                { fieldName: "byggnadsnamn2", label: "Byggnadsnamn 2" },
+                { fieldName: "byggnadsnamn3", label: "Byggnadsnamn 3" },
+                { fieldName: "husnummer", label: "Husnummer" },
+                { fieldName: "andamal1", label: "Ändamål" }
+              ]
+            },
+            {
+              type: "custom",
+              creator: (event) => {
+                const attrs = event?.graphic?.attributes || {};
+                const wrap = document.createElement("div");
+                if (attrs.objektidentitet === "e11f4a59-b4e9-4316-8850-3fe72633a93d") {
+                  const btn = document.createElement("a");
+                  btn.href = "./Project3.html";
+                  btn.target = "_blank";
+                  btn.rel = "noopener";
+                  btn.textContent = "Se BIM Model";
+                  btn.style.display = "inline-block";
+                  btn.style.marginTop = "6px";
+                  btn.style.color = "#fff";
+                  btn.style.background = "#1f6feb";
+                  btn.style.padding = "6px 10px";
+                  btn.style.borderRadius = "8px";
+                  btn.style.fontSize = "12px";
+                  btn.style.textDecoration = "none";
+                  wrap.appendChild(btn);
+                }
+                return wrap;
+              }
+            }
+          ]
         }
       });
       map.add(buildingFootprints);
@@ -736,9 +755,13 @@
           bimBuildingLayer.add(new Graphic({
             geometry: f.geometry,
             symbol: {
-              type: "simple-fill",
-              color: [255, 149, 0, 0.7],
-              outline: { color: [255, 149, 0, 1], width: 1.5 }
+              type: "polygon-3d",
+              symbolLayers: [{
+                type: "extrude",
+                size: 2,
+                material: { color: [255, 149, 0, 0.85] },
+                edges: { color: [255, 149, 0, 1], size: 1.5 }
+              }]
             }
           }));
           const pt = geometryEngine.centroid(f.geometry);
