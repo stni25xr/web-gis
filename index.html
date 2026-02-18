@@ -131,6 +131,7 @@
     #attrTable { width:100%; border-collapse:collapse; font-size:13px; }
     #attrTable td { padding:5px 4px; border-bottom:1px solid #eef2f7; vertical-align:top; }
     #attrTable td:first-child { font-weight:600; color:#0f172a; width:42%; }
+    #buildingLink { margin-top:8px; }
 
     .field-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
     select, button {
@@ -417,6 +418,7 @@
         <div class="panel-body">
           <div id="attrHint">Klicka på ett objekt i kartan</div>
           <table id="attrTable"></table>
+          <div id="buildingLink"></div>
         </div>
       </details>
     </div>
@@ -1193,6 +1195,7 @@
       // ===== Right panel: attribut + unika värden =====
       const attrHint = document.getElementById("attrHint");
       const attrTable = document.getElementById("attrTable");
+      const buildingLink = document.getElementById("buildingLink");
       const nearHint = document.getElementById("nearHint");
       const nearResult = document.getElementById("nearResult");
       const nearMeta = document.getElementById("nearMeta");
@@ -1921,27 +1924,45 @@
         if (safeMeasureEnabled && event.mapPoint) {
           updateSelectedSafetyDistance(event.mapPoint);
         }
-        view.hitTest(event).then((hit) => {
-          const found = hit.results.find((r) => r.graphic);
-          if (!found) return;
-          if (found.graphic.layer !== bus) {
-            attrHint.style.display = "block";
-            attrHint.textContent = "Klicka på en busshållplats för att se attribut";
-            attrTable.innerHTML = "";
-            lastSelection = null;
-            clearHighlight();
-            clearDepartures();
-            return;
-          }
-          attrHint.style.display = "none";
-          lastSelection = { graphic: found.graphic, layer: found.graphic.layer };
+      view.hitTest(event).then((hit) => {
+        const found = hit.results.find((r) => r.graphic);
+        if (!found) return;
+
+        const layer = found.graphic.layer;
+        const isBus = layer === bus;
+        const isBuilding = layer === buildingFootprints;
+
+        if (!isBus && !isBuilding) {
+          attrHint.style.display = "block";
+          attrHint.textContent = "Klicka på en busshållplats eller byggnad för att se attribut";
+          attrTable.innerHTML = "";
+          lastSelection = null;
           clearHighlight();
-          view.whenLayerView(lastSelection.layer).then((lv) => {
-            lastHighlight = lv.highlight(lastSelection.graphic);
-          });
-          renderAttributes(found.graphic.attributes);
-          loadDeparturesForStop(found.graphic.geometry, found.graphic.attributes?.Hplnamn || "");
+          clearDepartures();
+          return;
+        }
+
+        attrHint.style.display = "none";
+        lastSelection = { graphic: found.graphic, layer };
+        clearHighlight();
+        view.whenLayerView(layer).then((lv) => {
+          const color = isBuilding ? [255, 59, 48] : [125, 211, 252];
+          lastHighlight = lv.highlight(lastSelection.graphic, { color });
         });
+        renderAttributes(found.graphic.attributes);
+        if (buildingLink) buildingLink.innerHTML = "";
+        if (isBuilding) {
+          const id = found.graphic.attributes?.objektidentitet;
+          if (id === "e11f4a59-b4e9-4316-8850-3fe72633a93d") {
+            buildingLink.innerHTML = "<a href=\"./Project3.html\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-block;margin-top:6px;color:#fff;background:#1f6feb;padding:6px 10px;border-radius:8px;font-size:12px;text-decoration:none;\">Se BIM Model</a>";
+          }
+        }
+        if (isBus) {
+          loadDeparturesForStop(found.graphic.geometry, found.graphic.attributes?.Hplnamn || "");
+        } else {
+          clearDepartures();
+        }
+      });
       });
 
       nearMeasureBtn.addEventListener("click", () => {
