@@ -661,6 +661,8 @@
       map.add(corridorLayer);
       const safetyRouteLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 } });
       map.add(safetyRouteLayer);
+      const bimMarkerLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 3 } });
+      map.add(bimMarkerLayer);
 
       const view = new SceneView({
         container: "sceneView",
@@ -712,6 +714,30 @@
         }
       });
       map.add(buildingFootprints);
+      // Mark BIM building with light orange dot
+      buildingFootprints.when(() => {
+        buildingFootprints.queryFeatures({
+          where: "objektidentitet = 'e11f4a59-b4e9-4316-8850-3fe72633a93d'",
+          returnGeometry: true,
+          outFields: ["*"]
+        }).then((res) => {
+          const f = res.features && res.features[0];
+          if (!f || !f.geometry) return;
+          const pt = geometryEngine.centroid(f.geometry);
+          if (!pt) return;
+          bimMarkerLayer.removeAll();
+          bimMarkerLayer.add(new Graphic({
+            geometry: pt,
+            symbol: {
+              type: "simple-marker",
+              style: "circle",
+              color: [251, 146, 60, 0.9],
+              size: 10,
+              outline: { color: "white", width: 1 }
+            }
+          }));
+        });
+      });
 
       // Oxnehaga (din GeoJSON)
       const ox = new GeoJSONLayer({
