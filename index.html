@@ -240,6 +240,13 @@
           <span class="slider"></span>
         </label>
       </div>
+      <div class="switch-row switch-child">
+        <span class="switch-label">Fastighetspunkter</span>
+        <label class="switch" aria-label="Fastighetspunkter">
+          <input id="swFastighet" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
     </details>
 
     <details class="switch-group">
@@ -347,6 +354,10 @@
         <div class="legend-item">
           <span class="legend-swatch" style="background:rgba(249,115,22,0.25); border-color:#fb923c;"></span>
           <span>Oxnehaga</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch" style="background:rgba(99,102,241,0.9); border-color:#6366f1;"></span>
+          <span>Fastighetspunkter</span>
         </div>
         <div class="legend-item">
           <span class="legend-bus"></span>
@@ -689,6 +700,26 @@
         visible: true
       });
       map.add(ox);
+
+      const fastighet = new GeoJSONLayer({
+        url: "./data/Fastighet_punkter.geojson",
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-marker",
+            style: "circle",
+            color: [99, 102, 241, 0.9],
+            size: 5,
+            outline: { color: "white", width: 0.5 }
+          }
+        },
+        visible: true,
+        popupTemplate: {
+          title: "Fastighet",
+          content: [{ type: "fields" }]
+        }
+      });
+      map.add(fastighet);
 
       const capIcon = "data:image/svg+xml;utf8," + encodeURIComponent(
         "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>"
@@ -1069,6 +1100,7 @@
       const basemapSelect = document.getElementById("basemapSelect");
       const swBuildings = document.getElementById("swBuildings");
       const swOx = document.getElementById("swOx");
+      const swFastighet = document.getElementById("swFastighet");
       const swBus = document.getElementById("swBus");
       const swMark = document.getElementById("swMark");
       const swWater = document.getElementById("swWater");
@@ -1083,6 +1115,7 @@
 
       swBuildings.addEventListener("change", () => buildings.visible = swBuildings.checked);
       swOx.addEventListener("change", () => ox.visible = swOx.checked);
+      swFastighet.addEventListener("change", () => fastighet.visible = swFastighet.checked);
       swBus.addEventListener("change", () => bus.visible = swBus.checked);
       swMark.addEventListener("change", () => mark.visible = swMark.checked);
       swWater.addEventListener("change", () => water.visible = swWater.checked);
@@ -1119,7 +1152,7 @@
       }
 
       bindGroup(swBase, [swBuildings, swMark, swWater]);
-      bindGroup(swArea, [swOx]);
+      bindGroup(swArea, [swOx, swFastighet]);
       bindGroup(swTransport, [swBus]);
       bindGroup(swService, [swForskola, swGrund, swGymn, swVard]);
       bindGroup(swSafety, [swPolice, swFire, swHospital, swShelter]);
@@ -1160,6 +1193,7 @@
       const layerOptions = [
         { id: "buildings", title: "Byggnader", layer: buildings },
         { id: "ox", title: "Oxnehaga", layer: ox },
+        { id: "fastighet", title: "Fastighetspunkter", layer: fastighet },
         { id: "bus", title: "Busshållplatser", layer: bus },
         { id: "mark", title: "Kommunal mark", layer: mark },
         { id: "water", title: "Vatten", layer: water },
