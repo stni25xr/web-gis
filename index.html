@@ -340,7 +340,7 @@
       <div class="switch-row switch-child">
         <span class="switch-label">Skyddsrum</span>
         <label class="switch" aria-label="Skyddsrum">
-          <input id="swShelter" type="checkbox" checked />
+          <input id="swShelter" type="checkbox" />
           <span class="slider"></span>
         </label>
       </div>
@@ -663,8 +663,10 @@
       map.add(safetyRouteLayer);
       const bimMarkerLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 3 } });
       map.add(bimMarkerLayer);
-      const bimBuildingLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 0 } });
+      const bimBuildingLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 8 } });
       map.add(bimBuildingLayer);
+      const busSimLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 4 } });
+      map.add(busSimLayer);
 
       const view = new SceneView({
         container: "sceneView",
@@ -761,11 +763,11 @@
                 type: "extrude",
                 size: 5,
                 material: { color: [255, 149, 0, 0.85] },
-                edges: { color: [255, 149, 0, 1], size: 1.5 }
+                edges: { type: "solid", color: [255, 149, 0, 1], size: 1.5 }
               }]
             }
           }));
-          const pt = geometryEngine.centroid(f.geometry);
+          const pt = f.geometry?.extent?.center || f.geometry?.centroid || null;
           if (!pt) return;
           bimMarkerLayer.removeAll();
           bimMarkerLayer.add(new Graphic({
@@ -876,6 +878,17 @@
         + "<rect x='20' y='34' width='24' height='14' rx='3' fill='#134e4a'/>"
         + "</svg>"
       );
+      const busSimIcon = "data:image/svg+xml;utf8," + encodeURIComponent(
+        "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>"
+        + "<rect x='10' y='8' width='44' height='36' rx='8' fill='#f97316'/>"
+        + "<rect x='16' y='14' width='32' height='12' rx='4' fill='#fff3e0'/>"
+        + "<rect x='16' y='30' width='32' height='6' rx='3' fill='rgba(255,255,255,0.35)'/>"
+        + "<circle cx='20' cy='48' r='6' fill='#1f2937'/>"
+        + "<circle cx='44' cy='48' r='6' fill='#1f2937'/>"
+        + "<circle cx='20' cy='48' r='3' fill='#e5e7eb'/>"
+        + "<circle cx='44' cy='48' r='3' fill='#e5e7eb'/>"
+        + "</svg>"
+      );
 
       const bus = new GeoJSONLayer({
         url: "./data/Busshallplaster_oxnehaga.geojson",
@@ -905,6 +918,9 @@
         }
       });
       map.add(bus);
+      bus.when(() => {
+        startBus15Simulation();
+      });
 
       const mark = new GeoJSONLayer({
         url: "./data/Komunal_mark.geojson",
@@ -1098,7 +1114,7 @@
             height: 16
           }
         },
-        visible: true,
+        visible: false,
         popupTemplate: { title: "Skyddsrum", content: [{ type: "fields" }] }
       });
       map.add(shelter);
@@ -1215,6 +1231,9 @@
       const swFire = document.getElementById("swFire");
       const swHospital = document.getElementById("swHospital");
       const swShelter = document.getElementById("swShelter");
+
+      swShelter.checked = false;
+      shelter.visible = false;
 
       swBuildings.addEventListener("change", () => buildings.visible = swBuildings.checked);
       swOx.addEventListener("change", () => ox.visible = swOx.checked);
@@ -1356,6 +1375,10 @@
       let lastSafeMeasurePoint = null;
       let lastRouteGeometry = null;
       let routeBusy = false;
+      let busSimRoute = [];
+      let busSimIndex = 0;
+      let busSimGraphic = null;
+      let busSimTimer = null;
 
       function clearHighlight() {
         if (lastHighlight && typeof lastHighlight.remove === "function") {
@@ -1373,6 +1396,61 @@
         });
         busFeaturesCache = res.features || [];
         return busFeaturesCache;
+      }
+
+      function parseStopNr(value) {
+        const num = Number.parseInt(value, 10);
+        return Number.isFinite(num) ? num : null;
+      }
+
+      function buildBus15Route(features) {
+        const withGeom = (features || []).filter((f) => f && f.geometry);
+        if (!withGeom.length) return [];
+        const sorted = withGeom.slice().sort((a, b) => {
+          const aNr = parseStopNr(a.attributes?.Nr);
+          const bNr = parseStopNr(b.attributes?.Nr);
+          if (aNr != null && bNr != null) return aNr - bNr;
+          if (aNr != null) return -1;
+          if (bNr != null) return 1;
+          const aId = Number.parseInt(a.attributes?.OBJECTID || 0, 10);
+          const bId = Number.parseInt(b.attributes?.OBJECTID || 0, 10);
+          return aId - bId;
+        });
+        return sorted.map((f) => f.geometry);
+      }
+
+      function ensureBusSimGraphic(point) {
+        if (busSimGraphic) return busSimGraphic;
+        busSimGraphic = new Graphic({
+          geometry: point,
+          symbol: {
+            type: "point-3d",
+            symbolLayers: [{
+              type: "icon",
+              resource: { href: busSimIcon },
+              size: 16,
+              outline: { color: "white", size: 1 }
+            }]
+          }
+        });
+        busSimLayer.add(busSimGraphic);
+        return busSimGraphic;
+      }
+
+      function startBus15Simulation() {
+        if (busSimTimer) return;
+        getBusFeatures().then((features) => {
+          busSimRoute = buildBus15Route(features);
+          if (!busSimRoute.length) return;
+          busSimIndex = 0;
+          const first = busSimRoute[0];
+          ensureBusSimGraphic(first);
+          busSimTimer = setInterval(() => {
+            if (!busSimRoute.length) return;
+            busSimIndex = (busSimIndex + 1) % busSimRoute.length;
+            busSimGraphic.geometry = busSimRoute[busSimIndex];
+          }, 2000);
+        });
       }
 
       async function getServiceFeatures() {
