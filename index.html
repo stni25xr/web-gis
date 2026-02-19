@@ -761,6 +761,26 @@
                   btn.style.fontSize = "14px";
                   btn.style.textDecoration = "none";
                   wrap.appendChild(btn);
+
+                  const iotBtn = document.createElement("button");
+                  iotBtn.id = "iotBox";
+                  iotBtn.type = "button";
+                  iotBtn.textContent = "Visa El‑simulering";
+                  iotBtn.style.display = "block";
+                  iotBtn.style.width = "100%";
+                  iotBtn.style.margin = "8px auto 0";
+                  iotBtn.style.padding = "10px 16px";
+                  iotBtn.style.borderRadius = "8px";
+                  iotBtn.style.border = "none";
+                  iotBtn.style.background = "#1d4ed8";
+                  iotBtn.style.color = "#fff";
+                  iotBtn.style.fontSize = "14px";
+                  iotBtn.style.cursor = "pointer";
+                  iotBtn.addEventListener("click", () => {
+                    initIoTSimulation();
+                    if (window.__toggleIoT) window.__toggleIoT();
+                  });
+                  wrap.appendChild(iotBtn);
                 }
                 return wrap;
               }
