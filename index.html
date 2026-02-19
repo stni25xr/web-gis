@@ -732,21 +732,17 @@
             outline: { color: [0, 0, 0, 0], width: 0 }
           }
         },
-        popupEnabled: true,
-        popupTemplate: {
+        popupEnabled: true
+      });
+      map.add(buildingFootprints);
+      buildingFootprints.when(() => {
+        const allFields = (buildingFootprints.fields || [])
+          .filter((f) => f && f.name)
+          .map((f) => ({ fieldName: f.name, label: f.alias || f.name }));
+        buildingFootprints.popupTemplate = {
           title: "{byggnadsnamn1}",
           content: [
-            {
-              type: "fields",
-              fieldInfos: [
-                { fieldName: "objektidentitet", label: "Unik kod" },
-                { fieldName: "byggnadsnamn1", label: "Byggnadsnamn" },
-                { fieldName: "byggnadsnamn2", label: "Byggnadsnamn 2" },
-                { fieldName: "byggnadsnamn3", label: "Byggnadsnamn 3" },
-                { fieldName: "husnummer", label: "Husnummer" },
-                { fieldName: "andamal1", label: "Ändamål" }
-              ]
-            },
+            { type: "fields", fieldInfos: allFields },
             {
               type: "custom",
               creator: (event) => {
@@ -790,11 +786,8 @@
               }
             }
           ]
-        }
-      });
-      map.add(buildingFootprints);
-      // Mark BIM building with light orange dot
-      buildingFootprints.when(() => {
+        };
+
         buildingFootprints.queryFeatures({
           where: "objektidentitet = 'e11f4a59-b4e9-4316-8850-3fe72633a93d'",
           returnGeometry: true,
@@ -808,26 +801,13 @@
             symbol: {
               type: "polygon-3d",
               symbolLayers: [{
-                type: "extrude",
-                size: 5,
-                material: { color: [255, 149, 0, 0.85] },
-                edges: { type: "solid", color: [255, 149, 0, 1], size: 1.5 }
+                type: "fill",
+                material: { color: [220, 38, 38, 0.85] },
+                outline: { color: [220, 38, 38, 1], size: 1.5 }
               }]
             }
           }));
-          const pt = f.geometry?.extent?.center || f.geometry?.centroid || null;
-          if (!pt) return;
           bimMarkerLayer.removeAll();
-          bimMarkerLayer.add(new Graphic({
-            geometry: pt,
-            symbol: {
-              type: "simple-marker",
-              style: "circle",
-              color: [251, 146, 60, 0.9],
-              size: 10,
-              outline: { color: "white", width: 1 }
-            }
-          }));
         });
       });
 

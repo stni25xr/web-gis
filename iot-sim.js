@@ -40,7 +40,7 @@
   }
 
   function makeIotUI(container) {
-    if (container.dataset.ready === "1") return;
+    if (container.dataset.ready === "1" && container.querySelector("#iotChart")) return;
     container.innerHTML = `
       <div class="iot-modal" role="dialog" aria-label="Live el‑simulering">
         <div class="iot-header">
@@ -74,6 +74,10 @@
     if (!container) return;
     makeIotUI(container);
     container.style.display = container.style.display === "flex" ? "none" : "flex";
+    if (!document.getElementById("iotChart")) {
+      container.dataset.ready = "0";
+      makeIotUI(container);
+    }
     try {
       await ensureChartJs();
     } catch (e) {
