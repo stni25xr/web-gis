@@ -1441,29 +1441,23 @@
           return [p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t];
         };
 
-        const paths = [];
         const cycle = dashLen + gapLen;
-        let start = -phase;
-        while (start < total) {
-          const segStart = Math.max(0, start);
-          const segEnd = Math.min(total, start + dashLen);
-          if (segEnd > 0) {
-            const segment = [];
-            const startPt = pointAt(segStart);
-            segment.push(startPt);
-            let i = 1;
-            while (i < cum.length && cum[i] < segEnd) {
-              if (cum[i] > segStart) segment.push(path[i]);
-              i++;
-            }
-            const endPt = pointAt(segEnd);
-            segment.push(endPt);
-            if (segment.length >= 2) paths.push(segment);
-          }
-          start += cycle;
+        const offset = ((phase % cycle) + cycle) % cycle;
+        const segStart = offset;
+        const segEnd = Math.min(total, segStart + dashLen);
+        if (segEnd <= 0) return null;
+        const segment = [];
+        const startPt = pointAt(segStart);
+        segment.push(startPt);
+        let i = 1;
+        while (i < cum.length && cum[i] < segEnd) {
+          if (cum[i] > segStart) segment.push(path[i]);
+          i++;
         }
-        if (!paths.length) return null;
-        return new Polyline({ paths, spatialReference: wmLine.spatialReference });
+        const endPt = pointAt(segEnd);
+        segment.push(endPt);
+        if (segment.length < 2) return null;
+        return new Polyline({ paths: [segment], spatialReference: wmLine.spatialReference });
       }
 
       function startBus15Simulation() {
@@ -1478,8 +1472,8 @@
           }).filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
           if (routePoints.length < 2) return;
 
-          const dashLen = 25;
-          const gapLen = 25;
+          const dashLen = 50;
+          const gapLen = 50;
           busDashPhase = 0;
           const geom = buildDashGeometryFromRoute(routePoints, dashLen, gapLen, busDashPhase);
           if (!geom) return;
