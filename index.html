@@ -2222,7 +2222,7 @@
           if (id === "e11f4a59-b4e9-4316-8850-3fe72633a93d") {
             buildingLink.innerHTML =
               "<a href=\"./Project3.html\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-block;margin-top:6px;color:#fff;background:#1f6feb;padding:6px 10px;border-radius:8px;font-size:12px;text-decoration:none;\">Se BIM Model</a>"
-              + "<div style=\"margin-top:8px;\"><button id=\"iotBox\" type=\"button\" style=\"width:100%;\">Visa El‑simulering</button></div>";
+              + "<div style=\"margin-top:8px;\"><button id=\"iotBox\" type=\"button\" style=\"width:100%;\" onclick=\"initIoTSimulation(); window.__toggleIoT && window.__toggleIoT();\">Visa El‑simulering</button></div>";
           }
         }
         if (isBus) {
@@ -2446,6 +2446,13 @@
       window.__iotSimInit = true;
 
       const iotContainer = document.getElementById("iotContainer");
+      window.__toggleIoT = async function () {
+        makeIotUI();
+        iotContainer.style.display = iotContainer.style.display === "none" ? "block" : "none";
+        await ensureChartJs();
+        if (window.__iotChart) return;
+        setupChart();
+      };
 
       function ensureChartJs() {
         if (window.Chart) return Promise.resolve();
@@ -2498,14 +2505,7 @@
         return Math.max(100, base + morning + evening + spike + noise);
       }
 
-      document.addEventListener("click", async (e) => {
-        const btn = e.target.closest("#iotBox");
-        if (!btn) return;
-        makeIotUI();
-        iotContainer.style.display = iotContainer.style.display === "none" ? "block" : "none";
-        await ensureChartJs();
-        if (window.__iotChart) return;
-
+      function setupChart() {
         const ctx = document.getElementById("iotChart").getContext("2d");
         const labels = [];
         const powerData = [];
@@ -2587,6 +2587,12 @@
           costEl.textContent = "–";
           window.__iotChart.update();
         };
+      }
+
+      document.addEventListener("click", async (e) => {
+        const btn = e.target.closest("#iotBox");
+        if (!btn) return;
+        await window.__toggleIoT();
       });
     }
 
