@@ -665,8 +665,8 @@
       map.add(bimMarkerLayer);
       const bimBuildingLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 8 } });
       map.add(bimBuildingLayer);
-      const busSimLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 4 } });
-      map.add(busSimLayer);
+      const busDashLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 4 } });
+      map.add(busDashLayer);
 
       const view = new SceneView({
         container: "sceneView",
@@ -876,17 +876,6 @@
         + "<rect x='8' y='10' width='48' height='44' rx='8' fill='#0f766e'/>"
         + "<path d='M20 34 L32 22 L44 34' stroke='#ffffff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/>"
         + "<rect x='20' y='34' width='24' height='14' rx='3' fill='#134e4a'/>"
-        + "</svg>"
-      );
-      const busSimIcon = "data:image/svg+xml;utf8," + encodeURIComponent(
-        "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>"
-        + "<rect x='10' y='8' width='44' height='36' rx='8' fill='#f97316'/>"
-        + "<rect x='16' y='14' width='32' height='12' rx='4' fill='#fff3e0'/>"
-        + "<rect x='16' y='30' width='32' height='6' rx='3' fill='rgba(255,255,255,0.35)'/>"
-        + "<circle cx='20' cy='48' r='6' fill='#1f2937'/>"
-        + "<circle cx='44' cy='48' r='6' fill='#1f2937'/>"
-        + "<circle cx='20' cy='48' r='3' fill='#e5e7eb'/>"
-        + "<circle cx='44' cy='48' r='3' fill='#e5e7eb'/>"
         + "</svg>"
       );
 
@@ -1376,9 +1365,9 @@
       let lastRouteGeometry = null;
       let routeBusy = false;
       let busSimRoute = [];
-      let busSimIndex = 0;
-      let busSimGraphic = null;
-      let busSimTimer = null;
+      let busDashGraphic = null;
+      let busDashTimer = null;
+      let busDashPhase = 0;
 
       function clearHighlight() {
         if (lastHighlight && typeof lastHighlight.remove === "function") {
@@ -1419,37 +1408,104 @@
         return sorted.map((f) => f.geometry);
       }
 
-      function ensureBusSimGraphic(point) {
-        if (busSimGraphic) return busSimGraphic;
-        busSimGraphic = new Graphic({
-          geometry: point,
-          symbol: {
-            type: "point-3d",
-            symbolLayers: [{
-              type: "icon",
-              resource: { href: busSimIcon },
-              size: 16,
-              outline: { color: "white", size: 1 }
-            }]
-          }
+      function buildDashGeometryFromRoute(routePoints, dashLen, gapLen, phase) {
+        if (!routePoints || routePoints.length < 2) return null;
+        const baseLine = new Polyline({
+          paths: [routePoints],
+          spatialReference: { wkid: 4326 }
         });
-        busSimLayer.add(busSimGraphic);
-        return busSimGraphic;
+        const wmLine = webMercatorUtils.geographicToWebMercator(baseLine);
+        if (!wmLine || !wmLine.paths || !wmLine.paths[0] || wmLine.paths[0].length < 2) return null;
+        const path = wmLine.paths[0];
+        const cum = [0];
+        let total = 0;
+        for (let i = 1; i < path.length; i++) {
+          const dx = path[i][0] - path[i - 1][0];
+          const dy = path[i][1] - path[i - 1][1];
+          const seg = Math.hypot(dx, dy);
+          total += seg;
+          cum[i] = total;
+        }
+        if (total <= 0) return null;
+
+        const pointAt = (dist) => {
+          if (dist <= 0) return path[0];
+          if (dist >= total) return path[path.length - 1];
+          let i = 1;
+          while (i < cum.length && cum[i] < dist) i++;
+          const prev = cum[i - 1];
+          const segLen = cum[i] - prev;
+          const t = segLen === 0 ? 0 : (dist - prev) / segLen;
+          const p0 = path[i - 1];
+          const p1 = path[i];
+          return [p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t];
+        };
+
+        const paths = [];
+        const cycle = dashLen + gapLen;
+        let start = -phase;
+        while (start < total) {
+          const segStart = Math.max(0, start);
+          const segEnd = Math.min(total, start + dashLen);
+          if (segEnd > 0) {
+            const segment = [];
+            const startPt = pointAt(segStart);
+            segment.push(startPt);
+            let i = 1;
+            while (i < cum.length && cum[i] < segEnd) {
+              if (cum[i] > segStart) segment.push(path[i]);
+              i++;
+            }
+            const endPt = pointAt(segEnd);
+            segment.push(endPt);
+            if (segment.length >= 2) paths.push(segment);
+          }
+          start += cycle;
+        }
+        if (!paths.length) return null;
+        return new Polyline({ paths, spatialReference: wmLine.spatialReference });
       }
 
       function startBus15Simulation() {
-        if (busSimTimer) return;
+        if (busDashTimer) return;
         getBusFeatures().then((features) => {
           busSimRoute = buildBus15Route(features);
           if (!busSimRoute.length) return;
-          busSimIndex = 0;
-          const first = busSimRoute[0];
-          ensureBusSimGraphic(first);
-          busSimTimer = setInterval(() => {
-            if (!busSimRoute.length) return;
-            busSimIndex = (busSimIndex + 1) % busSimRoute.length;
-            busSimGraphic.geometry = busSimRoute[busSimIndex];
-          }, 2000);
+          const routePoints = busSimRoute.map((g) => {
+            const lon = g.longitude ?? g.x;
+            const lat = g.latitude ?? g.y;
+            return [lon, lat];
+          }).filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+          if (routePoints.length < 2) return;
+
+          const dashLen = 25;
+          const gapLen = 25;
+          busDashPhase = 0;
+          const geom = buildDashGeometryFromRoute(routePoints, dashLen, gapLen, busDashPhase);
+          if (!geom) return;
+
+          if (!busDashGraphic) {
+            busDashGraphic = new Graphic({
+              geometry: geom,
+              symbol: {
+                type: "line-3d",
+                symbolLayers: [{
+                  type: "line",
+                  size: 5,
+                  material: { color: "#06b6d4" }
+                }]
+              }
+            });
+            busDashLayer.add(busDashGraphic);
+          } else {
+            busDashGraphic.geometry = geom;
+          }
+
+          busDashTimer = setInterval(() => {
+            busDashPhase = (busDashPhase + 5) % (dashLen + gapLen);
+            const nextGeom = buildDashGeometryFromRoute(routePoints, dashLen, gapLen, busDashPhase);
+            if (nextGeom) busDashGraphic.geometry = nextGeom;
+          }, 400);
         });
       }
 
