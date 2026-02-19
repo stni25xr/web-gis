@@ -730,6 +730,7 @@
 
       const buildingFootprints = new GeoJSONLayer({
         url: "./data/Main_byggnad.geojson",
+        outFields: ["*"],
         visible: true,
         renderer: {
           type: "simple",
@@ -818,6 +819,7 @@
       // Oxnehaga (din GeoJSON)
       const ox = new GeoJSONLayer({
         url: "./data/Oxnehaga-Area.geojson",
+        outFields: ["*"],
         popupEnabled: false,
         renderer: {
           type: "simple",
@@ -829,6 +831,7 @@
 
       const fastighet = new GeoJSONLayer({
         url: "./data/Fastighet_punkter.geojson",
+        outFields: ["*"],
         renderer: {
           type: "simple",
           symbol: {
@@ -913,6 +916,7 @@
 
       const bus = new GeoJSONLayer({
         url: "./data/Busshallplaster_oxnehaga.geojson",
+        outFields: ["*"],
         elevationInfo: { mode: "relative-to-ground", offset: 1 },
         renderer: {
           type: "simple",
@@ -977,6 +981,7 @@
 
       const mark = new GeoJSONLayer({
         url: "./data/Komunal_mark.geojson",
+        outFields: ["*"],
         renderer: {
           type: "simple",
           symbol: {
@@ -995,6 +1000,7 @@
 
       const water = new GeoJSONLayer({
         url: "./data/Vatten_jonkoping_01.geojson",
+        outFields: ["*"],
         renderer: {
           type: "simple",
           symbol: {
@@ -1013,6 +1019,7 @@
 
       const forskola = new GeoJSONLayer({
         url: "./data/Forskola.geojson",
+        outFields: ["*"],
         renderer: {
           type: "simple",
           symbol: {
@@ -1032,6 +1039,7 @@
 
       const grund = new GeoJSONLayer({
         url: "./data/GrundskolaPoint.geojson",
+        outFields: ["*"],
         renderer: {
           type: "simple",
           symbol: {
@@ -1051,6 +1059,7 @@
 
       const gymn = new GeoJSONLayer({
         url: "./data/Gymnasieskolal.geojson",
+        outFields: ["*"],
         renderer: {
           type: "simple",
           symbol: {
@@ -1070,6 +1079,7 @@
 
       const vard = new GeoJSONLayer({
         url: "./data/VardcentralPoin.geojson",
+        outFields: ["*"],
         renderer: {
           type: "simple",
           symbol: {
@@ -1096,6 +1106,7 @@
             geometry: { type: "Point", coordinates: [14.170999, 57.780667] }
           }]
         })),
+        outFields: ["*"],
         renderer: {
           type: "simple",
           symbol: {
@@ -1119,6 +1130,7 @@
             geometry: { type: "Point", coordinates: [14.27955692260687, 57.78795689226685] }
           }]
         })),
+        outFields: ["*"],
         renderer: {
           type: "simple",
           symbol: {
@@ -1142,6 +1154,7 @@
             geometry: { type: "Point", coordinates: [14.194491812814103, 57.76701786162326] }
           }]
         })),
+        outFields: ["*"],
         renderer: {
           type: "simple",
           symbol: {
@@ -1158,6 +1171,7 @@
 
       const shelter = new FeatureLayer({
         url: "https://services6.arcgis.com/NThLsKaeOKhGxBBE/arcgis/rest/services/Skyddsrum_220225/FeatureServer/1",
+        outFields: ["*"],
         renderer: {
           type: "simple",
           symbol: {
@@ -2246,11 +2260,10 @@
         const layer = found.graphic.layer;
         const isBus = layer === bus;
         const isBuilding = layer === buildingFootprints;
-        const isSkolWalk = layer === skolWalk;
 
-        if (!isBus && !isBuilding && !isSkolWalk) {
+        if (!found.graphic.attributes) {
           attrHint.style.display = "block";
-          attrHint.textContent = "Klicka på ett objekt i kartan för att se attribut";
+          attrHint.textContent = "Inga attribut för valt objekt";
           attrTable.innerHTML = "";
           lastSelection = null;
           clearHighlight();
