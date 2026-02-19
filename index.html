@@ -742,7 +742,6 @@
         buildingFootprints.popupTemplate = {
           title: "{byggnadsnamn1}",
           content: [
-            { type: "fields", fieldInfos: allFields },
             {
               type: "custom",
               creator: (event) => {
@@ -755,7 +754,7 @@
                   btn.rel = "noopener";
                   btn.textContent = "Se BIM Model";
                   btn.style.display = "block";
-                  btn.style.margin = "8px auto 0";
+                  btn.style.margin = "0 auto 8px";
                   btn.style.textAlign = "center";
                   btn.style.color = "#fff";
                   btn.style.background = "#1f6feb";
@@ -771,7 +770,7 @@
                   iotBtn.textContent = "Visa El‑simulering";
                   iotBtn.style.display = "block";
                   iotBtn.style.width = "100%";
-                  iotBtn.style.margin = "8px auto 0";
+                  iotBtn.style.margin = "0 auto 8px";
                   iotBtn.style.padding = "10px 16px";
                   iotBtn.style.borderRadius = "8px";
                   iotBtn.style.border = "none";
@@ -784,7 +783,8 @@
                 }
                 return wrap;
               }
-            }
+            },
+            { type: "fields", fieldInfos: allFields }
           ]
         };
 
