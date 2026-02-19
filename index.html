@@ -945,6 +945,7 @@
 
       const skolWalk = new GeoJSONLayer({
         url: "./data/Skol_Polygons_walk.geojson",
+        outFields: ["*"],
         renderer: {
           type: "simple",
           symbol: {
@@ -956,7 +957,20 @@
         visible: false,
         popupTemplate: {
           title: "Skolväg (gång)",
-          content: [{ type: "fields" }]
+          content: [
+            {
+              type: "fields",
+              fieldInfos: [
+                { fieldName: "ObjectID", label: "ObjectID" },
+                { fieldName: "FacilityID", label: "FacilityID" },
+                { fieldName: "Name", label: "Name" },
+                { fieldName: "FromBreak", label: "FromBreak" },
+                { fieldName: "ToBreak", label: "ToBreak" },
+                { fieldName: "Shape_Length", label: "Shape_Length" },
+                { fieldName: "Shape_Area", label: "Shape_Area" }
+              ]
+            }
+          ]
         }
       });
       map.add(skolWalk);
