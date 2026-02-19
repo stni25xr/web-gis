@@ -1368,6 +1368,7 @@
       let busDashGraphic = null;
       let busDashTimer = null;
       let busDashPhase = 0;
+      let busDashTotal = 0;
 
       function clearHighlight() {
         if (lastHighlight && typeof lastHighlight.remove === "function") {
@@ -1427,6 +1428,7 @@
           cum[i] = total;
         }
         if (total <= 0) return null;
+        busDashTotal = total;
 
         const pointAt = (dist) => {
           if (dist <= 0) return path[0];
@@ -1441,8 +1443,7 @@
           return [p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t];
         };
 
-        const cycle = dashLen + gapLen;
-        const offset = ((phase % cycle) + cycle) % cycle;
+        const offset = ((phase % total) + total) % total;
         const segStart = offset;
         const segEnd = Math.min(total, segStart + dashLen);
         if (segEnd <= 0) return null;
@@ -1540,7 +1541,8 @@
           }
 
           busDashTimer = setInterval(() => {
-            busDashPhase = (busDashPhase + 5) % (dashLen + gapLen);
+            if (!busDashTotal || busDashTotal <= 0) return;
+            busDashPhase = (busDashPhase + 10) % busDashTotal;
             const nextGeom = buildDashGeometryFromRoute(routePoints, dashLen, gapLen, busDashPhase);
             if (nextGeom) busDashGraphic.geometry = nextGeom;
           }, 400);
