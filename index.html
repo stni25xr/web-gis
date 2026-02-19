@@ -296,6 +296,13 @@
           <span class="slider"></span>
         </label>
       </div>
+      <div class="switch-row switch-child">
+        <span class="switch-label">Skolväg (gång)</span>
+        <label class="switch" aria-label="Skolväg (gång)">
+          <input id="swSkolWalk" type="checkbox" />
+          <span class="slider"></span>
+        </label>
+      </div>
     </details>
 
     <details class="switch-group">
@@ -936,6 +943,24 @@
         startBus15Simulation();
       });
 
+      const skolWalk = new GeoJSONLayer({
+        url: "./data/Skol_Polygons_walk.geojson",
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-fill",
+            color: [59, 130, 246, 0.15],
+            outline: { color: [59, 130, 246, 0.9], width: 2 }
+          }
+        },
+        visible: false,
+        popupTemplate: {
+          title: "Skolväg (gång)",
+          content: [{ type: "fields" }]
+        }
+      });
+      map.add(skolWalk);
+
       const mark = new GeoJSONLayer({
         url: "./data/Komunal_mark.geojson",
         renderer: {
@@ -1235,6 +1260,7 @@
       const swOx = document.getElementById("swOx");
       const swFastighet = document.getElementById("swFastighet");
       const swBus = document.getElementById("swBus");
+      const swSkolWalk = document.getElementById("swSkolWalk");
       const swMark = document.getElementById("swMark");
       const swWater = document.getElementById("swWater");
       const swForskola = document.getElementById("swForskola");
@@ -1253,6 +1279,7 @@
       swOx.addEventListener("change", () => ox.visible = swOx.checked);
       swFastighet.addEventListener("change", () => fastighet.visible = swFastighet.checked);
       swBus.addEventListener("change", () => bus.visible = swBus.checked);
+      swSkolWalk.addEventListener("change", () => skolWalk.visible = swSkolWalk.checked);
       swMark.addEventListener("change", () => mark.visible = swMark.checked);
       swWater.addEventListener("change", () => water.visible = swWater.checked);
       swForskola.addEventListener("change", () => forskola.visible = swForskola.checked);
@@ -1289,7 +1316,7 @@
 
       bindGroup(swBase, [swBuildings, swMark, swWater]);
       bindGroup(swArea, [swOx, swFastighet]);
-      bindGroup(swTransport, [swBus]);
+      bindGroup(swTransport, [swBus, swSkolWalk]);
       bindGroup(swService, [swForskola, swGrund, swGymn, swVard]);
       bindGroup(swSafety, [swPolice, swFire, swHospital, swShelter]);
 
