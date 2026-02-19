@@ -2075,8 +2075,15 @@
 
       function renderAttributes(attrs) {
         attrTable.innerHTML = "";
-        if (!attrs) return;
+        if (!attrs) {
+          attrTable.innerHTML = "<tr><td colspan=\"2\" style=\"color:#64748b;\">Inga attribut</td></tr>";
+          return;
+        }
         const keys = Object.keys(attrs).filter((k) => attrs[k] !== null && attrs[k] !== "").sort();
+        if (!keys.length) {
+          attrTable.innerHTML = "<tr><td colspan=\"2\" style=\"color:#64748b;\">Inga attribut i detta lager</td></tr>";
+          return;
+        }
         keys.forEach((key) => {
           const row = document.createElement("tr");
           row.innerHTML = `<td>${key}</td><td>${attrs[key]}</td>`;
