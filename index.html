@@ -799,12 +799,9 @@
           bimBuildingLayer.add(new Graphic({
             geometry: f.geometry,
             symbol: {
-              type: "polygon-3d",
-              symbolLayers: [{
-                type: "fill",
-                material: { color: [220, 38, 38, 0.85] },
-                outline: { color: [220, 38, 38, 1], size: 1.5 }
-              }]
+              type: "simple-fill",
+              color: [0, 0, 0, 0],
+              outline: { color: [220, 38, 38, 1], width: 2 }
             }
           }));
           bimMarkerLayer.removeAll();
