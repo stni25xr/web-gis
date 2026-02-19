@@ -145,18 +145,24 @@
 
     #iotContainer {
       position: fixed;
-      right: 24px;
-      bottom: 24px;
-      width: 360px;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(2,6,23,0.55);
+      z-index: 9999;
+    }
+    #iotContainer .iot-modal {
+      width: 380px;
       max-width: 92vw;
       background: #0f172a;
       color: #e2e8f0;
       border-radius: 14px;
       box-shadow: 0 12px 30px rgba(0,0,0,0.35);
-      z-index: 9999;
       padding: 14px;
       font-family: Arial, Helvetica, sans-serif;
     }
+    #iotContainer .iot-header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
     #iotContainer h4 { margin: 0 0 8px; font-size: 15px; color: #fff; }
     #iotContainer .iot-row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
     #iotContainer .iot-metric { background:#111827; padding:8px 10px; border-radius:10px; font-size:12px; flex:1; min-width:110px; }
@@ -165,6 +171,7 @@
     #iotContainer button { background:#2563eb; color:#fff; border:none; padding:6px 10px; border-radius:8px; cursor:pointer; font-size:12px; }
     #iotContainer button.secondary { background:#475569; }
     #iotContainer canvas { width:100%; height:200px; }
+    #iotContainer .iot-close { background:#0b1220; border:1px solid #334155; }
 
     /* ===== Map ===== */
     #sceneView {
@@ -2466,9 +2473,21 @@
       window.__iotSimInit = true;
 
       const iotContainer = document.getElementById("iotContainer");
+      function readHeaderElPrice() {
+        const el = document.getElementById("elprice");
+        const txt = el ? el.textContent : "";
+        const m = txt.match(/([0-9]+[.,][0-9]+)/);
+        if (!m) return 1.8;
+        return parseFloat(m[1].replace(",", "."));
+      }
       window.__toggleIoT = async function () {
         makeIotUI();
-        iotContainer.style.display = iotContainer.style.display === "none" ? "block" : "none";
+        const priceEl = document.getElementById("iotPrice");
+        if (priceEl) {
+          const val = readHeaderElPrice();
+          priceEl.value = Number.isFinite(val) ? val.toFixed(2) : "1.80";
+        }
+        iotContainer.style.display = iotContainer.style.display === "flex" ? "none" : "flex";
         await ensureChartJs();
         if (window.__iotChart) return;
         setupChart();
@@ -2488,24 +2507,33 @@
       function makeIotUI() {
         if (iotContainer.dataset.ready === "1") return;
         iotContainer.innerHTML = `
-          <h4>Live El‑simulering</h4>
-          <div class="iot-row">
-            <div class="iot-metric">Effekt: <b id="iotPower">–</b> W</div>
-            <div class="iot-metric">Energi: <b id="iotEnergy">–</b> kWh</div>
-            <div class="iot-metric">Kostnad: <b id="iotCost">–</b> SEK</div>
+          <div class="iot-modal" role="dialog" aria-label="Live el‑simulering">
+            <div class="iot-header">
+              <h4>Live El‑simulering</h4>
+              <button id="iotClose" type="button" class="iot-close">Stäng</button>
+            </div>
+            <div class="iot-row">
+              <div class="iot-metric">Effekt: <b id="iotPower">–</b> W</div>
+              <div class="iot-metric">Energi: <b id="iotEnergy">–</b> kWh</div>
+              <div class="iot-metric">Kostnad: <b id="iotCost">–</b> SEK</div>
+            </div>
+            <div class="iot-row">
+              <label>Elpris (SEK/kWh)</label>
+              <input id="iotPrice" type="number" step="0.01" value="1.80"/>
+            </div>
+            <div class="iot-row">
+              <button id="iotStart">Start</button>
+              <button id="iotPause" class="secondary">Paus</button>
+              <button id="iotReset" class="secondary">Reset</button>
+            </div>
+            <canvas id="iotChart"></canvas>
           </div>
-          <div class="iot-row">
-            <label>Elpris (SEK/kWh)</label>
-            <input id="iotPrice" type="number" step="0.01" value="1.80"/>
-          </div>
-          <div class="iot-row">
-            <button id="iotStart">Start</button>
-            <button id="iotPause" class="secondary">Paus</button>
-            <button id="iotReset" class="secondary">Reset</button>
-          </div>
-          <canvas id="iotChart"></canvas>
         `;
         iotContainer.dataset.ready = "1";
+        const closeBtn = document.getElementById("iotClose");
+        if (closeBtn) {
+          closeBtn.onclick = () => { iotContainer.style.display = "none"; };
+        }
       }
 
       function gaussian() {
