@@ -2483,15 +2483,14 @@
       }
       window.__toggleIoT = async function () {
         makeIotUI();
-        const priceEl = document.getElementById("iotPrice");
-        if (priceEl) {
-          const val = readHeaderElPrice();
-          priceEl.value = Number.isFinite(val) ? val.toFixed(2) : "1.80";
-        }
         iotContainer.style.display = iotContainer.style.display === "flex" ? "none" : "flex";
         await ensureChartJs();
-        if (window.__iotChart) return;
+        if (window.__iotChart) {
+          if (!window.__iotTimer) window.__iotTimer = setInterval(window.__iotTick, 1000);
+          return;
+        }
         setupChart();
+        if (!window.__iotTimer) window.__iotTimer = setInterval(window.__iotTick, 1000);
       };
 
       function ensureChartJs() {
@@ -2514,13 +2513,13 @@
               <button id="iotClose" type="button" class="iot-close">Stäng</button>
             </div>
             <div class="iot-row">
-              <div class="iot-metric">Effekt: <b id="iotPower">–</b> W</div>
-              <div class="iot-metric">Energi: <b id="iotEnergy">–</b> kWh</div>
-              <div class="iot-metric">Kostnad: <b id="iotCost">–</b> SEK</div>
+              <div class="iot-metric" style="flex:1; min-width:100%; font-size:16px;">
+                Just nu: <b id="iotPower">–</b> W
+              </div>
             </div>
             <div class="iot-row">
-              <label>Elpris (SEK/kWh)</label>
-              <input id="iotPrice" type="number" step="0.01" value="1.80"/>
+              <div class="iot-metric">Energi: <b id="iotEnergy">–</b> kWh</div>
+              <div class="iot-metric">Kostnad: <b id="iotCost">–</b> SEK</div>
             </div>
             <div class="iot-row">
               <button id="iotStart">Start</button>
@@ -2569,17 +2568,17 @@
           data: {
             labels,
             datasets: [
-              { label: "Effekt (W)", data: powerData, yAxisID: "y1", borderColor: "#38bdf8", tension: 0.3, fill: false },
-              { label: "Kostnad (SEK)", data: costData, yAxisID: "y2", borderColor: "#f59e0b", tension: 0.3, fill: false }
+              { label: "Effekt (W)", data: powerData, yAxisID: "y1", borderColor: "#34d399", backgroundColor: "rgba(16,185,129,0.25)", tension: 0.25, fill: true, pointRadius: 0 },
+              { label: "Kostnad (SEK)", data: costData, yAxisID: "y2", borderColor: "#f59e0b", backgroundColor: "rgba(245,158,11,0.15)", tension: 0.25, fill: false, pointRadius: 0 }
             ]
           },
           options: {
             responsive: true,
             animation: false,
             scales: {
-              y1: { type: "linear", position: "left", ticks: { color: "#e2e8f0" } },
+              y1: { type: "linear", position: "left", ticks: { color: "#e2e8f0" }, grid: { color: "rgba(148,163,184,0.15)" } },
               y2: { type: "linear", position: "right", ticks: { color: "#e2e8f0" }, grid: { drawOnChartArea: false } },
-              x: { ticks: { color: "#94a3b8" } }
+              x: { ticks: { color: "#94a3b8", maxTicksLimit: 6 } }
             },
             plugins: { legend: { labels: { color: "#e2e8f0" } } }
           }
@@ -2588,12 +2587,15 @@
         const powerEl = document.getElementById("iotPower");
         const energyEl = document.getElementById("iotEnergy");
         const costEl = document.getElementById("iotCost");
-        const priceEl = document.getElementById("iotPrice");
+        const getPrice = () => {
+          const v = readHeaderElPrice();
+          return Number.isFinite(v) ? v : 1.8;
+        };
 
         function tick() {
           const p = computePower(window.__iotMinute);
           const energyKwh = p / 1000 / 60;
-          const price = parseFloat(priceEl.value || "1.8");
+          const price = getPrice();
 
           window.__iotEnergy += energyKwh;
           window.__iotCost += energyKwh * price;
@@ -2615,6 +2617,7 @@
           window.__iotChart.update();
           window.__iotMinute += 1;
         }
+        window.__iotTick = tick;
 
         document.getElementById("iotStart").onclick = () => {
           if (window.__iotTimer) return;
