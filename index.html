@@ -1462,15 +1462,59 @@
 
       function startBus15Simulation() {
         if (busDashTimer) return;
-        getBusFeatures().then((features) => {
+        getBusFeatures().then(async (features) => {
           busSimRoute = buildBus15Route(features);
           if (!busSimRoute.length) return;
-          const routePoints = busSimRoute.map((g) => {
+          const stopPoints = busSimRoute.map((g) => {
             const lon = g.longitude ?? g.x;
             const lat = g.latitude ?? g.y;
             return [lon, lat];
           }).filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
-          if (routePoints.length < 2) return;
+          if (stopPoints.length < 2) return;
+
+          let routePoints = stopPoints;
+          const cacheKey = "bus15_ors_route_v1";
+          try {
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed) && parsed.length > 1) {
+                routePoints = parsed;
+              }
+            } else if (ORS_KEY) {
+              const chunks = [];
+              const maxPts = 40;
+              for (let i = 0; i < stopPoints.length; i += (maxPts - 1)) {
+                const slice = stopPoints.slice(i, i + maxPts);
+                if (slice.length >= 2) chunks.push(slice);
+              }
+              const allCoords = [];
+              for (let i = 0; i < chunks.length; i++) {
+                const body = { coordinates: chunks[i], instructions: false };
+                const res = await fetch("https://api.openrouteservice.org/v2/directions/driving-car/geojson", {
+                  method: "POST",
+                  headers: {
+                    "Authorization": ORS_KEY,
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify(body)
+                });
+                if (!res.ok) throw new Error("ORS " + res.status);
+                const data = await res.json();
+                const coords = data?.features?.[0]?.geometry?.coordinates || [];
+                coords.forEach((c, idx) => {
+                  if (i > 0 && idx === 0) return;
+                  allCoords.push(c);
+                });
+              }
+              if (allCoords.length > 1) {
+                routePoints = allCoords;
+                localStorage.setItem(cacheKey, JSON.stringify(allCoords));
+              }
+            }
+          } catch (e) {
+            console.warn("ORS route failed, fallback to straight segments", e);
+          }
 
           const dashLen = 50;
           const gapLen = 50;
