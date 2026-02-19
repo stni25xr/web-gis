@@ -783,6 +783,7 @@
                   iotBtn.style.color = "#fff";
                   iotBtn.style.fontSize = "14px";
                   iotBtn.style.cursor = "pointer";
+                  iotBtn.setAttribute("onclick", "openIoTSimulation()");
                   iotBtn.addEventListener("click", () => {
                     initIoTSimulation();
                     if (window.__toggleIoT) window.__toggleIoT();
@@ -2643,6 +2644,11 @@
         await window.__toggleIoT();
       });
     }
+
+    window.openIoTSimulation = function () {
+      initIoTSimulation();
+      if (window.__toggleIoT) window.__toggleIoT();
+    };
 
     initIoTSimulation();
   </script>
