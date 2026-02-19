@@ -143,6 +143,29 @@
     #uniqueList { list-style:none; padding:0; margin:8px 0 0 0; font-size:13px; }
     #uniqueList li { padding:4px 0; border-bottom:1px dashed #e2e8f0; color:#0f172a; }
 
+    #iotContainer {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      width: 360px;
+      max-width: 92vw;
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 14px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+      z-index: 9999;
+      padding: 14px;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    #iotContainer h4 { margin: 0 0 8px; font-size: 15px; color: #fff; }
+    #iotContainer .iot-row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+    #iotContainer .iot-metric { background:#111827; padding:8px 10px; border-radius:10px; font-size:12px; flex:1; min-width:110px; }
+    #iotContainer label { font-size: 12px; }
+    #iotContainer input { width: 90px; padding: 4px 6px; border-radius: 6px; border: 1px solid #334155; background:#0b1220; color:#e2e8f0; }
+    #iotContainer button { background:#2563eb; color:#fff; border:none; padding:6px 10px; border-radius:8px; cursor:pointer; font-size:12px; }
+    #iotContainer button.secondary { background:#475569; }
+    #iotContainer canvas { width:100%; height:200px; }
+
     /* ===== Map ===== */
     #sceneView {
       position:absolute; top:110px; left:260px; right:320px; height:calc(100% - 110px); z-index:1;
@@ -519,6 +542,7 @@
 
   <!-- MAP -->
   <div id="sceneView" role="main" aria-label="3D‑karta"></div>
+  <div id="iotContainer" style="display:none;"></div>
 
   <!-- CLOCK -->
   <script>
@@ -2196,7 +2220,9 @@
         if (isBuilding) {
           const id = found.graphic.attributes?.objektidentitet;
           if (id === "e11f4a59-b4e9-4316-8850-3fe72633a93d") {
-            buildingLink.innerHTML = "<a href=\"./Project3.html\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-block;margin-top:6px;color:#fff;background:#1f6feb;padding:6px 10px;border-radius:8px;font-size:12px;text-decoration:none;\">Se BIM Model</a>";
+            buildingLink.innerHTML =
+              "<a href=\"./Project3.html\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-block;margin-top:6px;color:#fff;background:#1f6feb;padding:6px 10px;border-radius:8px;font-size:12px;text-decoration:none;\">Se BIM Model</a>"
+              + "<div style=\"margin-top:8px;\"><button id=\"iotBox\" type=\"button\" style=\"width:100%;\">Visa El‑simulering</button></div>";
           }
         }
         if (isBus) {
@@ -2413,12 +2439,158 @@
       loadUnique.addEventListener("click", loadUniqueValues);
     });
   </script>
+
+  <script>
+    function initIoTSimulation() {
+      if (window.__iotSimInit) return;
+      window.__iotSimInit = true;
+
+      const iotContainer = document.getElementById("iotContainer");
+
+      function ensureChartJs() {
+        if (window.Chart) return Promise.resolve();
+        return new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = "https://cdn.jsdelivr.net/npm/chart.js";
+          s.onload = resolve;
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
+      }
+
+      function makeIotUI() {
+        if (iotContainer.dataset.ready === "1") return;
+        iotContainer.innerHTML = `
+          <h4>Live El‑simulering</h4>
+          <div class="iot-row">
+            <div class="iot-metric">Effekt: <b id="iotPower">–</b> W</div>
+            <div class="iot-metric">Energi: <b id="iotEnergy">–</b> kWh</div>
+            <div class="iot-metric">Kostnad: <b id="iotCost">–</b> SEK</div>
+          </div>
+          <div class="iot-row">
+            <label>Elpris (SEK/kWh)</label>
+            <input id="iotPrice" type="number" step="0.01" value="1.80"/>
+          </div>
+          <div class="iot-row">
+            <button id="iotStart">Start</button>
+            <button id="iotPause" class="secondary">Paus</button>
+            <button id="iotReset" class="secondary">Reset</button>
+          </div>
+          <canvas id="iotChart"></canvas>
+        `;
+        iotContainer.dataset.ready = "1";
+      }
+
+      function gaussian() {
+        let u = 0, v = 0;
+        while (u === 0) u = Math.random();
+        while (v === 0) v = Math.random();
+        return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+      }
+
+      function computePower(minute) {
+        const hour = (minute % 1440) / 60;
+        const base = 200 + Math.random() * 100;
+        const morning = 700 * Math.exp(-0.5 * Math.pow((hour - 7) / 1.2, 2));
+        const evening = 900 * Math.exp(-0.5 * Math.pow((hour - 18) / 1.4, 2));
+        const spike = Math.random() < 0.05 ? (1500 + Math.random() * 2000) : 0;
+        const noise = gaussian() * 30;
+        return Math.max(100, base + morning + evening + spike + noise);
+      }
+
+      document.addEventListener("click", async (e) => {
+        const btn = e.target.closest("#iotBox");
+        if (!btn) return;
+        makeIotUI();
+        iotContainer.style.display = iotContainer.style.display === "none" ? "block" : "none";
+        await ensureChartJs();
+        if (window.__iotChart) return;
+
+        const ctx = document.getElementById("iotChart").getContext("2d");
+        const labels = [];
+        const powerData = [];
+        const costData = [];
+
+        window.__iotMinute = 0;
+        window.__iotEnergy = 0;
+        window.__iotCost = 0;
+
+        window.__iotChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              { label: "Effekt (W)", data: powerData, yAxisID: "y1", borderColor: "#38bdf8", tension: 0.3, fill: false },
+              { label: "Kostnad (SEK)", data: costData, yAxisID: "y2", borderColor: "#f59e0b", tension: 0.3, fill: false }
+            ]
+          },
+          options: {
+            responsive: true,
+            animation: false,
+            scales: {
+              y1: { type: "linear", position: "left", ticks: { color: "#e2e8f0" } },
+              y2: { type: "linear", position: "right", ticks: { color: "#e2e8f0" }, grid: { drawOnChartArea: false } },
+              x: { ticks: { color: "#94a3b8" } }
+            },
+            plugins: { legend: { labels: { color: "#e2e8f0" } } }
+          }
+        });
+
+        const powerEl = document.getElementById("iotPower");
+        const energyEl = document.getElementById("iotEnergy");
+        const costEl = document.getElementById("iotCost");
+        const priceEl = document.getElementById("iotPrice");
+
+        function tick() {
+          const p = computePower(window.__iotMinute);
+          const energyKwh = p / 1000 / 60;
+          const price = parseFloat(priceEl.value || "1.8");
+
+          window.__iotEnergy += energyKwh;
+          window.__iotCost += energyKwh * price;
+
+          powerEl.textContent = Math.round(p);
+          energyEl.textContent = window.__iotEnergy.toFixed(3);
+          costEl.textContent = window.__iotCost.toFixed(2);
+
+          labels.push(window.__iotMinute % 1440);
+          powerData.push(p);
+          costData.push(window.__iotCost);
+
+          if (labels.length > 180) {
+            labels.shift();
+            powerData.shift();
+            costData.shift();
+          }
+
+          window.__iotChart.update();
+          window.__iotMinute += 1;
+        }
+
+        document.getElementById("iotStart").onclick = () => {
+          if (window.__iotTimer) return;
+          window.__iotTimer = setInterval(tick, 1000);
+        };
+        document.getElementById("iotPause").onclick = () => {
+          clearInterval(window.__iotTimer);
+          window.__iotTimer = null;
+        };
+        document.getElementById("iotReset").onclick = () => {
+          clearInterval(window.__iotTimer);
+          window.__iotTimer = null;
+          window.__iotMinute = 0;
+          window.__iotEnergy = 0;
+          window.__iotCost = 0;
+          labels.length = 0; powerData.length = 0; costData.length = 0;
+          powerEl.textContent = "–";
+          energyEl.textContent = "–";
+          costEl.textContent = "–";
+          window.__iotChart.update();
+        };
+      });
+    }
+
+    initIoTSimulation();
+  </script>
 </body>
 </html>
-<<<<<<< HEAD
-
-
-
-
-=======
->>>>>>> 6d43964 (Update UI, add layers and bus departures)
