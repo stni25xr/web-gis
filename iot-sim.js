@@ -74,7 +74,22 @@
     if (!container) return;
     makeIotUI(container);
     container.style.display = container.style.display === "flex" ? "none" : "flex";
-    await ensureChartJs();
+    try {
+      await ensureChartJs();
+    } catch (e) {
+      const modal = container.querySelector(".iot-modal");
+      if (modal) {
+        modal.insertAdjacentHTML("beforeend", "<div style=\"margin-top:8px;color:#fca5a5;font-size:12px;\">Kunde inte ladda Chart.js (nätverk).</div>");
+      }
+      return;
+    }
+    if (!window.Chart) {
+      const modal = container.querySelector(".iot-modal");
+      if (modal) {
+        modal.insertAdjacentHTML("beforeend", "<div style=\"margin-top:8px;color:#fca5a5;font-size:12px;\">Chart.js är inte tillgängligt.</div>");
+      }
+      return;
+    }
 
     if (!window.__iotChart) {
       const ctx = document.getElementById("iotChart").getContext("2d");

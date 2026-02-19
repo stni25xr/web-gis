@@ -784,10 +784,6 @@
                   iotBtn.style.fontSize = "14px";
                   iotBtn.style.cursor = "pointer";
                   iotBtn.setAttribute("onclick", "openIoTSimulation()");
-                  iotBtn.addEventListener("click", () => {
-                    initIoTSimulation();
-                    if (window.__toggleIoT) window.__toggleIoT();
-                  });
                   wrap.appendChild(iotBtn);
                 }
                 return wrap;
