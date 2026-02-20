@@ -114,6 +114,11 @@
   padding: 8px;
 }
 
+.elsim-svg-host {
+  width: 100%;
+  height: 100%;
+}
+
 .elsim-ranges {
   margin-top: 12px;
   display: flex;

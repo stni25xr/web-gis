@@ -291,7 +291,7 @@
         </div>
 
         <div class="elsim-chart">
-          <canvas id="elsimChart"></canvas>
+          <div id="elsimSvgHost" class="elsim-svg-host"></div>
         </div>
 
         <div class="elsim-ranges">
@@ -351,98 +351,74 @@
     app.chartCtor = resolveChartCtor();
   }
 
-  function drawCanvasChart(labels, powers) {
-    if (!app.chart || app.chart.mode !== "canvas") return;
-    const canvas = app.chart.canvas;
-    const ctx = app.chart.ctx;
-    if (!canvas || !ctx) return;
+  function drawSvgChart(labels, powers) {
+    if (!app.chart || app.chart.mode !== "svg") return;
+    const host = app.chart.host;
+    if (!host) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    const w = Math.max(300, canvas.clientWidth || 300);
-    const h = Math.max(180, canvas.clientHeight || 180);
-    canvas.width = Math.floor(w * dpr);
-    canvas.height = Math.floor(h * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    const pad = { l: 18, r: 52, t: 12, b: 30 };
+    const w = Math.max(300, Math.floor(host.clientWidth || 300));
+    const h = Math.max(180, Math.floor(host.clientHeight || 180));
+    const pad = { l: 14, r: 54, t: 10, b: 28 };
     const plotW = w - pad.l - pad.r;
     const plotH = h - pad.t - pad.b;
     const maxP = Math.max(2000, powers.length ? Math.ceil(Math.max(...powers) / 500) * 500 : 2000);
-
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = "rgba(255,255,255,0.02)";
-    ctx.fillRect(0, 0, w, h);
-
-    // grid + right axis labels
-    ctx.strokeStyle = "rgba(148,163,184,0.2)";
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "11px IBM Plex Sans, Arial, sans-serif";
     const steps = Math.max(4, Math.floor(maxP / 500));
-    for (let i = 0; i <= steps; i += 1) {
-      const val = Math.round((i / steps) * maxP);
-      const y = pad.t + plotH - ((val / maxP) * plotH);
-      ctx.beginPath();
-      ctx.moveTo(pad.l, y);
-      ctx.lineTo(w - pad.r, y);
-      ctx.stroke();
-      ctx.fillText(nbsToSpace(svInt.format(val)), w - pad.r + 6, y + 3);
-    }
-
-    if (!powers.length) return;
 
     const xAt = (idx) => pad.l + ((idx / Math.max(1, powers.length - 1)) * plotW);
     const yAt = (p) => pad.t + plotH - ((p / maxP) * plotH);
 
-    // fill
-    ctx.beginPath();
-    ctx.moveTo(xAt(0), yAt(powers[0]));
-    for (let i = 1; i < powers.length; i += 1) ctx.lineTo(xAt(i), yAt(powers[i]));
-    ctx.lineTo(xAt(powers.length - 1), pad.t + plotH);
-    ctx.lineTo(xAt(0), pad.t + plotH);
-    ctx.closePath();
-    ctx.fillStyle = "rgba(45, 212, 191, 0.22)";
-    ctx.fill();
+    let grid = "";
+    for (let i = 0; i <= steps; i += 1) {
+      const val = Math.round((i / steps) * maxP);
+      const y = pad.t + plotH - ((val / maxP) * plotH);
+      grid += `<line x1=\"${pad.l}\" y1=\"${y}\" x2=\"${w - pad.r}\" y2=\"${y}\" stroke=\"rgba(148,163,184,0.25)\" stroke-width=\"1\" />`;
+      grid += `<text x=\"${w - pad.r + 6}\" y=\"${y + 4}\" font-size=\"11\" fill=\"#94a3b8\">${nbsToSpace(svInt.format(val))}</text>`;
+    }
 
-    // line
-    ctx.beginPath();
-    ctx.moveTo(xAt(0), yAt(powers[0]));
-    for (let i = 1; i < powers.length; i += 1) ctx.lineTo(xAt(i), yAt(powers[i]));
-    ctx.strokeStyle = "#2dd4bf";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    let areaPath = "";
+    let linePath = "";
+    let dot = "";
+    if (powers.length) {
+      const pts = powers.map((p, i) => `${xAt(i)},${yAt(p)}`);
+      linePath = `M ${pts.join(" L ")}`;
+      areaPath = `${linePath} L ${xAt(powers.length - 1)},${pad.t + plotH} L ${xAt(0)},${pad.t + plotH} Z`;
+      dot = `<circle cx=\"${xAt(powers.length - 1)}\" cy=\"${yAt(powers[powers.length - 1])}\" r=\"5\" fill=\"#2dd4bf\" />`;
+    }
 
-    // latest dot
-    const lx = xAt(powers.length - 1);
-    const ly = yAt(powers[powers.length - 1]);
-    ctx.beginPath();
-    ctx.arc(lx, ly, 5, 0, Math.PI * 2);
-    ctx.fillStyle = "#2dd4bf";
-    ctx.fill();
-
-    // x labels
-    ctx.fillStyle = "#94a3b8";
+    let xLabels = "";
     const n = labels.length;
-    const ticks = Math.min(6, n);
+    const ticks = Math.min(6, n || 0);
     for (let i = 0; i < ticks; i += 1) {
       const idx = Math.round((i / Math.max(1, ticks - 1)) * (n - 1));
-      ctx.fillText(labels[idx] || "", xAt(idx) - 18, h - 8);
+      const x = xAt(idx);
+      xLabels += `<text x=\"${x - 16}\" y=\"${h - 8}\" font-size=\"11\" fill=\"#94a3b8\">${labels[idx] || ""}</text>`;
     }
+
+    host.innerHTML = `
+      <svg width=\"100%\" height=\"100%\" viewBox=\"0 0 ${w} ${h}\" preserveAspectRatio=\"none\" role=\"img\" aria-label=\"Elförbrukningsgraf\">
+        ${grid}
+        ${areaPath ? `<path d=\"${areaPath}\" fill=\"rgba(45,212,191,0.22)\" stroke=\"none\" />` : ""}
+        ${linePath ? `<path d=\"${linePath}\" fill=\"none\" stroke=\"#2dd4bf\" stroke-width=\"2\" />` : ""}
+        ${dot}
+        ${xLabels}
+      </svg>
+    `;
   }
 
   function initChart() {
     if (app.chart) return;
-    const Ctor = app.chartCtor || resolveChartCtor();
-    const canvas = document.getElementById("elsimChart");
-    if (!canvas) return;
+    // Force native SVG renderer for reliability in this project.
+    const Ctor = null;
+    const host = document.getElementById("elsimSvgHost");
+    if (!host) return;
     if (!Ctor) {
       app.chart = {
-        mode: "canvas",
-        canvas,
-        ctx: canvas.getContext("2d")
+        mode: "svg",
+        host
       };
       return;
     }
-    app.chart = new Ctor(canvas.getContext("2d"), {
+    app.chart = new Ctor(host.getContext("2d"), {
       type: "line",
       data: {
         labels: [],
@@ -511,8 +487,8 @@
     const powers = rows.map((r) => r[1]);
     const last = powers.length ? powers[powers.length - 1] : null;
 
-    if (app.chart.mode === "canvas") {
-      drawCanvasChart(labels, powers);
+    if (app.chart.mode === "svg") {
+      drawSvgChart(labels, powers);
       return;
     }
 
@@ -678,12 +654,8 @@
       if (loading) loading.textContent = `Bygger historik: ${pct}%`;
     });
 
-    try {
-      await ensureChartJs();
-    } catch (_e) {
-      // Fallback: if CDN is blocked/offline, use internal canvas renderer.
-      app.chartCtor = null;
-    }
+    // Use internal canvas renderer only (no external dependency needed).
+    app.chartCtor = null;
     initChart();
     wireUiEvents(container);
     setActiveRangeButton();
