@@ -18,11 +18,19 @@
   const app = {
     state: null,
     chart: null,
+    chartCtor: null,
     timer: null,
     activeRange: 5,
     saveCounter: 0,
     initialized: false
   };
+
+  function resolveChartCtor() {
+    if (typeof window.Chart === "function") return window.Chart;
+    if (window.Chart && typeof window.Chart.Chart === "function") return window.Chart.Chart;
+    if (window.ChartJS && typeof window.ChartJS.Chart === "function") return window.ChartJS.Chart;
+    return null;
+  }
 
   function nbsToSpace(v) {
     return String(v).replace(/\u00A0/g, " ");
@@ -331,7 +339,8 @@
   }
 
   async function ensureChartJs() {
-    if (window.Chart) return;
+    app.chartCtor = resolveChartCtor();
+    if (app.chartCtor) return;
     await new Promise((resolve, reject) => {
       const s = document.createElement("script");
       s.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js";
@@ -339,13 +348,19 @@
       s.onerror = reject;
       document.head.appendChild(s);
     });
+    app.chartCtor = resolveChartCtor();
+    if (!app.chartCtor) {
+      throw new Error("Chart.js kunde inte initieras");
+    }
   }
 
   function initChart() {
     if (app.chart) return;
+    const Ctor = app.chartCtor || resolveChartCtor();
+    if (!Ctor) throw new Error("Chart.js constructor saknas");
     const ctx = document.getElementById("elsimChart");
     if (!ctx) return;
-    app.chart = new window.Chart(ctx.getContext("2d"), {
+    app.chart = new Ctor(ctx.getContext("2d"), {
       type: "line",
       data: {
         labels: [],
