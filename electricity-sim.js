@@ -349,18 +349,100 @@
       document.head.appendChild(s);
     });
     app.chartCtor = resolveChartCtor();
-    if (!app.chartCtor) {
-      throw new Error("Chart.js kunde inte initieras");
+  }
+
+  function drawCanvasChart(labels, powers) {
+    if (!app.chart || app.chart.mode !== "canvas") return;
+    const canvas = app.chart.canvas;
+    const ctx = app.chart.ctx;
+    if (!canvas || !ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(300, canvas.clientWidth || 300);
+    const h = Math.max(180, canvas.clientHeight || 180);
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const pad = { l: 18, r: 52, t: 12, b: 30 };
+    const plotW = w - pad.l - pad.r;
+    const plotH = h - pad.t - pad.b;
+    const maxP = Math.max(2000, powers.length ? Math.ceil(Math.max(...powers) / 500) * 500 : 2000);
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "rgba(255,255,255,0.02)";
+    ctx.fillRect(0, 0, w, h);
+
+    // grid + right axis labels
+    ctx.strokeStyle = "rgba(148,163,184,0.2)";
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "11px IBM Plex Sans, Arial, sans-serif";
+    const steps = Math.max(4, Math.floor(maxP / 500));
+    for (let i = 0; i <= steps; i += 1) {
+      const val = Math.round((i / steps) * maxP);
+      const y = pad.t + plotH - ((val / maxP) * plotH);
+      ctx.beginPath();
+      ctx.moveTo(pad.l, y);
+      ctx.lineTo(w - pad.r, y);
+      ctx.stroke();
+      ctx.fillText(nbsToSpace(svInt.format(val)), w - pad.r + 6, y + 3);
+    }
+
+    if (!powers.length) return;
+
+    const xAt = (idx) => pad.l + ((idx / Math.max(1, powers.length - 1)) * plotW);
+    const yAt = (p) => pad.t + plotH - ((p / maxP) * plotH);
+
+    // fill
+    ctx.beginPath();
+    ctx.moveTo(xAt(0), yAt(powers[0]));
+    for (let i = 1; i < powers.length; i += 1) ctx.lineTo(xAt(i), yAt(powers[i]));
+    ctx.lineTo(xAt(powers.length - 1), pad.t + plotH);
+    ctx.lineTo(xAt(0), pad.t + plotH);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(45, 212, 191, 0.22)";
+    ctx.fill();
+
+    // line
+    ctx.beginPath();
+    ctx.moveTo(xAt(0), yAt(powers[0]));
+    for (let i = 1; i < powers.length; i += 1) ctx.lineTo(xAt(i), yAt(powers[i]));
+    ctx.strokeStyle = "#2dd4bf";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // latest dot
+    const lx = xAt(powers.length - 1);
+    const ly = yAt(powers[powers.length - 1]);
+    ctx.beginPath();
+    ctx.arc(lx, ly, 5, 0, Math.PI * 2);
+    ctx.fillStyle = "#2dd4bf";
+    ctx.fill();
+
+    // x labels
+    ctx.fillStyle = "#94a3b8";
+    const n = labels.length;
+    const ticks = Math.min(6, n);
+    for (let i = 0; i < ticks; i += 1) {
+      const idx = Math.round((i / Math.max(1, ticks - 1)) * (n - 1));
+      ctx.fillText(labels[idx] || "", xAt(idx) - 18, h - 8);
     }
   }
 
   function initChart() {
     if (app.chart) return;
     const Ctor = app.chartCtor || resolveChartCtor();
-    if (!Ctor) throw new Error("Chart.js constructor saknas");
-    const ctx = document.getElementById("elsimChart");
-    if (!ctx) return;
-    app.chart = new Ctor(ctx.getContext("2d"), {
+    const canvas = document.getElementById("elsimChart");
+    if (!canvas) return;
+    if (!Ctor) {
+      app.chart = {
+        mode: "canvas",
+        canvas,
+        ctx: canvas.getContext("2d")
+      };
+      return;
+    }
+    app.chart = new Ctor(canvas.getContext("2d"), {
       type: "line",
       data: {
         labels: [],
@@ -428,6 +510,11 @@
     const labels = rows.map((r) => fmtHHmm(r[0]));
     const powers = rows.map((r) => r[1]);
     const last = powers.length ? powers[powers.length - 1] : null;
+
+    if (app.chart.mode === "canvas") {
+      drawCanvasChart(labels, powers);
+      return;
+    }
 
     app.chart.data.labels = labels;
     app.chart.data.datasets[0].data = powers;
@@ -591,7 +678,12 @@
       if (loading) loading.textContent = `Bygger historik: ${pct}%`;
     });
 
-    await ensureChartJs();
+    try {
+      await ensureChartJs();
+    } catch (_e) {
+      // Fallback: if CDN is blocked/offline, use internal canvas renderer.
+      app.chartCtor = null;
+    }
     initChart();
     wireUiEvents(container);
     setActiveRangeButton();
