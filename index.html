@@ -786,9 +786,13 @@
           bimBuildingLayer.add(new Graphic({
             geometry: f.geometry,
             symbol: {
-              type: "simple-fill",
-              color: [220, 38, 38, 0.85],
-              outline: { color: [0, 0, 0, 0], width: 0 }
+              type: "polygon-3d",
+              symbolLayers: [{
+                type: "extrude",
+                size: 6,
+                material: { color: [220, 38, 38, 0.9] },
+                edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
+              }]
             }
           }));
           bimMarkerLayer.removeAll();
