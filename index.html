@@ -143,36 +143,6 @@
     #uniqueList { list-style:none; padding:0; margin:8px 0 0 0; font-size:13px; }
     #uniqueList li { padding:4px 0; border-bottom:1px dashed #e2e8f0; color:#0f172a; }
 
-    #iotContainer {
-      position: fixed;
-      inset: 0;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      background: rgba(2,6,23,0.55);
-      z-index: 9999;
-    }
-    #iotContainer .iot-modal {
-      width: 380px;
-      max-width: 92vw;
-      background: #0f172a;
-      color: #e2e8f0;
-      border-radius: 14px;
-      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
-      padding: 14px;
-      font-family: Arial, Helvetica, sans-serif;
-    }
-    #iotContainer .iot-header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
-    #iotContainer h4 { margin: 0 0 8px; font-size: 15px; color: #fff; }
-    #iotContainer .iot-row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-    #iotContainer .iot-metric { background:#111827; padding:8px 10px; border-radius:10px; font-size:12px; flex:1; min-width:110px; }
-    #iotContainer label { font-size: 12px; }
-    #iotContainer input { width: 90px; padding: 4px 6px; border-radius: 6px; border: 1px solid #334155; background:#0b1220; color:#e2e8f0; }
-    #iotContainer button { background:#2563eb; color:#fff; border:none; padding:6px 10px; border-radius:8px; cursor:pointer; font-size:12px; }
-    #iotContainer button.secondary { background:#475569; }
-    #iotContainer canvas { width:100%; height:200px; }
-    #iotContainer .iot-close { background:#0b1220; border:1px solid #334155; }
-
     /* ===== Map ===== */
     #sceneView {
       position:absolute; top:110px; left:260px; right:320px; height:calc(100% - 110px); z-index:1;
@@ -189,6 +159,7 @@
       #sceneView { left:180px; right:0; }
     }
   </style>
+  <link rel="stylesheet" href="./styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet" />
@@ -2556,6 +2527,6 @@
     });
   </script>
 
-  <script type="module" src="./iot-sim.js"></script>
+  <script type="module" src="./electricity-sim.js"></script>
 </body>
 </html>
