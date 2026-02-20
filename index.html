@@ -535,6 +535,15 @@
   <!-- MAP -->
   <div id="sceneView" role="main" aria-label="3D‑karta"></div>
   <div id="iotContainer" style="display:none;"></div>
+  <div id="bimModal" style="display:none;">
+    <div class="bim-modal">
+      <div class="bim-header">
+        <div>BIM‑modell</div>
+        <button id="bimClose" type="button">Stäng</button>
+      </div>
+      <iframe id="bimFrame" title="BIM‑modell" src="" allowfullscreen></iframe>
+    </div>
+  </div>
 
   <!-- CLOCK -->
   <script>
@@ -736,9 +745,7 @@
                 const wrap = document.createElement("div");
                 if (attrs.objektidentitet === "e11f4a59-b4e9-4316-8850-3fe72633a93d") {
                   const btn = document.createElement("a");
-                  btn.href = "./Project3.html";
-                  btn.target = "_blank";
-                  btn.rel = "noopener";
+                  btn.href = "#";
                   btn.textContent = "Se BIM Model";
                   btn.style.display = "block";
                   btn.style.margin = "0 auto 8px";
@@ -749,6 +756,10 @@
                   btn.style.borderRadius = "8px";
                   btn.style.fontSize = "14px";
                   btn.style.textDecoration = "none";
+                  btn.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    if (window.openBimModal) window.openBimModal();
+                  });
                   wrap.appendChild(btn);
 
                   const iotBtn = document.createElement("button");
@@ -2295,7 +2306,7 @@
           const id = found.graphic.attributes?.objektidentitet;
           if (id === "e11f4a59-b4e9-4316-8850-3fe72633a93d") {
             buildingLink.innerHTML =
-              "<a href=\"./Project3.html\" target=\"_blank\" rel=\"noopener\" style=\"display:inline-block;margin-top:6px;color:#fff;background:#1f6feb;padding:6px 10px;border-radius:8px;font-size:12px;text-decoration:none;\">Se BIM Model</a>"
+              "<button type=\"button\" style=\"display:inline-block;margin-top:6px;color:#fff;background:#1f6feb;padding:6px 10px;border-radius:8px;font-size:12px;text-decoration:none;border:none;cursor:pointer;\" onclick=\"openBimModal();\">Se BIM Model</button>"
               + "<div style=\"margin-top:8px;\"><button id=\"iotBox\" type=\"button\" style=\"width:100%;\" onclick=\"openIoTSimulation();\">Visa El‑simulering</button></div>";
           }
         }
@@ -2532,6 +2543,30 @@
     });
   </script>
 
+  <script>
+    window.openBimModal = function () {
+      const modal = document.getElementById("bimModal");
+      const frame = document.getElementById("bimFrame");
+      if (!modal || !frame) return;
+      frame.src = "./Project3.html";
+      modal.style.display = "flex";
+    };
+    window.closeBimModal = function () {
+      const modal = document.getElementById("bimModal");
+      const frame = document.getElementById("bimFrame");
+      if (!modal || !frame) return;
+      modal.style.display = "none";
+      frame.src = "";
+    };
+    document.addEventListener("click", (e) => {
+      if (e.target && e.target.id === "bimModal") {
+        window.closeBimModal();
+      }
+    });
+    document.getElementById("bimClose")?.addEventListener("click", () => {
+      window.closeBimModal();
+    });
+  </script>
   <script type="module" src="./electricity-sim.js"></script>
 </body>
 </html>
