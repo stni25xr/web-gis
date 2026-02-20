@@ -455,6 +455,13 @@
         <div class="panel-body">
           <div id="attrHint">Klicka på ett objekt i kartan</div>
           <table id="attrTable"></table>
+          <div class="field-row" style="margin-top:8px;">
+            <select id="buildingTypeFilter" aria-label="Filtrera byggnader efter objekttyp">
+              <option value="">Filtrera byggnader (objekttyp)…</option>
+            </select>
+            <button id="buildingTypeApply" type="button">Filtrera</button>
+            <button id="buildingTypeClear" type="button" class="secondary">Rensa</button>
+          </div>
           <div id="buildingLink"></div>
         </div>
       </details>
@@ -814,6 +821,28 @@
           }));
           bimMarkerLayer.removeAll();
         });
+
+        // Populate objekttyp filter
+        buildingFootprints.queryFeatures({
+          where: "1=1",
+          outFields: ["objekttyp"],
+          returnGeometry: false
+        }).then((res) => {
+          const values = new Set();
+          (res.features || []).forEach((f) => {
+            const v = f.attributes && f.attributes.objekttyp;
+            if (v !== null && v !== undefined && String(v).trim() !== "") values.add(String(v));
+          });
+          const sorted = Array.from(values).sort();
+          if (buildingTypeFilter) {
+            sorted.forEach((v) => {
+              const opt = document.createElement("option");
+              opt.value = v;
+              opt.textContent = v;
+              buildingTypeFilter.appendChild(opt);
+            });
+          }
+        }).catch((e) => console.warn("objekttyp filter load error", e));
       });
 
       // Oxnehaga (din GeoJSON)
@@ -1381,6 +1410,9 @@
       const uniqueList = document.getElementById("uniqueList");
       const uniqueMeta = document.getElementById("uniqueMeta");
       const loadUnique = document.getElementById("loadUnique");
+      const buildingTypeFilter = document.getElementById("buildingTypeFilter");
+      const buildingTypeApply = document.getElementById("buildingTypeApply");
+      const buildingTypeClear = document.getElementById("buildingTypeClear");
 
       const layerOptions = [
         { id: "buildings", title: "Byggnader", layer: buildings },
@@ -2275,6 +2307,9 @@
         lastSelection = { graphic: found.graphic, layer };
         clearHighlight();
         view.whenLayerView(layer).then((lv) => {
+          const id = isBuilding ? lastSelection.graphic.attributes?.objektidentitet : null;
+          const skip = isBuilding && id === "e11f4a59-b4e9-4316-8850-3fe72633a93d";
+          if (skip) return;
           const color = isBuilding ? [255, 59, 48] : [125, 211, 252];
           lastHighlight = lv.highlight(lastSelection.graphic, { color });
         });
@@ -2315,6 +2350,24 @@
       nearClearRouteBtn.addEventListener("click", () => {
         clearRoute();
       });
+
+      if (buildingTypeApply && buildingTypeFilter) {
+        buildingTypeApply.addEventListener("click", () => {
+          const v = (buildingTypeFilter.value || "").trim();
+          if (!v) {
+            buildingFootprints.definitionExpression = null;
+            return;
+          }
+          const safe = v.replace(/'/g, "''");
+          buildingFootprints.definitionExpression = `objekttyp = '${safe}'`;
+        });
+      }
+      if (buildingTypeClear && buildingTypeFilter) {
+        buildingTypeClear.addEventListener("click", () => {
+          buildingTypeFilter.value = "";
+          buildingFootprints.definitionExpression = null;
+        });
+      }
 
       Promise.all([forskola.when(), grund.when(), gymn.when(), vard.when()])
         .then(fillServiceSelect)
