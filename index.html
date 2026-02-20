@@ -679,7 +679,7 @@
       map.add(safetyRouteLayer);
       const bimMarkerLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 3 } });
       map.add(bimMarkerLayer);
-      const bimBuildingLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 8 } });
+      const bimBuildingLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 0 } });
       map.add(bimBuildingLayer);
       const busDashLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 4 } });
       map.add(busDashLayer);
@@ -691,6 +691,7 @@
       });
       view.popup.dockEnabled = true;
       view.popup.dockOptions = { position: "top-right", breakpoint: false };
+      view.popup.highlightEnabled = false;
 
       view.highlightOptions = {
         color: "#7dd3fc",
@@ -786,8 +787,8 @@
             geometry: f.geometry,
             symbol: {
               type: "simple-fill",
-              color: [0, 0, 0, 0],
-              outline: { color: [220, 38, 38, 1], width: 2 }
+              color: [220, 38, 38, 0.85],
+              outline: { color: [0, 0, 0, 0], width: 0 }
             }
           }));
           bimMarkerLayer.removeAll();
