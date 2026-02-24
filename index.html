@@ -779,6 +779,16 @@
         graphic.symbol = symbol;
       };
 
+      function retryApplyMapColors(triesLeft) {
+        if (!window.__latestPowerById) return;
+        SIM_OBJECT_IDS.forEach((id) => {
+          const w = window.__latestPowerById[id];
+          if (Number.isFinite(w)) window.onPowerUpdateMap(id, w);
+        });
+        if (triesLeft <= 0) return;
+        setTimeout(() => retryApplyMapColors(triesLeft - 1), 500);
+      }
+
       buildingFootprints.when(() => {
         const allFields = (buildingFootprints.fields || [])
           .filter((f) => f && f.name)
@@ -863,6 +873,7 @@
               window.onPowerUpdateMap(id, window.__latestPowerById[id]);
             }
           });
+          retryApplyMapColors(6);
           bimMarkerLayer.removeAll();
         });
 

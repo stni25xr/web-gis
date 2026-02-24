@@ -714,10 +714,12 @@
     if (typeof window.onPowerUpdateMap !== "function") return;
     if (window.onPowerUpdateMap.length >= 2) {
       window.onPowerUpdateMap(objectId, w);
+      console.log(`Map W update: ${objectId} => ${Math.round(w)}`);
       return;
     }
     if (objectId === PRIMARY_OBJECT_ID) {
       window.onPowerUpdateMap(w);
+      console.log(`Map W update: ${objectId} => ${Math.round(w)}`);
     }
   }
 
