@@ -735,8 +735,8 @@
         "e11f4a59-b4e9-4316-8850-3fe72633a93d",
         "5f1faa24-108f-419c-b83a-ed80b80e4501"
       ];
-      const buildingGraphicsById = new Map();
-      const lastMapColorKeyById = new Map();
+      const buildingGraphicsById = new window.Map();
+      const lastMapColorKeyById = new window.Map();
 
       function colorKeyForW(w) {
         if (w >= 1500) return "red";
