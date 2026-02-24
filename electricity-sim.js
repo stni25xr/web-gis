@@ -671,10 +671,12 @@
     startLive();
   }
 
-  async function openIoTSimulation() {
+  async function openIoTSimulation(showUi = true) {
     const container = ensureContainerUi();
     if (!container) return;
-    container.style.display = "flex";
+    if (showUi) {
+      container.style.display = "flex";
+    }
     try {
       await bootstrapIfNeeded(container);
       notifyBimStart();
@@ -684,8 +686,8 @@
     }
   }
 
-  function startElectricSimulation() {
-    openIoTSimulation();
+  function startElectricSimulation(showUi = true) {
+    openIoTSimulation(showUi);
   }
 
   function notifyBimStart() {
@@ -707,11 +709,15 @@
   }
 
   window.startElectricSimulation = startElectricSimulation;
-  window.openIoTSimulation = startElectricSimulation;
+  window.openIoTSimulation = () => startElectricSimulation(true);
 
   document.addEventListener("click", (evt) => {
     const btn = evt.target.closest("#iotBox");
     if (!btn) return;
-    startElectricSimulation();
+    startElectricSimulation(true);
+  });
+
+  document.addEventListener("DOMContentLoaded", () => {
+    startElectricSimulation(false);
   });
 })();
