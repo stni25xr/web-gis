@@ -1,0 +1,275 @@
+:root {
+  --app-bg: #f4f6f8;
+  --app-surface: #ffffff;
+  --app-surface-soft: #f9fafb;
+  --app-border: #e6e9ee;
+  --app-text: #0f172a;
+  --app-text-muted: #64748b;
+  --app-accent: #2f6bff;
+  --app-accent-strong: #2457d6;
+  --app-success: #16a34a;
+  --app-warning: #f59e0b;
+  --app-danger: #ef4444;
+  --app-purple: #8b5cf6;
+  --app-shadow-sm: 0 6px 18px rgba(15, 23, 42, 0.06);
+  --app-shadow-md: 0 12px 30px rgba(15, 23, 42, 0.08);
+  --app-radius-sm: 10px;
+  --app-radius-md: 14px;
+  --app-radius-lg: 18px;
+  --app-spacing-1: 8px;
+  --app-spacing-2: 12px;
+  --app-spacing-3: 16px;
+  --app-spacing-4: 20px;
+  --app-spacing-5: 24px;
+  --app-spacing-6: 32px;
+}
+
+.app, .app body {
+  font-family: "Sora", "SF Pro Text", "SF Pro Display", "Inter", system-ui, -apple-system, sans-serif;
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+#header {
+  height: 88px;
+  background: var(--app-surface);
+  border-bottom: 1px solid var(--app-border);
+  box-shadow: var(--app-shadow-sm);
+  padding: 0 var(--app-spacing-5);
+}
+
+#header-title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+#header-clock {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+#header-info {
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+
+#sidebar {
+  width: 260px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  padding: var(--app-spacing-4);
+  border-right: 1px solid var(--app-border);
+  box-shadow: var(--app-shadow-sm);
+}
+
+#sidebar h2 {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  border-bottom: 1px solid var(--app-border);
+  padding-bottom: var(--app-spacing-2);
+}
+
+.section-label,
+.switch-group-title {
+  color: var(--app-text-muted);
+  font-weight: 600;
+}
+
+.switch-row {
+  margin: 12px 0;
+}
+
+.switch-label {
+  font-size: 13px;
+  color: var(--app-text);
+}
+
+#sidebar select,
+#sidebar button,
+#sidebar input[type="text"] {
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-sm);
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+#searchContainer .esri-search {
+  border-radius: var(--app-radius-sm);
+  overflow: hidden;
+}
+
+#info-panel {
+  width: 320px;
+  background: var(--app-surface);
+  border-left: 1px solid var(--app-border);
+  padding: var(--app-spacing-4);
+  box-shadow: var(--app-shadow-sm);
+}
+
+#info-panel h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.panel-section {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  box-shadow: var(--app-shadow-sm);
+  padding: var(--app-spacing-3);
+}
+
+.panel-title {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--app-text-muted);
+}
+
+#sceneView {
+  top: 88px;
+  left: 260px;
+  right: 320px;
+  border-radius: var(--app-radius-lg);
+  box-shadow: var(--app-shadow-md);
+  overflow: hidden;
+  margin: var(--app-spacing-3);
+  height: calc(100% - 88px - (2 * var(--app-spacing-3)));
+}
+
+button,
+select,
+input,
+textarea {
+  font-family: inherit;
+}
+
+button {
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: var(--app-accent);
+  color: #fff;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+button:hover {
+  background: var(--app-accent-strong);
+  box-shadow: var(--app-shadow-sm);
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  background: #cbd5f5;
+  color: #f8fafc;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+button.secondary,
+button.ghost {
+  background: transparent;
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+
+button.secondary:hover,
+button.ghost:hover {
+  background: #eef2ff;
+}
+
+#iotBox,
+#bimModal button,
+#info-panel button {
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+}
+
+#iotBox {
+  background: var(--app-accent) !important;
+}
+
+#iotBox:hover {
+  background: var(--app-accent-strong) !important;
+}
+
+.esri-popup__header,
+.esri-popup__main-container {
+  border-radius: 14px;
+  box-shadow: var(--app-shadow-md);
+}
+
+.esri-popup__header-title {
+  font-family: inherit;
+  font-weight: 600;
+}
+
+.esri-popup__content {
+  font-size: 12px;
+  color: var(--app-text);
+}
+
+.esri-widget,
+.esri-ui .esri-widget {
+  border-radius: 12px;
+  box-shadow: var(--app-shadow-sm);
+}
+
+.esri-ui-top-left .esri-widget,
+.esri-ui-top-right .esri-widget {
+  margin: 8px;
+}
+
+.legend {
+  border-top: 1px solid var(--app-border);
+}
+
+.legend-item {
+  color: var(--app-text);
+}
+
+#attrTable td:first-child {
+  color: var(--app-text);
+}
+
+#attrHint {
+  color: var(--app-text-muted);
+}
+
+@media (max-width: 900px) {
+  #sidebar { width: 210px; }
+  #info-panel { width: 260px; }
+  #sceneView {
+    left: 210px;
+    right: 260px;
+  }
+}
+
+@media (max-width: 720px) {
+  #sidebar { width: 180px; }
+  #info-panel { display: none; }
+  #sceneView {
+    left: 180px;
+    right: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  #header {
+    height: 72px;
+    padding: 0 var(--app-spacing-3);
+  }
+  #sceneView {
+    top: 72px;
+    height: calc(100% - 72px - (2 * var(--app-spacing-3)));
+  }
+}

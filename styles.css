@@ -20,7 +20,7 @@
   background: rgba(2, 6, 23, 0.52);
   backdrop-filter: blur(1px);
   z-index: 9999;
-  font-family: "IBM Plex Sans", Arial, sans-serif;
+  font-family: inherit;
 }
 
 #bimModal {
@@ -31,7 +31,7 @@
   justify-content: center;
   background: rgba(2, 6, 23, 0.55);
   z-index: 9998;
-  font-family: "IBM Plex Sans", Arial, sans-serif;
+  font-family: inherit;
 }
 
 #bimModal .bim-modal {
