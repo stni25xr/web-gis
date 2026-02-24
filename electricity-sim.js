@@ -564,6 +564,9 @@
     renderAll();
     app.lastW = w;
     notifyBimPowerUpdate(w);
+    if (typeof window.onPowerUpdateMap === "function") {
+      window.onPowerUpdateMap(w);
+    }
   }
 
   function startLive() {

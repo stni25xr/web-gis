@@ -731,6 +731,39 @@
         popupEnabled: true
       });
       map.add(buildingFootprints);
+      let bimBuildingGraphic = null;
+      let lastMapColorKey = null;
+
+      function colorKeyForW(w) {
+        if (w >= 3000) return "red";
+        if (w >= 1000) return "orange";
+        return "green";
+      }
+
+      function mapColorForKey(key) {
+        if (key === "red") return [239, 68, 68, 0.9];
+        if (key === "orange") return [245, 158, 11, 0.9];
+        return [34, 197, 94, 0.9];
+      }
+
+      window.onPowerUpdateMap = function (w) {
+        if (!Number.isFinite(w) || !bimBuildingGraphic) return;
+        const key = colorKeyForW(w);
+        if (key === lastMapColorKey) return;
+        lastMapColorKey = key;
+        const color = mapColorForKey(key);
+        const symbol = {
+          type: "polygon-3d",
+          symbolLayers: [{
+            type: "extrude",
+            size: 6,
+            material: { color },
+            edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
+          }]
+        };
+        bimBuildingGraphic.symbol = symbol;
+      };
+
       buildingFootprints.when(() => {
         const allFields = (buildingFootprints.fields || [])
           .filter((f) => f && f.name)
@@ -794,7 +827,7 @@
           const f = res.features && res.features[0];
           if (!f || !f.geometry) return;
           bimBuildingLayer.removeAll();
-          bimBuildingLayer.add(new Graphic({
+          bimBuildingGraphic = new Graphic({
             geometry: f.geometry,
             symbol: {
               type: "polygon-3d",
@@ -805,7 +838,8 @@
                 edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
               }]
             }
-          }));
+          });
+          bimBuildingLayer.add(bimBuildingGraphic);
           bimMarkerLayer.removeAll();
         });
 
