@@ -837,6 +837,33 @@
                   iotBtn.style.cursor = "pointer";
                   iotBtn.setAttribute("onclick", "openIoTSimulation()");
                   wrap.appendChild(iotBtn);
+
+                  const infoBtn = document.createElement("button");
+                  infoBtn.type = "button";
+                  infoBtn.textContent = "Building information";
+                  infoBtn.style.display = "block";
+                  infoBtn.style.width = "100%";
+                  infoBtn.style.margin = "0 auto 4px";
+                  infoBtn.style.padding = "10px 16px";
+                  infoBtn.style.borderRadius = "8px";
+                  infoBtn.style.border = "1px solid #cbd5e1";
+                  infoBtn.style.background = "#ffffff";
+                  infoBtn.style.color = "#0f172a";
+                  infoBtn.style.fontSize = "14px";
+                  infoBtn.style.cursor = "pointer";
+                  infoBtn.addEventListener("click", () => {
+                    const objectNumber = attrs.objektidentitet;
+                    const url = `building-information.html?objectNumber=${encodeURIComponent(objectNumber)}`;
+                    window.open(url, "_blank");
+                  });
+                  wrap.appendChild(infoBtn);
+
+                  const infoNote = document.createElement("div");
+                  infoNote.textContent = `ID: ${attrs.objektidentitet}`;
+                  infoNote.style.fontSize = "11px";
+                  infoNote.style.color = "#64748b";
+                  infoNote.style.marginBottom = "8px";
+                  wrap.appendChild(infoNote);
                 }
                 return wrap;
               }
@@ -2446,12 +2473,17 @@
         if (isBuilding) {
           const id = found.graphic.attributes?.objektidentitet;
           if (SIM_OBJECT_IDS.includes(id)) {
-            buildingLink.innerHTML =
-              "<button type=\"button\" style=\"display:inline-block;margin-top:6px;color:#fff;background:#1f6feb;padding:6px 10px;border-radius:8px;font-size:12px;text-decoration:none;border:none;cursor:pointer;\" onclick=\"openBimModal();\">Se BIM Model</button>"
-              + "<div style=\"margin-top:8px;\"><button id=\"iotBox\" type=\"button\" style=\"width:100%;\" onclick=\"openIoTSimulation();\">Visa El‑simulering</button></div>";
+            buildingLink.innerHTML = `
+              <button type="button" style="display:inline-block;margin-top:6px;color:#fff;background:#1f6feb;padding:6px 10px;border-radius:8px;font-size:12px;text-decoration:none;border:none;cursor:pointer;" onclick="openBimModal();">Se BIM Model</button>
+              <div style="margin-top:8px;"><button id="iotBox" type="button" style="width:100%;" onclick="openIoTSimulation();">Visa El‑simulering</button></div>
+              <div style="margin-top:8px;">
+                <button type="button" style="width:100%;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#0f172a;padding:6px 10px;font-size:12px;cursor:pointer;" onclick="window.open('building-information.html?objectNumber=${id}', '_blank');">Building information</button>
+                <div style="margin-top:4px;font-size:11px;color:#64748b;">ID: ${id}</div>
+              </div>
+            `;
           }
         }
-        if (isBus) {
+if (isBus) {
           loadDeparturesForStop(found.graphic.geometry, found.graphic.attributes?.Hplnamn || "");
         } else {
           clearDepartures();
