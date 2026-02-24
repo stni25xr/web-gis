@@ -2350,7 +2350,7 @@
         clearHighlight();
         view.whenLayerView(layer).then((lv) => {
           const id = isBuilding ? lastSelection.graphic.attributes?.objektidentitet : null;
-          const skip = isBuilding && id === "e11f4a59-b4e9-4316-8850-3fe72633a93d";
+          const skip = isBuilding && SIM_OBJECT_IDS.includes(id);
           if (skip) return;
           const color = isBuilding ? [255, 59, 48] : [125, 211, 252];
           lastHighlight = lv.highlight(lastSelection.graphic, { color });
@@ -2359,7 +2359,7 @@
         if (buildingLink) buildingLink.innerHTML = "";
         if (isBuilding) {
           const id = found.graphic.attributes?.objektidentitet;
-          if (id === "e11f4a59-b4e9-4316-8850-3fe72633a93d") {
+          if (SIM_OBJECT_IDS.includes(id)) {
             buildingLink.innerHTML =
               "<button type=\"button\" style=\"display:inline-block;margin-top:6px;color:#fff;background:#1f6feb;padding:6px 10px;border-radius:8px;font-size:12px;text-decoration:none;border:none;cursor:pointer;\" onclick=\"openBimModal();\">Se BIM Model</button>"
               + "<div style=\"margin-top:8px;\"><button id=\"iotBox\" type=\"button\" style=\"width:100%;\" onclick=\"openIoTSimulation();\">Visa El‑simulering</button></div>";
