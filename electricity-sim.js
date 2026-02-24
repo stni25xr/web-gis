@@ -22,7 +22,8 @@
     timer: null,
     activeRange: 5,
     saveCounter: 0,
-    initialized: false
+    initialized: false,
+    lastW: null
   };
 
   function resolveChartCtor() {
@@ -561,6 +562,8 @@
     compactStorage(nextTs);
     saveState(false);
     renderAll();
+    app.lastW = w;
+    notifyBimPowerUpdate(w);
   }
 
   function startLive() {
@@ -671,17 +674,41 @@
     container.style.display = "flex";
     try {
       await bootstrapIfNeeded(container);
+      notifyBimStart();
     } catch (err) {
       const loading = document.getElementById("elsimLoading");
       if (loading) loading.textContent = `Fel: ${err && err.message ? err.message : "okänt fel"}`;
     }
   }
 
-  window.openIoTSimulation = openIoTSimulation;
+  function startElectricSimulation() {
+    openIoTSimulation();
+  }
+
+  function notifyBimStart() {
+    const frame = document.getElementById("bimFrame");
+    if (!frame || !frame.contentWindow) return;
+    frame.contentWindow.postMessage({
+      type: "electric-start",
+      lastW: app.lastW
+    }, "*");
+  }
+
+  function notifyBimPowerUpdate(w) {
+    const frame = document.getElementById("bimFrame");
+    if (!frame || !frame.contentWindow) return;
+    frame.contentWindow.postMessage({
+      type: "power-update",
+      W: w
+    }, "*");
+  }
+
+  window.startElectricSimulation = startElectricSimulation;
+  window.openIoTSimulation = startElectricSimulation;
 
   document.addEventListener("click", (evt) => {
     const btn = evt.target.closest("#iotBox");
     if (!btn) return;
-    openIoTSimulation();
+    startElectricSimulation();
   });
 })();
