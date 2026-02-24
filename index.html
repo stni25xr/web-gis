@@ -739,13 +739,15 @@
       const lastMapColorKeyById = new Map();
 
       function colorKeyForW(w) {
-        if (w >= 3000) return "red";
-        if (w >= 1000) return "orange";
+        if (w >= 1500) return "red";
+        if (w >= 500) return "purple";
+        if (w >= 300) return "orange";
         return "green";
       }
 
       function mapColorForKey(key) {
         if (key === "red") return [239, 68, 68, 0.9];
+        if (key === "purple") return [139, 92, 246, 0.9];
         if (key === "orange") return [245, 158, 11, 0.9];
         return [34, 197, 94, 0.9];
       }

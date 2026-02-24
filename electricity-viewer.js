@@ -4,13 +4,15 @@
     wall: 210,
     green: 211,
     orange: 212,
-    red: 213
+    purple: 213,
+    red: 214
   };
 
   const COLORS = {
     wall: [210, 180, 140, 102], // light brown, ~40% opaque
     green: [34, 197, 94, 255],
     orange: [245, 158, 11, 255],
+    purple: [139, 92, 246, 255],
     red: [239, 68, 68, 255]
   };
 
@@ -35,8 +37,9 @@
   }
 
   function colorKeyForW(w) {
-    if (w >= 3000) return "red";
-    if (w >= 1000) return "orange";
+    if (w >= 1500) return "red";
+    if (w >= 500) return "purple";
+    if (w >= 300) return "orange";
     return "green";
   }
 
