@@ -3,8 +3,9 @@
   No backend calls. Data persisted in localStorage.
 */
 (function () {
-  const OBJECT_ID = "e11f4a59-b4e9-4316-8850-3fe72633a93d";
-  const STORAGE_KEY = `el_sim_${OBJECT_ID}`;
+  const PRIMARY_OBJECT_ID = "e11f4a59-b4e9-4316-8850-3fe72633a93d";
+  const SECONDARY_OBJECT_ID = "5f1faa24-108f-419c-b83a-ed80b80e4501";
+  const STORAGE_KEY = `el_sim_${PRIMARY_OBJECT_ID}`;
   const SIM_START_TS = Date.UTC(2026, 0, 1, 0, 0, 0);
   const MINUTE_MS = 60 * 1000;
   const HOUR_MS = 60 * MINUTE_MS;
@@ -78,9 +79,9 @@
     return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
   }
 
-  function simulateMinuteWatt(ts) {
+  function simulateMinuteWattFor(objectId, ts) {
     const idx = Math.floor((ts - SIM_START_TS) / MINUTE_MS);
-    const seed = seedFromObjectId(OBJECT_ID) + idx;
+    const seed = seedFromObjectId(objectId) + idx;
     const rand = mulberry32(seed);
 
     const d = new Date(ts);
@@ -208,7 +209,7 @@
     while (ts <= nowTs) {
       const batchEnd = Math.min(ts + (5000 * MINUTE_MS), nowTs + MINUTE_MS);
       while (ts < batchEnd) {
-        const w = simulateMinuteWatt(ts);
+    const w = simulateMinuteWattFor(PRIMARY_OBJECT_ID, ts);
         app.state.m.push([ts, w]);
         app.state.lastTs = ts;
         ts += MINUTE_MS;
@@ -556,7 +557,7 @@
 
   function tickOneMinute() {
     const nextTs = app.state.lastTs + MINUTE_MS;
-    const w = simulateMinuteWatt(nextTs);
+    const w = simulateMinuteWattFor(PRIMARY_OBJECT_ID, nextTs);
     app.state.m.push([nextTs, w]);
     app.state.lastTs = nextTs;
     compactStorage(nextTs);
@@ -564,9 +565,10 @@
     renderAll();
     app.lastW = w;
     notifyBimPowerUpdate(w);
-    if (typeof window.onPowerUpdateMap === "function") {
-      window.onPowerUpdateMap(w);
-    }
+    notifyMapPowerUpdate(PRIMARY_OBJECT_ID, w);
+
+    const w2 = simulateMinuteWattFor(SECONDARY_OBJECT_ID, nextTs);
+    notifyMapPowerUpdate(SECONDARY_OBJECT_ID, w2);
   }
 
   function startLive() {
@@ -706,6 +708,17 @@
       type: "power-update",
       W: w
     }, "*");
+  }
+
+  function notifyMapPowerUpdate(objectId, w) {
+    if (typeof window.onPowerUpdateMap !== "function") return;
+    if (window.onPowerUpdateMap.length >= 2) {
+      window.onPowerUpdateMap(objectId, w);
+      return;
+    }
+    if (objectId === PRIMARY_OBJECT_ID) {
+      window.onPowerUpdateMap(w);
+    }
   }
 
   window.startElectricSimulation = startElectricSimulation;

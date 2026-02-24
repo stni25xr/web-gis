@@ -731,8 +731,12 @@
         popupEnabled: true
       });
       map.add(buildingFootprints);
-      let bimBuildingGraphic = null;
-      let lastMapColorKey = null;
+      const SIM_OBJECT_IDS = [
+        "e11f4a59-b4e9-4316-8850-3fe72633a93d",
+        "5f1faa24-108f-419c-b83a-ed80b80e4501"
+      ];
+      const buildingGraphicsById = new Map();
+      const lastMapColorKeyById = new Map();
 
       function colorKeyForW(w) {
         if (w >= 3000) return "red";
@@ -746,11 +750,20 @@
         return [34, 197, 94, 0.9];
       }
 
-      window.onPowerUpdateMap = function (w) {
-        if (!Number.isFinite(w) || !bimBuildingGraphic) return;
+      window.onPowerUpdateMap = function (objectId, w) {
+        if (Number.isFinite(objectId) && w === undefined) {
+          w = objectId;
+          objectId = SIM_OBJECT_IDS[0];
+        }
+        if (!Number.isFinite(w) || !objectId) return;
+        window.__latestPowerById = window.__latestPowerById || {};
+        window.__latestPowerById[objectId] = w;
+
+        const graphic = buildingGraphicsById.get(objectId);
+        if (!graphic) return;
         const key = colorKeyForW(w);
-        if (key === lastMapColorKey) return;
-        lastMapColorKey = key;
+        if (key === lastMapColorKeyById.get(objectId)) return;
+        lastMapColorKeyById.set(objectId, key);
         const color = mapColorForKey(key);
         const symbol = {
           type: "polygon-3d",
@@ -761,7 +774,7 @@
             edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
           }]
         };
-        bimBuildingGraphic.symbol = symbol;
+        graphic.symbol = symbol;
       };
 
       buildingFootprints.when(() => {
@@ -776,7 +789,7 @@
               creator: (event) => {
                 const attrs = event?.graphic?.attributes || {};
                 const wrap = document.createElement("div");
-                if (attrs.objektidentitet === "e11f4a59-b4e9-4316-8850-3fe72633a93d") {
+                if (SIM_OBJECT_IDS.includes(attrs.objektidentitet)) {
                   const btn = document.createElement("a");
                   btn.href = "#";
                   btn.textContent = "Se BIM Model";
@@ -820,26 +833,34 @@
         };
 
         buildingFootprints.queryFeatures({
-          where: "objektidentitet = 'e11f4a59-b4e9-4316-8850-3fe72633a93d'",
+          where: `objektidentitet IN ('${SIM_OBJECT_IDS.join("','")}')`,
           returnGeometry: true,
           outFields: ["*"]
         }).then((res) => {
-          const f = res.features && res.features[0];
-          if (!f || !f.geometry) return;
           bimBuildingLayer.removeAll();
-          bimBuildingGraphic = new Graphic({
-            geometry: f.geometry,
-            symbol: {
-              type: "polygon-3d",
-              symbolLayers: [{
-                type: "extrude",
-                size: 6,
-                material: { color: [220, 38, 38, 0.9] },
-                edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
-              }]
+          buildingGraphicsById.clear();
+          (res.features || []).forEach((f) => {
+            if (!f || !f.geometry) return;
+            const id = f.attributes && f.attributes.objektidentitet;
+            if (!id) return;
+            const graphic = new Graphic({
+              geometry: f.geometry,
+              symbol: {
+                type: "polygon-3d",
+                symbolLayers: [{
+                  type: "extrude",
+                  size: 6,
+                  material: { color: [220, 38, 38, 0.9] },
+                  edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
+                }]
+              }
+            });
+            bimBuildingLayer.add(graphic);
+            buildingGraphicsById.set(id, graphic);
+            if (window.__latestPowerById && Number.isFinite(window.__latestPowerById[id])) {
+              window.onPowerUpdateMap(id, window.__latestPowerById[id]);
             }
           });
-          bimBuildingLayer.add(bimBuildingGraphic);
           bimMarkerLayer.removeAll();
         });
 
