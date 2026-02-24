@@ -1,18 +1,18 @@
 :root {
-  --app-bg: #f4f6f8;
-  --app-surface: #ffffff;
-  --app-surface-soft: #f9fafb;
-  --app-border: #e6e9ee;
-  --app-text: #0f172a;
-  --app-text-muted: #64748b;
-  --app-accent: #2f6bff;
-  --app-accent-strong: #2457d6;
+  --app-bg: #eef2f5;
+  --app-surface: #f7f8fa;
+  --app-surface-soft: #fbfcfd;
+  --app-border: #dfe4ea;
+  --app-text: #101828;
+  --app-text-muted: #5f6b7a;
+  --app-accent: #335dff;
+  --app-accent-strong: #2747d9;
   --app-success: #16a34a;
   --app-warning: #f59e0b;
   --app-danger: #ef4444;
   --app-purple: #8b5cf6;
-  --app-shadow-sm: 0 6px 18px rgba(15, 23, 42, 0.06);
-  --app-shadow-md: 0 12px 30px rgba(15, 23, 42, 0.08);
+  --app-shadow-sm: 0 6px 18px rgba(15, 23, 42, 0.08);
+  --app-shadow-md: 0 14px 32px rgba(15, 23, 42, 0.12);
   --app-radius-sm: 10px;
   --app-radius-md: 14px;
   --app-radius-lg: 18px;
