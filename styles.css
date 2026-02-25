@@ -73,6 +73,76 @@
   background: #fff;
 }
 
+#alarmModal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 6, 23, 0.55);
+  z-index: 10000;
+  font-family: inherit;
+}
+
+#alarmModal .alarm-modal {
+  width: min(420px, 90vw);
+  background: #0f172a;
+  border: 1px solid #2b3448;
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(2, 6, 23, 0.55);
+  color: #e2e8f0;
+  overflow: hidden;
+}
+
+#alarmModal .alarm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: #3b0d0f;
+  border-bottom: 1px solid #4b1b1b;
+}
+
+#alarmModal .alarm-title {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fecaca;
+}
+
+#alarmModal #alarmClose {
+  border: none;
+  background: transparent;
+  color: #fecaca;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+#alarmModal .alarm-body {
+  padding: 16px 14px 6px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+#alarmModal .alarm-message {
+  color: #f8fafc;
+}
+
+#alarmModal .alarm-actions {
+  padding: 10px 14px 14px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+#alarmModal #alarmAcknowledge {
+  border: none;
+  background: #ef4444;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
 .elsim-modal {
   width: min(980px, 95vw);
   max-height: min(92vh, 860px);

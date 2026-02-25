@@ -545,6 +545,20 @@
       <iframe id="bimFrame" title="BIM‑modell" src="" allowfullscreen></iframe>
     </div>
   </div>
+  <div id="alarmModal" style="display:none;">
+    <div class="alarm-modal">
+      <div class="alarm-header">
+        <div class="alarm-title">Alarm 112</div>
+        <button id="alarmClose" type="button" aria-label="Close alarm">✕</button>
+      </div>
+      <div class="alarm-body">
+        <div class="alarm-message">Robury - house. need immidely assistance.</div>
+      </div>
+      <div class="alarm-actions">
+        <button id="alarmAcknowledge" type="button">Acknowledge</button>
+      </div>
+    </div>
+  </div>
 
   <!-- CLOCK -->
   <script>
@@ -736,8 +750,19 @@
         "e11f4a59-b4e9-4316-8850-3fe72633a93d",
         "5f1faa24-108f-419c-b83a-ed80b80e4501"
       ];
+      const ALARM_OBJECT_ID = "e0c44880-6f88-4525-96e3-158cba7b058f";
+      const BIM_OVERLAY_IDS = Array.from(new Set([...SIM_OBJECT_IDS, ALARM_OBJECT_ID]));
       const buildingGraphicsById = new window.Map();
       const lastMapColorKeyById = new window.Map();
+      const alarmState = {
+        targetId: ALARM_OBJECT_ID,
+        active: false,
+        intervalId: null,
+        flashIntervalId: null,
+        flashTimeoutId: null,
+        lastColorKey: null,
+        baseSymbol: null
+      };
 
       function colorKeyForW(w) {
         if (w >= 1500) return "red";
@@ -751,6 +776,76 @@
         if (key === "purple") return [139, 92, 246, 0.9];
         if (key === "orange") return [245, 158, 11, 0.9];
         return [34, 197, 94, 0.9];
+      }
+
+      function setBuildingGraphicColor(graphic, color) {
+        if (!graphic) return;
+        graphic.symbol = {
+          type: "polygon-3d",
+          symbolLayers: [{
+            type: "extrude",
+            size: 6,
+            material: { color },
+            edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
+          }]
+        };
+      }
+
+      window.showAlarmModal = function () {
+        const modal = document.getElementById("alarmModal");
+        if (modal) modal.style.display = "flex";
+      };
+
+      window.hideAlarmModal = function () {
+        const modal = document.getElementById("alarmModal");
+        if (modal) modal.style.display = "none";
+      };
+
+      function startAlarmFlashSession() {
+        if (alarmState.active) return;
+        const graphic = buildingGraphicsById.get(alarmState.targetId);
+        if (!graphic) {
+          console.warn(`Alarm target not found for id ${alarmState.targetId}`);
+          return;
+        }
+        alarmState.active = true;
+        if (!alarmState.baseSymbol) {
+          alarmState.baseSymbol = graphic.symbol;
+        }
+        const colors = {
+          blue: [29, 78, 216, 0.95],
+          red: [239, 68, 68, 0.95]
+        };
+        alarmState.flashIntervalId = setInterval(() => {
+          alarmState.lastColorKey = alarmState.lastColorKey === "blue" ? "red" : "blue";
+          const color = colors[alarmState.lastColorKey] || colors.blue;
+          setBuildingGraphicColor(graphic, color);
+        }, 250);
+        alarmState.flashTimeoutId = setTimeout(() => {
+          stopAlarmFlashSession();
+        }, 20000);
+      }
+
+      function stopAlarmFlashSession() {
+        if (!alarmState.active) return;
+        alarmState.active = false;
+        if (alarmState.flashIntervalId) clearInterval(alarmState.flashIntervalId);
+        if (alarmState.flashTimeoutId) clearTimeout(alarmState.flashTimeoutId);
+        alarmState.flashIntervalId = null;
+        alarmState.flashTimeoutId = null;
+        alarmState.lastColorKey = null;
+        const graphic = buildingGraphicsById.get(alarmState.targetId);
+        if (graphic && alarmState.baseSymbol) {
+          graphic.symbol = alarmState.baseSymbol;
+        }
+      }
+
+      function startAlarmLoop() {
+        if (alarmState.intervalId) return;
+        startAlarmFlashSession();
+        alarmState.intervalId = setInterval(() => {
+          if (!alarmState.active) startAlarmFlashSession();
+        }, 60000);
       }
 
       window.onPowerUpdateMap = function (objectId, w) {
@@ -873,7 +968,7 @@
         };
 
         buildingFootprints.queryFeatures({
-          where: `objektidentitet IN ('${SIM_OBJECT_IDS.join("','")}')`,
+          where: `objektidentitet IN ('${BIM_OVERLAY_IDS.join("','")}')`,
           returnGeometry: true,
           outFields: ["*"]
         }).then((res) => {
@@ -903,6 +998,7 @@
           });
           retryApplyMapColors(6);
           bimMarkerLayer.removeAll();
+          startAlarmLoop();
         });
 
         // Populate objekttyp filter
@@ -2472,6 +2568,9 @@
         if (buildingLink) buildingLink.innerHTML = "";
         if (isBuilding) {
           const id = found.graphic.attributes?.objektidentitet;
+          if (id === ALARM_OBJECT_ID) {
+            window.showAlarmModal();
+          }
           if (SIM_OBJECT_IDS.includes(id)) {
             buildingLink.innerHTML = `
               <button type="button" style="display:inline-block;margin-top:6px;color:#fff;background:#1f6feb;padding:6px 10px;border-radius:8px;font-size:12px;text-decoration:none;border:none;cursor:pointer;" onclick="openBimModal();">Se BIM Model</button>
@@ -2738,6 +2837,17 @@ if (isBus) {
     });
     document.getElementById("bimClose")?.addEventListener("click", () => {
       window.closeBimModal();
+    });
+    document.addEventListener("click", (e) => {
+      if (e.target && e.target.id === "alarmModal") {
+        window.hideAlarmModal();
+      }
+    });
+    document.getElementById("alarmClose")?.addEventListener("click", () => {
+      window.hideAlarmModal();
+    });
+    document.getElementById("alarmAcknowledge")?.addEventListener("click", () => {
+      window.hideAlarmModal();
     });
   </script>
   <script type="module" src="./electricity-sim.js"></script>
