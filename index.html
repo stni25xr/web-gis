@@ -1075,6 +1075,7 @@ Maintain safe distance
             if (!id) return;
             const graphic = new Graphic({
               geometry: f.geometry,
+              attributes: f.attributes || {},
               symbol: {
                 type: "polygon-3d",
                 symbolLayers: [{
@@ -2637,7 +2638,7 @@ Maintain safe distance
 
         const layer = found.graphic.layer;
         const isBus = layer === bus;
-        const isBuilding = layer === buildingFootprints;
+        const isBuilding = layer === buildingFootprints || layer === bimBuildingLayer;
 
         if (!found.graphic.attributes) {
           attrHint.style.display = "block";
