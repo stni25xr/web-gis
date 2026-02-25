@@ -1193,12 +1193,32 @@ Maintain safe distance
             const line = String(d.transportNumber || d.name || "");
             return line.replace(/^0+/, "") === "15";
           });
-          bus15State.departures = filtered.map((d) => {
+          const upcoming = filtered.map((d) => {
             const date = d.rtDate || d.date;
             const time = d.rtTime || d.time;
             const dt = parseSwedishDateTime(date, time);
             return dt ? { id: `${date} ${time}`, time: dt } : null;
           }).filter(Boolean);
+          let intervalSec = 600;
+          if (upcoming.length >= 2) {
+            const diffs = [];
+            for (let i = 1; i < Math.min(4, upcoming.length); i++) {
+              const diff = (upcoming[i].time.getTime() - upcoming[i - 1].time.getTime()) / 1000;
+              if (diff > 120) diffs.push(diff);
+            }
+            if (diffs.length) {
+              diffs.sort((a, b) => a - b);
+              intervalSec = diffs[Math.floor(diffs.length / 2)];
+            }
+          }
+          const prev = [];
+          if (upcoming.length) {
+            for (let i = 1; i <= 3; i++) {
+              const t = new Date(upcoming[0].time.getTime() - intervalSec * 1000 * i);
+              prev.push({ id: `prev-${i}-${t.toISOString()}`, time: t });
+            }
+          }
+          bus15State.departures = [...prev, ...upcoming];
           if (statusEl) statusEl.textContent = `Tidtabell: ${bus15State.departures.length} avgångar`;
         } catch (e) {
           console.warn("Bus15 timetable error:", e);
