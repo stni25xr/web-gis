@@ -160,6 +160,8 @@
     }
   </style>
   <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/protobufjs@7.2.5/dist/protobuf.min.js"></script>
   <script src="./config.local.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -286,6 +288,10 @@
           <input id="swSkolWalk" type="checkbox" />
           <span class="slider"></span>
         </label>
+      </div>
+      <div class="switch-row switch-child">
+        <span class="switch-label">Buss 15 (live)</span>
+        <div id="bus15Status" style="font-size:11px;color:#64748b;">Läser in…</div>
       </div>
     </details>
 
@@ -787,6 +793,8 @@ Maintain safe distance
 
       const RESROBOT_KEY = window.RESROBOT_KEY || "";
       const ORS_KEY = window.ORS_KEY || "";
+      const GTFS_RT_KEY = window.GTFS_RT_KEY || "";
+      const GTFS_STATIC_KEY = window.GTFS_STATIC_KEY || "";
 
       const map = new Map({ basemap: "osm", ground: "world-elevation" });
 
@@ -798,6 +806,8 @@ Maintain safe distance
       map.add(safetyRouteLayer);
       const policeDriveLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 3 } });
       map.add(policeDriveLayer);
+      const bus15Layer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 4 } });
+      map.add(bus15Layer);
       const bimMarkerLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 3 } });
       map.add(bimMarkerLayer);
       const bimBuildingLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 0 } });
@@ -865,6 +875,14 @@ Maintain safe distance
       let policeDriveGraphic = null;
       let lastSafetyRouteCoords = null;
       let lastSafetyRouteSummary = null;
+      const bus15State = {
+        routes: new Set(),
+        trips: new Set(),
+        graphics: new Map(),
+        timer: null,
+        staticReady: false,
+        staticLoading: false
+      };
 
       function colorKeyForW(w) {
         if (w >= 1500) return "red";
@@ -1037,6 +1055,201 @@ Maintain safe distance
         stopPoliceDriveAnimation();
         setIncidentStatus("");
       };
+
+      function parseCsv(text) {
+        const rows = [];
+        let row = [];
+        let cur = "";
+        let inQuotes = false;
+        for (let i = 0; i < text.length; i++) {
+          const ch = text[i];
+          if (ch === "\"") {
+            if (inQuotes && text[i + 1] === "\"") {
+              cur += "\"";
+              i++;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (ch === "," && !inQuotes) {
+            row.push(cur);
+            cur = "";
+          } else if ((ch === "\n" || ch === "\r") && !inQuotes) {
+            if (cur.length || row.length) {
+              row.push(cur);
+              rows.push(row);
+              row = [];
+              cur = "";
+            }
+          } else {
+            cur += ch;
+          }
+        }
+        if (cur.length || row.length) {
+          row.push(cur);
+          rows.push(row);
+        }
+        const headers = rows.shift() || [];
+        return rows.map((r) => {
+          const obj = {};
+          headers.forEach((h, idx) => {
+            obj[h] = r[idx] ?? "";
+          });
+          return obj;
+        });
+      }
+
+      async function loadBus15Static() {
+        if (bus15State.staticReady || bus15State.staticLoading) return;
+        bus15State.staticLoading = true;
+        const statusEl = document.getElementById("bus15Status");
+        if (statusEl) statusEl.textContent = "Läser in GTFS…";
+        try {
+          if (!GTFS_STATIC_KEY || !window.JSZip) {
+            throw new Error("GTFS static key or JSZip missing");
+          }
+          const url = `https://opendata.samtrafiken.se/gtfs/jlt/jlt.zip?key=${GTFS_STATIC_KEY}`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`GTFS static HTTP ${res.status}`);
+          const buf = await res.arrayBuffer();
+          const zip = await window.JSZip.loadAsync(buf);
+          const routesText = await zip.file("routes.txt").async("string");
+          const tripsText = await zip.file("trips.txt").async("string");
+          const routes = parseCsv(routesText);
+          const trips = parseCsv(tripsText);
+          const routeIds = new Set();
+          routes.forEach((r) => {
+            const shortName = String(r.route_short_name || "").trim();
+            const normalized = shortName.replace(/^0+/, "");
+            if (normalized === "15") routeIds.add(r.route_id);
+          });
+          const tripIds = new Set();
+          trips.forEach((t) => {
+            if (routeIds.has(t.route_id)) tripIds.add(t.trip_id);
+          });
+          bus15State.routes = routeIds;
+          bus15State.trips = tripIds;
+          bus15State.staticReady = true;
+          if (statusEl) statusEl.textContent = "Live: 0 bussar";
+        } catch (e) {
+          console.warn("Bus15 static error:", e);
+          if (statusEl) statusEl.textContent = "GTFS saknas";
+        } finally {
+          bus15State.staticLoading = false;
+        }
+      }
+
+      function decodeGtfsRealtime(buffer) {
+        const proto = `
+          syntax = "proto2";
+          package transit_realtime;
+          message FeedMessage {
+            required FeedHeader header = 1;
+            repeated FeedEntity entity = 2;
+          }
+          message FeedHeader {
+            required string gtfs_realtime_version = 1;
+            optional uint64 timestamp = 3;
+          }
+          message FeedEntity {
+            required string id = 1;
+            optional VehiclePosition vehicle = 4;
+            optional TripUpdate trip_update = 3;
+          }
+          message TripUpdate {
+            optional TripDescriptor trip = 1;
+          }
+          message VehiclePosition {
+            optional TripDescriptor trip = 1;
+            optional VehicleDescriptor vehicle = 8;
+            optional Position position = 2;
+          }
+          message TripDescriptor {
+            optional string trip_id = 1;
+            optional string route_id = 5;
+          }
+          message VehicleDescriptor {
+            optional string id = 1;
+            optional string label = 2;
+          }
+          message Position {
+            required float latitude = 1;
+            required float longitude = 2;
+            optional float bearing = 5;
+          }
+        `;
+        const root = window.protobuf.parse(proto).root;
+        const FeedMessage = root.lookupType("transit_realtime.FeedMessage");
+        return FeedMessage.decode(new Uint8Array(buffer));
+      }
+
+      async function updateBus15Realtime() {
+        const statusEl = document.getElementById("bus15Status");
+        if (!GTFS_RT_KEY || !window.protobuf) {
+          if (statusEl) statusEl.textContent = "Saknar GTFS‑RT";
+          return;
+        }
+        await loadBus15Static();
+        try {
+          const url = `https://opendata.samtrafiken.se/gtfs-rt/jlt/VehiclePositions.pb?key=${GTFS_RT_KEY}`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`GTFS‑RT HTTP ${res.status}`);
+          const buf = await res.arrayBuffer();
+          const feed = decodeGtfsRealtime(buf);
+          const entities = feed?.entity || [];
+          const nextGraphics = new Map();
+          let count = 0;
+          entities.forEach((ent) => {
+            const veh = ent.vehicle;
+            const trip = veh?.trip || ent.trip_update?.trip;
+            const pos = veh?.position;
+            if (!trip || !pos) return;
+            const tripId = trip.trip_id || "";
+            const routeId = trip.route_id || "";
+            const isLine15 = (bus15State.trips.size && bus15State.trips.has(tripId))
+              || (bus15State.routes.size && bus15State.routes.has(routeId));
+            if (!isLine15) return;
+            const id = veh?.vehicle?.id || tripId || ent.id;
+            if (!id) return;
+            count += 1;
+            const geom = { type: "point", longitude: pos.longitude, latitude: pos.latitude, spatialReference: { wkid: 4326 } };
+            let g = bus15State.graphics.get(id);
+            if (!g) {
+              g = new Graphic({
+                geometry: geom,
+                symbol: {
+                  type: "point-3d",
+                  symbolLayers: [{
+                    type: "icon",
+                    resource: { href: busCompositeIcon },
+                    size: 20,
+                    anchor: "center"
+                  }]
+                }
+              });
+              bus15Layer.add(g);
+            } else {
+              g.geometry = geom;
+            }
+            nextGraphics.set(id, g);
+          });
+          bus15State.graphics.forEach((g, id) => {
+            if (!nextGraphics.has(id)) {
+              bus15Layer.remove(g);
+            }
+          });
+          bus15State.graphics = nextGraphics;
+          if (statusEl) statusEl.textContent = `Live: ${count} bussar`;
+        } catch (e) {
+          console.warn("Bus15 RT error:", e);
+          if (statusEl) statusEl.textContent = "Live: fel vid hämtning";
+        }
+      }
+
+      function startBus15Realtime() {
+        if (bus15State.timer) return;
+        updateBus15Realtime();
+        bus15State.timer = setInterval(updateBus15Realtime, 3000);
+      }
 
       function getAlarmTargetPoint() {
         const graphic = buildingGraphicsById.get(ALARM_OBJECT_ID);
@@ -1860,6 +2073,7 @@ Maintain safe distance
       bindGroup(swTransport, [swBus, swSkolWalk]);
       bindGroup(swService, [swForskola, swGrund, swGymn, swVard]);
       bindGroup(swSafety, [swPolice, swFire, swHospital, swShelter]);
+      startBus15Realtime();
 
       function setChecked(el, value) {
         if (!el) return;
