@@ -292,8 +292,14 @@
         </label>
       </div>
       <div class="switch-row switch-child">
-        <span class="switch-label">Buss 15 (live)</span>
-        <div id="bus15Status" style="font-size:11px;color:#64748b;">Läser in…</div>
+        <span class="switch-label">Live Bus 15</span>
+        <label class="switch" aria-label="Live Bus 15">
+          <input id="swBus15Live" type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="switch-row switch-child">
+        <div id="bus15Status" style="font-size:11px;color:#64748b;">Initierar…</div>
       </div>
     </details>
 
@@ -555,6 +561,7 @@
 
   <!-- MAP -->
   <div id="sceneView" role="main" aria-label="3D‑karta"></div>
+  <div id="bus15Widget" aria-live="polite">Bus 15: init...</div>
   <div id="iotContainer" style="display:none;"></div>
   <div id="bimModal" style="display:none;">
     <div class="bim-modal">
@@ -1872,8 +1879,9 @@ Maintain safe distance
       });
       map.add(bus);
       bus.when(() => {
-        initBus15Route();
-        startBus15Timetable();
+        if (window.initBus15Layer) {
+          window.initBus15Layer({ view, map, GraphicsLayer, Graphic, Polyline, webMercatorUtils });
+        }
       });
 
       const skolWalk = new GeoJSONLayer({
@@ -3671,5 +3679,6 @@ if (isBus) {
     });
   </script>
   <script type="module" src="./electricity-sim.js"></script>
+  <script type="module" src="./bus15.js"></script>
 </body>
 </html>
