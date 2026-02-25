@@ -1914,12 +1914,14 @@ Maintain safe distance
           setChecked(swTransport, true);
           setChecked(swService, true);
           setChecked(swSafety, false);
+          setChecked(swSkolWalk, false);
         } else {
           setChecked(swBase, true);
           setChecked(swArea, true);
           setChecked(swTransport, true);
           setChecked(swService, true);
           setChecked(swSafety, false);
+          setChecked(swSkolWalk, false);
         }
         document.querySelectorAll(".lod-btn").forEach((btn) => {
           btn.classList.toggle("is-active", Number(btn.dataset.lod) === lvl);
