@@ -271,6 +271,29 @@
   padding: 16px;
 }
 
+.lod-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px 6px 2px;
+}
+
+.lod-btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+  border-radius: 10px;
+  padding: 6px 0;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.lod-btn.is-active {
+  background: #1f6feb;
+  border-color: #1f6feb;
+  color: #fff;
+}
+
 .elsim-top {
   display: flex;
   align-items: center;

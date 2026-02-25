@@ -278,6 +278,17 @@
     </details>
 
     <details class="switch-group">
+      <summary class="switch-group-title">LOD</summary>
+      <div class="lod-grid" role="group" aria-label="Level of detail">
+        <button class="lod-btn" type="button" data-lod="1">LOD1</button>
+        <button class="lod-btn" type="button" data-lod="2">LOD2</button>
+        <button class="lod-btn" type="button" data-lod="3">LOD3</button>
+        <button class="lod-btn" type="button" data-lod="4">LOD4</button>
+        <button class="lod-btn" type="button" data-lod="5">LOD5</button>
+      </div>
+    </details>
+
+    <details class="switch-group">
       <summary class="switch-group-title">Service</summary>
       <div class="switch-row">
         <span class="switch-label">Service</span>
@@ -1846,6 +1857,64 @@ Maintain safe distance
       bindGroup(swBase, [swBuildings, swMark, swWater]);
       bindGroup(swArea, [swOx, swFastighet]);
       bindGroup(swTransport, [swBus, swSkolWalk]);
+      bindGroup(swService, [swForskola, swGrund, swGymn, swVard]);
+      bindGroup(swSafety, [swPolice, swFire, swHospital, swShelter]);
+
+      function setChecked(el, value) {
+        if (!el) return;
+        el.checked = value;
+        el.dispatchEvent(new Event("change"));
+      }
+
+      function applyLod(level) {
+        const lvl = Number(level);
+        if (!Number.isFinite(lvl)) return;
+        const profile = lvl <= 2 ? "low" : lvl === 3 ? "medium" : "high";
+        if (view && view.qualityProfile !== profile) {
+          view.qualityProfile = profile;
+        }
+        if (lvl === 1) {
+          setChecked(swBase, false);
+          setChecked(swArea, false);
+          setChecked(swTransport, false);
+          setChecked(swService, false);
+          setChecked(swSafety, false);
+        } else if (lvl === 2) {
+          setChecked(swBase, true);
+          setChecked(swArea, false);
+          setChecked(swTransport, false);
+          setChecked(swService, false);
+          setChecked(swSafety, false);
+        } else if (lvl === 3) {
+          setChecked(swBase, true);
+          setChecked(swArea, true);
+          setChecked(swTransport, true);
+          setChecked(swService, false);
+          setChecked(swSafety, false);
+        } else if (lvl === 4) {
+          setChecked(swBase, true);
+          setChecked(swArea, true);
+          setChecked(swTransport, true);
+          setChecked(swService, true);
+          setChecked(swSafety, false);
+        } else {
+          setChecked(swBase, true);
+          setChecked(swArea, true);
+          setChecked(swTransport, true);
+          setChecked(swService, true);
+          setChecked(swSafety, true);
+        }
+        document.querySelectorAll(".lod-btn").forEach((btn) => {
+          btn.classList.toggle("is-active", Number(btn.dataset.lod) === lvl);
+        });
+      }
+
+      document.querySelectorAll(".lod-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          applyLod(btn.dataset.lod);
+        });
+      });
+      applyLod(5);
       bindGroup(swService, [swForskola, swGrund, swGymn, swVard]);
       bindGroup(swSafety, [swPolice, swFire, swHospital, swShelter]);
 
