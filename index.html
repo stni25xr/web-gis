@@ -810,7 +810,7 @@ Maintain safe distance
       map.add(safetyRouteLayer);
       const policeDriveLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 3 } });
       map.add(policeDriveLayer);
-      const bus15Layer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 4 } });
+      const bus15Layer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 8 } });
       map.add(bus15Layer);
       const bimMarkerLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 3 } });
       map.add(bimMarkerLayer);
@@ -1275,8 +1275,8 @@ Maintain safe distance
                 type: "line-3d",
                 symbolLayers: [{
                   type: "line",
-                  size: 4,
-                  material: { color: "#2563eb" }
+                  size: 10,
+                  material: { color: "#00b7ff" }
                 }]
               }
             });
@@ -2104,6 +2104,7 @@ Maintain safe distance
       swSkolWalk.addEventListener("change", () => skolWalk.visible = swSkolWalk.checked);
       swMark.addEventListener("change", () => mark.visible = swMark.checked);
       swWater.addEventListener("change", () => water.visible = swWater.checked);
+      bus15Layer.visible = true;
       swForskola.addEventListener("change", () => forskola.visible = swForskola.checked);
       swGrund.addEventListener("change", () => grund.visible = swGrund.checked);
       swGymn.addEventListener("change", () => gymn.visible = swGymn.checked);
