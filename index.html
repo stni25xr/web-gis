@@ -1230,8 +1230,9 @@ Maintain safe distance
       function updateBus15FromTimetable() {
         const statusEl = document.getElementById("bus15Status");
         const sampler = bus15State.routeSampler;
-        if (!(bus15State.graphics instanceof Map)) {
-          bus15State.graphics = new Map();
+        const graphicsMap = bus15State.graphics instanceof Map ? bus15State.graphics : new Map();
+        if (bus15State.graphics !== graphicsMap) {
+          bus15State.graphics = graphicsMap;
         }
         if (!sampler) return;
         const now = Date.now();
@@ -1258,7 +1259,7 @@ Maintain safe distance
           const seg = buildSegment(dist, 30);
           if (!seg) return;
           count += 1;
-          let g = bus15State.graphics.get(dep.id);
+          let g = graphicsMap.get(dep.id);
           if (!g) {
             g = new Graphic({
               geometry: seg,
@@ -1277,7 +1278,7 @@ Maintain safe distance
           }
           nextGraphics.set(dep.id, g);
         });
-        bus15State.graphics.forEach((g, id) => {
+        graphicsMap.forEach((g, id) => {
           if (!nextGraphics.has(id)) bus15Layer.remove(g);
         });
         bus15State.graphics = nextGraphics;
