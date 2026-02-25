@@ -1289,9 +1289,11 @@ Maintain safe distance
         if (!(graphicsMap instanceof Map)) {
           graphicsMap = new Map(Object.entries(graphicsMap || {}));
         }
-        graphicsMap.forEach((g, id) => {
-          if (!nextGraphics.has(id)) bus15Layer.remove(g);
-        });
+        if (graphicsMap instanceof Map && typeof graphicsMap.forEach === "function") {
+          graphicsMap.forEach((g, id) => {
+            if (!nextGraphics.has(id)) bus15Layer.remove(g);
+          });
+        }
         bus15State.graphics = nextGraphics;
         if (statusEl) statusEl.textContent = `Live: ${count} bussar (tidtabell)`;
       }
