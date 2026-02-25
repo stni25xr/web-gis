@@ -1113,9 +1113,11 @@ Maintain safe distance
           const routesText = await zip.file("routes.txt").async("string");
           const tripsText = await zip.file("trips.txt").async("string");
           const shapesText = await zip.file("shapes.txt").async("string");
+          const stopsText = await zip.file("stops.txt").async("string");
           const routes = parseCsv(routesText);
           const trips = parseCsv(tripsText);
           const shapes = parseCsv(shapesText);
+          const stops = parseCsv(stopsText);
 
           const routeIds = new Set();
           routes.forEach((r) => {
@@ -1124,24 +1126,55 @@ Maintain safe distance
           });
           if (!routeIds.size) return null;
 
-          const shapeCounts = new Map();
+          const stopId = "740039726";
+          const stop = stops.find((s) => String(s.stop_id || s.stop_code || "").trim() === stopId);
+          const stopLat = Number(stop?.stop_lat);
+          const stopLon = Number(stop?.stop_lon);
+          const hasStop = Number.isFinite(stopLat) && Number.isFinite(stopLon);
+
+          const shapeIds = new Set();
           trips.forEach((t) => {
             if (routeIds.has(t.route_id) && t.shape_id) {
-              shapeCounts.set(t.shape_id, (shapeCounts.get(t.shape_id) || 0) + 1);
+              shapeIds.add(t.shape_id);
             }
           });
-          if (!shapeCounts.size) return null;
-          const bestShapeId = Array.from(shapeCounts.entries()).sort((a, b) => b[1] - a[1])[0][0];
+          if (!shapeIds.size) return null;
 
-          const shapePoints = shapes
-            .filter((s) => s.shape_id === bestShapeId)
-            .map((s) => ({
-              lat: Number(s.shape_pt_lat),
-              lon: Number(s.shape_pt_lon),
-              seq: Number(s.shape_pt_sequence)
-            }))
-            .filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lon) && Number.isFinite(s.seq))
-            .sort((a, b) => a.seq - b.seq);
+          const shapesById = new Map();
+          shapes.forEach((s) => {
+            if (!shapeIds.has(s.shape_id)) return;
+            const lat = Number(s.shape_pt_lat);
+            const lon = Number(s.shape_pt_lon);
+            const seq = Number(s.shape_pt_sequence);
+            if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(seq)) return;
+            if (!shapesById.has(s.shape_id)) shapesById.set(s.shape_id, []);
+            shapesById.get(s.shape_id).push({ lat, lon, seq });
+          });
+          if (!shapesById.size) return null;
+
+          let bestShapeId = null;
+          let bestDist = Infinity;
+          if (hasStop) {
+            shapesById.forEach((pts, shapeId) => {
+              let minD = Infinity;
+              for (const p of pts) {
+                const d = haversineMeters(stopLon, stopLat, p.lon, p.lat);
+                if (d < minD) minD = d;
+              }
+              if (minD < bestDist) {
+                bestDist = minD;
+                bestShapeId = shapeId;
+              }
+            });
+          }
+          if (!bestShapeId) bestShapeId = Array.from(shapesById.keys())[0];
+
+          let shapePoints = shapesById.get(bestShapeId) || [];
+          shapePoints = shapePoints.sort((a, b) => a.seq - b.seq);
+          if (hasStop) {
+            const clipped = shapePoints.filter((p) => haversineMeters(stopLon, stopLat, p.lon, p.lat) <= 2500);
+            if (clipped.length >= 2) shapePoints = clipped;
+          }
           if (shapePoints.length < 2) return null;
           return shapePoints.map((p) => [p.lon, p.lat]);
         } catch (e) {
