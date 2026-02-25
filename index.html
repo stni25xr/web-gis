@@ -1235,6 +1235,7 @@ Maintain safe distance
           graphicsMap = new Map();
         }
         bus15State.graphics = graphicsMap;
+        if (!bus15Layer) return;
         if (!sampler) return;
         const now = Date.now();
         const routeDurationSec = 3600;
@@ -1267,9 +1268,9 @@ Maintain safe distance
           const seg = buildSegment(dist, 30);
           if (!seg) return;
           count += 1;
-          let g = graphicsMap.get(dep.id);
-          if (!g) {
-            g = new Graphic({
+          let entry = graphicsMap.get(dep.id);
+          if (!entry) {
+            const lineGraphic = new Graphic({
               geometry: seg,
               symbol: {
                 type: "line-3d",
@@ -1280,18 +1281,37 @@ Maintain safe distance
                 }]
               }
             });
-            bus15Layer.add(g);
+            const mid = sampler.toGeographicPoint(dist);
+            const pointGraphic = new Graphic({
+              geometry: mid,
+              symbol: {
+                type: "point-3d",
+                symbolLayers: [{
+                  type: "icon",
+                  resource: { primitive: "circle" },
+                  size: 10,
+                  material: { color: "#ff6b00" }
+                }]
+              }
+            });
+            bus15Layer.addMany([lineGraphic, pointGraphic]);
+            entry = { line: lineGraphic, point: pointGraphic };
           } else {
-            g.geometry = seg;
+            entry.line.geometry = seg;
+            const mid = sampler.toGeographicPoint(dist);
+            if (mid) entry.point.geometry = mid;
           }
-          nextGraphics.set(dep.id, g);
+          nextGraphics.set(dep.id, entry);
         });
         if (!(graphicsMap instanceof Map)) {
           graphicsMap = new Map(Object.entries(graphicsMap || {}));
         }
         if (graphicsMap instanceof Map && typeof graphicsMap.forEach === "function") {
-          graphicsMap.forEach((g, id) => {
-            if (!nextGraphics.has(id)) bus15Layer.remove(g);
+          graphicsMap.forEach((entry, id) => {
+            if (!nextGraphics.has(id)) {
+              if (entry?.line) bus15Layer.remove(entry.line);
+              if (entry?.point) bus15Layer.remove(entry.point);
+            }
           });
         }
         bus15State.graphics = nextGraphics;
