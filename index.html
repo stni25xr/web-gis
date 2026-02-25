@@ -884,6 +884,7 @@ Maintain safe distance
         departures: [],
         routePoints: [],
         routeSampler: null,
+        routeSamplers: [],
         lastTick: null,
         movingOffsets: new Map()
       };
@@ -1114,10 +1115,12 @@ Maintain safe distance
           const tripsText = await zip.file("trips.txt").async("string");
           const shapesText = await zip.file("shapes.txt").async("string");
           const stopsText = await zip.file("stops.txt").async("string");
+          const stopTimesText = await zip.file("stop_times.txt").async("string");
           const routes = parseCsv(routesText);
           const trips = parseCsv(tripsText);
           const shapes = parseCsv(shapesText);
           const stops = parseCsv(stopsText);
+          const stopTimes = parseCsv(stopTimesText);
 
           const routeIds = new Set();
           routes.forEach((r) => {
@@ -1126,23 +1129,49 @@ Maintain safe distance
           });
           if (!routeIds.size) return null;
 
-          const stopId = "740039726";
-          const stop = stops.find((s) => String(s.stop_id || s.stop_code || "").trim() === stopId);
-          const stopLat = Number(stop?.stop_lat);
-          const stopLon = Number(stop?.stop_lon);
-          const hasStop = Number.isFinite(stopLat) && Number.isFinite(stopLon);
+          const stopKey = "740039726";
+          const stop = stops.find((s) => String(s.stop_id || "").trim() === stopKey || String(s.stop_code || "").trim() === stopKey);
+          const stopId = stop?.stop_id;
+          if (!stopId) return null;
 
-          const shapeIds = new Set();
+          const tripsById = new Map();
           trips.forEach((t) => {
-            if (routeIds.has(t.route_id) && t.shape_id) {
-              shapeIds.add(t.shape_id);
+            if (routeIds.has(t.route_id)) tripsById.set(t.trip_id, t);
+          });
+          if (!tripsById.size) return null;
+
+          const tripsWithStop = new Set();
+          stopTimes.forEach((st) => {
+            if (st.stop_id === stopId && tripsById.has(st.trip_id)) {
+              tripsWithStop.add(st.trip_id);
             }
           });
-          if (!shapeIds.size) return null;
+          if (!tripsWithStop.size) return null;
+
+          const shapeCountByDir = new Map();
+          tripsWithStop.forEach((tripId) => {
+            const trip = tripsById.get(tripId);
+            const shapeId = trip?.shape_id;
+            if (!shapeId) return;
+            const dir = trip?.direction_id != null ? String(trip.direction_id) : "0";
+            const key = `${dir}:${shapeId}`;
+            shapeCountByDir.set(key, (shapeCountByDir.get(key) || 0) + 1);
+          });
+
+          const bestShapes = {};
+          shapeCountByDir.forEach((count, key) => {
+            const [dir, shapeId] = key.split(":");
+            if (!bestShapes[dir] || count > bestShapes[dir].count) {
+              bestShapes[dir] = { shapeId, count };
+            }
+          });
+
+          const shapeIds = Object.values(bestShapes).map((v) => v.shapeId);
+          if (!shapeIds.length) return null;
 
           const shapesById = new Map();
           shapes.forEach((s) => {
-            if (!shapeIds.has(s.shape_id)) return;
+            if (!shapeIds.includes(s.shape_id)) return;
             const lat = Number(s.shape_pt_lat);
             const lon = Number(s.shape_pt_lon);
             const seq = Number(s.shape_pt_sequence);
@@ -1152,31 +1181,15 @@ Maintain safe distance
           });
           if (!shapesById.size) return null;
 
-          let bestShapeId = null;
-          let bestDist = Infinity;
-          if (hasStop) {
-            shapesById.forEach((pts, shapeId) => {
-              let minD = Infinity;
-              for (const p of pts) {
-                const d = haversineMeters(stopLon, stopLat, p.lon, p.lat);
-                if (d < minD) minD = d;
-              }
-              if (minD < bestDist) {
-                bestDist = minD;
-                bestShapeId = shapeId;
-              }
-            });
-          }
-          if (!bestShapeId) bestShapeId = Array.from(shapesById.keys())[0];
-
-          let shapePoints = shapesById.get(bestShapeId) || [];
-          shapePoints = shapePoints.sort((a, b) => a.seq - b.seq);
-          if (hasStop) {
-            const clipped = shapePoints.filter((p) => haversineMeters(stopLon, stopLat, p.lon, p.lat) <= 2500);
-            if (clipped.length >= 2) shapePoints = clipped;
-          }
-          if (shapePoints.length < 2) return null;
-          return shapePoints.map((p) => [p.lon, p.lat]);
+          const routesOut = [];
+          shapeIds.forEach((shapeId) => {
+            let shapePoints = shapesById.get(shapeId) || [];
+            shapePoints = shapePoints.sort((a, b) => a.seq - b.seq);
+            if (shapePoints.length >= 2) {
+              routesOut.push(shapePoints.map((p) => [p.lon, p.lat]));
+            }
+          });
+          return routesOut.length ? routesOut : null;
         } catch (e) {
           console.warn("Bus15 shapes load error:", e);
           return null;
@@ -1243,8 +1256,16 @@ Maintain safe distance
           if (stopPoints.length < 2) return;
           routePoints = stopPoints;
         }
-        bus15State.routePoints = routePoints;
-        bus15State.routeSampler = buildRouteSampler(routePoints);
+        if (Array.isArray(routePoints[0])) {
+          bus15State.routePoints = routePoints;
+          const sampler = buildRouteSampler(routePoints);
+          bus15State.routeSampler = sampler;
+          bus15State.routeSamplers = sampler ? [sampler] : [];
+        } else {
+          bus15State.routePoints = routePoints;
+          bus15State.routeSampler = buildRouteSampler(routePoints);
+          bus15State.routeSamplers = bus15State.routeSampler ? [bus15State.routeSampler] : [];
+        }
       }
 
       function parseSwedishDateTime(dateStr, timeStr) {
@@ -1313,14 +1334,16 @@ Maintain safe distance
 
       function updateBus15FromTimetable() {
         const statusEl = document.getElementById("bus15Status");
-        const sampler = bus15State.routeSampler;
+        const samplers = bus15State.routeSamplers && bus15State.routeSamplers.length
+          ? bus15State.routeSamplers
+          : (bus15State.routeSampler ? [bus15State.routeSampler] : []);
         let graphicsMap = bus15State.graphics;
         if (!(graphicsMap instanceof Map)) {
           graphicsMap = new Map();
         }
         bus15State.graphics = graphicsMap;
         if (!bus15Layer) return;
-        if (!sampler) return;
+        if (!samplers.length) return;
         const now = Date.now();
         const routeDurationSec = 900;
         const nextGraphics = new Map();
@@ -1335,7 +1358,7 @@ Maintain safe distance
         const lastTick = bus15State.lastTick || now;
         const dt = Math.min(5, Math.max(0.5, (now - lastTick) / 1000));
         bus15State.lastTick = now;
-        const speed = sampler.total / routeDurationSec;
+        const speed = samplers[0].total / routeDurationSec;
         const buildSegment = (dist, lengthMeters) => {
           const half = (lengthMeters || 30) / 2;
           const d0 = Math.max(0, dist - half);
@@ -1349,6 +1372,7 @@ Maintain safe distance
           });
         };
         departures.forEach((dep, idx) => {
+          const sampler = samplers[idx % samplers.length];
           let offset = bus15State.movingOffsets.get(dep.id);
           if (offset == null) {
             offset = (idx / Math.max(1, departures.length)) * sampler.total;
