@@ -2381,17 +2381,30 @@ Maintain safe distance
       function buildBus15Route(features) {
         const withGeom = (features || []).filter((f) => f && f.geometry);
         if (!withGeom.length) return [];
-        const sorted = withGeom.slice().sort((a, b) => {
-          const aNr = parseStopNr(a.attributes?.Nr);
-          const bNr = parseStopNr(b.attributes?.Nr);
-          if (aNr != null && bNr != null) return aNr - bNr;
-          if (aNr != null) return -1;
-          if (bNr != null) return 1;
-          const aId = Number.parseInt(a.attributes?.OBJECTID || 0, 10);
-          const bId = Number.parseInt(b.attributes?.OBJECTID || 0, 10);
-          return aId - bId;
-        });
-        return sorted.map((f) => f.geometry);
+        const startId = "740039726";
+        const pool = withGeom.slice();
+        let startIdx = pool.findIndex((f) => String(f.attributes?.Nr || "").trim() === startId);
+        if (startIdx < 0) startIdx = 0;
+        const ordered = [];
+        let current = pool.splice(startIdx, 1)[0];
+        ordered.push(current);
+        while (pool.length) {
+          const curGeom = toGeographic(current.geometry) || current.geometry;
+          let bestIdx = 0;
+          let bestDist = Infinity;
+          for (let i = 0; i < pool.length; i++) {
+            const cand = pool[i];
+            const candGeom = toGeographic(cand.geometry) || cand.geometry;
+            const d = distanceMeters(curGeom, candGeom);
+            if (d != null && d < bestDist) {
+              bestDist = d;
+              bestIdx = i;
+            }
+          }
+          current = pool.splice(bestIdx, 1)[0];
+          ordered.push(current);
+        }
+        return ordered.map((f) => f.geometry);
       }
 
       function buildDashGeometryFromRoute(routePoints, dashLen, gapLen, phase) {
