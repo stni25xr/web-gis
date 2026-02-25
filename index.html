@@ -228,6 +228,17 @@
     </details>
 
     <details class="switch-group">
+      <summary class="switch-group-title">LOD</summary>
+      <div class="lod-grid" role="group" aria-label="Level of detail">
+        <button class="lod-btn" type="button" data-lod="1">LOD1</button>
+        <button class="lod-btn" type="button" data-lod="2">LOD2</button>
+        <button class="lod-btn" type="button" data-lod="3">LOD3</button>
+        <button class="lod-btn" type="button" data-lod="4">LOD4</button>
+        <button class="lod-btn" type="button" data-lod="5">LOD5</button>
+      </div>
+    </details>
+
+    <details class="switch-group">
       <summary class="switch-group-title">Område</summary>
       <div class="switch-row">
         <span class="switch-label">Område</span>
@@ -274,17 +285,6 @@
           <input id="swSkolWalk" type="checkbox" />
           <span class="slider"></span>
         </label>
-      </div>
-    </details>
-
-    <details class="switch-group">
-      <summary class="switch-group-title">LOD</summary>
-      <div class="lod-grid" role="group" aria-label="Level of detail">
-        <button class="lod-btn" type="button" data-lod="1">LOD1</button>
-        <button class="lod-btn" type="button" data-lod="2">LOD2</button>
-        <button class="lod-btn" type="button" data-lod="3">LOD3</button>
-        <button class="lod-btn" type="button" data-lod="4">LOD4</button>
-        <button class="lod-btn" type="button" data-lod="5">LOD5</button>
       </div>
     </details>
 
@@ -1873,6 +1873,14 @@ Maintain safe distance
         if (view && view.qualityProfile !== profile) {
           view.qualityProfile = profile;
         }
+        const targetZ = lvl === 1 ? 7500
+          : lvl === 2 ? 5000
+            : lvl === 3 ? 2500
+              : lvl === 4 ? 1500
+                : 500;
+        if (view) {
+          view.goTo({ position: { latitude: 57.796, longitude: 14.200, z: targetZ }, tilt: 45 }, { duration: 600 });
+        }
         if (lvl === 1) {
           setChecked(swBase, false);
           setChecked(swArea, false);
@@ -1888,21 +1896,21 @@ Maintain safe distance
         } else if (lvl === 3) {
           setChecked(swBase, true);
           setChecked(swArea, true);
-          setChecked(swTransport, true);
+          setChecked(swTransport, false);
           setChecked(swService, false);
           setChecked(swSafety, false);
         } else if (lvl === 4) {
           setChecked(swBase, true);
           setChecked(swArea, true);
-          setChecked(swTransport, true);
+          setChecked(swTransport, false);
           setChecked(swService, true);
           setChecked(swSafety, false);
         } else {
           setChecked(swBase, true);
           setChecked(swArea, true);
-          setChecked(swTransport, true);
+          setChecked(swTransport, false);
           setChecked(swService, true);
-          setChecked(swSafety, true);
+          setChecked(swSafety, false);
         }
         document.querySelectorAll(".lod-btn").forEach((btn) => {
           btn.classList.toggle("is-active", Number(btn.dataset.lod) === lvl);
