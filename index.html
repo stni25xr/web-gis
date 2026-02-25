@@ -637,6 +637,7 @@ Maintain safe distance
       </div>
       <div class="incident-actions">
         <button id="incidentRoute" type="button">Visa polisväg</button>
+        <button id="incidentRouteClear" type="button">Avbryt</button>
         <button id="incidentAcknowledge" type="button">Bekräfta</button>
       </div>
     </div>
@@ -948,11 +949,7 @@ Maintain safe distance
 
       function startPoliceDriveAnimation(coords, durationSec) {
         if (!coords || coords.length < 2) return;
-        if (policeDriveTimer) {
-          clearInterval(policeDriveTimer);
-          policeDriveTimer = null;
-        }
-        policeDriveLayer.removeAll();
+        stopPoliceDriveAnimation();
 
         const points = coords.map((c) => ({ lon: c[0], lat: c[1] }));
         const segments = [];
@@ -1012,6 +1009,15 @@ Maintain safe distance
             policeDriveTimer = null;
           }
         }, 250);
+      }
+
+      function stopPoliceDriveAnimation() {
+        if (policeDriveTimer) {
+          clearInterval(policeDriveTimer);
+          policeDriveTimer = null;
+        }
+        policeDriveLayer.removeAll();
+        policeDriveGraphic = null;
       }
 
       function getAlarmTargetPoint() {
@@ -3146,6 +3152,11 @@ if (isBus) {
     });
     document.getElementById("incidentRoute")?.addEventListener("click", () => {
       window.showPoliceRouteToAlarm();
+    });
+    document.getElementById("incidentRouteClear")?.addEventListener("click", () => {
+      safetyRouteLayer.removeAll();
+      stopPoliceDriveAnimation();
+      setIncidentStatus("");
     });
   </script>
   <script type="module" src="./electricity-sim.js"></script>

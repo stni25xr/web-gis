@@ -239,6 +239,16 @@
   font-size: 13px;
 }
 
+#incidentModal #incidentRouteClear {
+  border: 1px solid #334155;
+  background: transparent;
+  color: #cbd5e1;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
 #incidentModal #incidentAcknowledge {
   border: 1px solid #334155;
   background: #1f2937;
