@@ -783,6 +783,8 @@ Maintain safe distance
       map.add(corridorLayer);
       const safetyRouteLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 } });
       map.add(safetyRouteLayer);
+      const policeDriveLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 3 } });
+      map.add(policeDriveLayer);
       const bimMarkerLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 3 } });
       map.add(bimMarkerLayer);
       const bimBuildingLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 0 } });
@@ -846,6 +848,10 @@ Maintain safe distance
         baseSymbol: null
       };
       let incidentEtaTimer = null;
+      let policeDriveTimer = null;
+      let policeDriveGraphic = null;
+      let lastSafetyRouteCoords = null;
+      let lastSafetyRouteSummary = null;
 
       function colorKeyForW(w) {
         if (w >= 1500) return "red";
@@ -928,6 +934,86 @@ Maintain safe distance
         if (el) el.textContent = text || "";
       }
 
+      function haversineMeters(aLon, aLat, bLon, bLat) {
+        const R = 6371000;
+        const toRad = (v) => v * Math.PI / 180;
+        const dLat = toRad(bLat - aLat);
+        const dLon = toRad(bLon - aLon);
+        const lat1 = toRad(aLat);
+        const lat2 = toRad(bLat);
+        const h = Math.sin(dLat / 2) ** 2
+          + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+        return 2 * R * Math.asin(Math.sqrt(h));
+      }
+
+      function startPoliceDriveAnimation(coords, durationSec) {
+        if (!coords || coords.length < 2) return;
+        if (policeDriveTimer) {
+          clearInterval(policeDriveTimer);
+          policeDriveTimer = null;
+        }
+        policeDriveLayer.removeAll();
+
+        const points = coords.map((c) => ({ lon: c[0], lat: c[1] }));
+        const segments = [];
+        let total = 0;
+        for (let i = 0; i < points.length - 1; i++) {
+          const a = points[i];
+          const b = points[i + 1];
+          const d = haversineMeters(a.lon, a.lat, b.lon, b.lat);
+          segments.push({ a, b, d });
+          total += d;
+        }
+        if (!total || !isFinite(total)) return;
+
+        const travelMs = Math.max(3000, (durationSec * 1000) / 4);
+        const startTime = Date.now();
+
+        if (!policeDriveGraphic) {
+          policeDriveGraphic = new Graphic({
+            geometry: { type: "point", longitude: points[0].lon, latitude: points[0].lat, spatialReference: { wkid: 4326 } },
+            symbol: {
+              type: "point-3d",
+              symbolLayers: [{
+                type: "icon",
+                resource: { href: policeIcon },
+                size: 24,
+                anchor: "center"
+              }]
+            }
+          });
+          policeDriveLayer.add(policeDriveGraphic);
+        } else {
+          policeDriveGraphic.geometry = { type: "point", longitude: points[0].lon, latitude: points[0].lat, spatialReference: { wkid: 4326 } };
+          policeDriveLayer.add(policeDriveGraphic);
+        }
+
+        policeDriveTimer = setInterval(() => {
+          const elapsed = Date.now() - startTime;
+          const t = Math.min(1, elapsed / travelMs);
+          const targetDist = total * t;
+          let walked = 0;
+          let pos = points[0];
+          for (let i = 0; i < segments.length; i++) {
+            const seg = segments[i];
+            if (walked + seg.d >= targetDist) {
+              const segT = seg.d ? (targetDist - walked) / seg.d : 0;
+              pos = {
+                lon: seg.a.lon + (seg.b.lon - seg.a.lon) * segT,
+                lat: seg.a.lat + (seg.b.lat - seg.a.lat) * segT
+              };
+              break;
+            }
+            walked += seg.d;
+          }
+          policeDriveGraphic.geometry = { type: "point", longitude: pos.lon, latitude: pos.lat, spatialReference: { wkid: 4326 } };
+          if (t >= 1) {
+            clearInterval(policeDriveTimer);
+            policeDriveTimer = null;
+          }
+        }, 250);
+      }
+
       function getAlarmTargetPoint() {
         const graphic = buildingGraphicsById.get(ALARM_OBJECT_ID);
         if (!graphic || !graphic.geometry) return null;
@@ -977,13 +1063,15 @@ Maintain safe distance
           setIncidentStatus("Kunde inte läsa polisstationens position");
           return;
         }
-        const summary = await drawDrivingRouteToFeature({ geometry: targetPoint }, "#ef4444", (msg) => {
+        const summary = await drawDrivingRouteToFeature({ geometry: targetPoint }, "#1d4ed8", (msg) => {
           setIncidentStatus(msg);
         });
         if (summary?.duration != null) {
           setIncidentEta(summary.duration);
+          if (lastSafetyRouteCoords) startPoliceDriveAnimation(lastSafetyRouteCoords, summary.duration);
         } else {
           setIncidentEta(420);
+          if (lastSafetyRouteCoords) startPoliceDriveAnimation(lastSafetyRouteCoords, 420);
         }
       };
 
@@ -2414,6 +2502,8 @@ Maintain safe distance
           status("Ingen rutt hittades");
           return null;
         }
+        lastSafetyRouteCoords = coords;
+        lastSafetyRouteSummary = summary || null;
         safetyRouteLayer.removeAll();
         const route = new Polyline({ paths: [coords], spatialReference: { wkid: 4326 } });
         safetyRouteLayer.add(new Graphic({
