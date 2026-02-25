@@ -885,7 +885,9 @@ Maintain safe distance
         depTimer: null,
         departures: [],
         routePoints: [],
-        routeSampler: null
+        routeSampler: null,
+        lastTick: null,
+        movingOffsets: new Map()
       };
 
       function colorKeyForW(w) {
@@ -1248,6 +1250,10 @@ Maintain safe distance
               { id: "fallback-2", time: new Date(now - 20 * 60 * 1000) },
               { id: "fallback-3", time: new Date(now - 30 * 60 * 1000) }
             ];
+        const lastTick = bus15State.lastTick || now;
+        const dt = Math.min(5, Math.max(0.5, (now - lastTick) / 1000));
+        bus15State.lastTick = now;
+        const speed = sampler.total / routeDurationSec;
         const buildSegment = (dist, lengthMeters) => {
           const half = (lengthMeters || 30) / 2;
           const d0 = Math.max(0, dist - half);
@@ -1260,11 +1266,14 @@ Maintain safe distance
             spatialReference: { wkid: 4326 }
           });
         };
-        departures.forEach((dep) => {
-          const elapsed = (now - dep.time.getTime()) / 1000;
-          if (elapsed < 0 || elapsed > routeDurationSec) return;
-          const progress = elapsed / routeDurationSec;
-          const dist = sampler.total * progress;
+        departures.forEach((dep, idx) => {
+          let offset = bus15State.movingOffsets.get(dep.id);
+          if (offset == null) {
+            offset = (idx / Math.max(1, departures.length)) * sampler.total;
+          }
+          offset = (offset + speed * dt) % sampler.total;
+          bus15State.movingOffsets.set(dep.id, offset);
+          const dist = offset;
           const seg = buildSegment(dist, 30);
           if (!seg) return;
           count += 1;
