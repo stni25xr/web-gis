@@ -1230,6 +1230,9 @@ Maintain safe distance
       function updateBus15FromTimetable() {
         const statusEl = document.getElementById("bus15Status");
         const sampler = bus15State.routeSampler;
+        if (!(bus15State.graphics instanceof Map)) {
+          bus15State.graphics = new Map();
+        }
         if (!sampler) return;
         const now = Date.now();
         const routeDurationSec = 3600;
@@ -1283,9 +1286,11 @@ Maintain safe distance
 
       function startBus15Timetable() {
         if (bus15State.timer) return;
-        fetchBus15Departures().then(updateBus15FromTimetable);
-        bus15State.depTimer = setInterval(fetchBus15Departures, 60000);
-        bus15State.timer = setInterval(updateBus15FromTimetable, 3000);
+        initBus15Route().then(() => {
+          fetchBus15Departures().then(updateBus15FromTimetable);
+          bus15State.depTimer = setInterval(fetchBus15Departures, 60000);
+          bus15State.timer = setInterval(updateBus15FromTimetable, 3000);
+        });
       }
 
       function getAlarmTargetPoint() {
