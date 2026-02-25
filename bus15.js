@@ -304,8 +304,8 @@
     state.widgetEl = document.getElementById("bus15Widget");
 
     state.layer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 6 } });
-    state.routeLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 } });
-    state.routeLayer2 = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 } });
+    state.routeLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 }, visible: false });
+    state.routeLayer2 = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 }, visible: false });
     map.addMany([state.routeLayer, state.routeLayer2, state.layer]);
 
     const key = window.TRAFIKLAB_API_KEY || window.GTFS_STATIC_KEY || "";
@@ -323,11 +323,11 @@
     const inLine = new Polyline({ paths: [routes.in.route], spatialReference: { wkid: 4326 } });
     state.routeLayer.add(new Graphic({
       geometry: outLine,
-      symbol: { type: "simple-line", color: "#2563eb", width: 3 }
+      symbol: { type: "simple-line", color: [0, 0, 0, 0], width: 2 }
     }));
     state.routeLayer2.add(new Graphic({
       geometry: inLine,
-      symbol: { type: "simple-line", color: "#94a3b8", width: 3 }
+      symbol: { type: "simple-line", color: [0, 0, 0, 0], width: 2 }
     }));
 
     state.samplers.out = buildSampler(Polyline, webMercatorUtils, routes.out.route);
@@ -376,15 +376,27 @@
         { key: "out", name: "Outbound", color: "#ff6b00" },
         { key: "in", name: "Inbound", color: "#10b981" }
       ];
+      const travelSec = opts.travelMinutes * 60;
+      const headwaySec = opts.headwayMinutes * 60;
+      const perDirCount = Math.max(1, Math.round((travelSec + opts.layoverMinutes * 60) / headwaySec));
+      const dt = Math.max(0.5, (now - state.lastTick) / 1000);
+      state.lastTick = now;
+
       directions.forEach((dir) => {
         const sampler = state.samplers[dir.key];
         if (!sampler) return;
-        const active = computeSimulatedBuses(now, opts, dir.key, departures);
-        active.forEach((bus, idx) => {
-          const progress = Math.min(1, Math.max(0, bus.elapsed / (opts.travelMinutes * 60 * 1000)));
-          const dist = sampler.total * progress;
-          const pt = sampler.toGeo(dist);
-          if (!pt) return;
+        const speed = sampler.total / travelSec;
+        for (let i = 0; i < perDirCount; i++) {
+          const id = `${dir.key}-${i}`;
+          let offset = state.movingOffsets.get(id);
+          if (offset == null) {
+            offset = (i / perDirCount) * sampler.total;
+          }
+          offset = (offset + speed * dt) % sampler.total;
+          state.movingOffsets.set(id, offset);
+          const progress = offset / sampler.total;
+          const pt = sampler.toGeo(offset);
+          if (!pt) continue;
           const seq = state.stopSeq[dir.key] || [];
           const eta = etaToNextStop(progress, seq.length, opts.travelMinutes);
           const nextStop = eta && seq[eta.nextIdx] ? seq[eta.nextIdx].name : "Okänd";
@@ -401,7 +413,7 @@
           };
           state.layer.add(g);
           count += 1;
-        });
+        }
       });
 
       status(`Bus 15: Simulating from timetable (no realtime feed) • ${count} buses`);
