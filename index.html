@@ -559,6 +559,25 @@
       </div>
     </div>
   </div>
+  <div id="incidentModal" style="display:none;">
+    <div class="incident-modal">
+      <div class="incident-header">
+        <div class="incident-title">Polisnotis</div>
+        <button id="incidentClose" type="button" aria-label="Close incident">✕</button>
+      </div>
+      <div class="incident-body">
+        <div class="incident-line"><strong>Händelse:</strong> Inbrottslarm utlöst</div>
+        <div class="incident-line"><strong>Plats:</strong> Öxnehaga, Hus A</div>
+        <div class="incident-line"><strong>Tid:</strong> 11:02</div>
+        <div class="incident-line"><strong>Prioritet:</strong> Hög (Prio 2)</div>
+        <div class="incident-line"><strong>Status:</strong> Patrull på väg</div>
+        <div class="incident-note">Observation: Fönster krossat på bottenplan. Vittnesuppgift om två personer som lämnar platsen mot Kohagsgatan.</div>
+      </div>
+      <div class="incident-actions">
+        <button id="incidentAcknowledge" type="button">Bekräfta</button>
+      </div>
+    </div>
+  </div>
 
   <!-- CLOCK -->
   <script>
@@ -801,6 +820,16 @@
         if (modal) modal.style.display = "none";
       };
 
+      window.showIncidentModal = function () {
+        const modal = document.getElementById("incidentModal");
+        if (modal) modal.style.display = "flex";
+      };
+
+      window.hideIncidentModal = function () {
+        const modal = document.getElementById("incidentModal");
+        if (modal) modal.style.display = "none";
+      };
+
       function startAlarmFlashSession() {
         if (alarmState.active) return;
         const graphic = buildingGraphicsById.get(alarmState.targetId);
@@ -809,9 +838,15 @@
           return;
         }
         alarmState.active = true;
-        if (!alarmState.baseSymbol) {
-          alarmState.baseSymbol = graphic.symbol;
-        }
+        alarmState.baseSymbol = {
+          type: "polygon-3d",
+          symbolLayers: [{
+            type: "extrude",
+            size: 6,
+            material: { color: [255, 255, 255, 0.9] },
+            edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
+          }]
+        };
         const colors = {
           blue: [29, 78, 216, 0.95],
           red: [239, 68, 68, 0.95]
@@ -2570,6 +2605,7 @@
           const id = found.graphic.attributes?.objektidentitet;
           if (id === ALARM_OBJECT_ID) {
             window.showAlarmModal();
+            window.showIncidentModal();
           }
           if (SIM_OBJECT_IDS.includes(id)) {
             buildingLink.innerHTML = `
@@ -2848,6 +2884,17 @@ if (isBus) {
     });
     document.getElementById("alarmAcknowledge")?.addEventListener("click", () => {
       window.hideAlarmModal();
+    });
+    document.addEventListener("click", (e) => {
+      if (e.target && e.target.id === "incidentModal") {
+        window.hideIncidentModal();
+      }
+    });
+    document.getElementById("incidentClose")?.addEventListener("click", () => {
+      window.hideIncidentModal();
+    });
+    document.getElementById("incidentAcknowledge")?.addEventListener("click", () => {
+      window.hideIncidentModal();
     });
   </script>
   <script type="module" src="./electricity-sim.js"></script>
