@@ -1879,7 +1879,16 @@ Maintain safe distance
               : lvl === 4 ? 1500
                 : 500;
         if (view) {
-          view.goTo({ position: { latitude: 57.796, longitude: 14.200, z: targetZ }, tilt: 0 }, { duration: 600 });
+          if (lvl === 1) {
+            view.goTo({ position: { latitude: 57.762686206841096, longitude: 14.187974955833315, z: targetZ }, tilt: 0 }, { duration: 600 });
+          } else if (view.camera) {
+            const cam = view.camera.clone();
+            cam.position.z = targetZ;
+            cam.tilt = 0;
+            view.goTo(cam, { duration: 600 });
+          } else if (view.center) {
+            view.goTo({ position: { longitude: view.center.longitude, latitude: view.center.latitude, z: targetZ }, tilt: 0 }, { duration: 600 });
+          }
         }
         if (lvl === 1) {
           setChecked(swBase, false);
@@ -1902,13 +1911,13 @@ Maintain safe distance
         } else if (lvl === 4) {
           setChecked(swBase, true);
           setChecked(swArea, true);
-          setChecked(swTransport, false);
+          setChecked(swTransport, true);
           setChecked(swService, true);
           setChecked(swSafety, false);
         } else {
           setChecked(swBase, true);
           setChecked(swArea, true);
-          setChecked(swTransport, false);
+          setChecked(swTransport, true);
           setChecked(swService, true);
           setChecked(swSafety, false);
         }
