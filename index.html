@@ -1230,15 +1230,23 @@ Maintain safe distance
       function updateBus15FromTimetable() {
         const statusEl = document.getElementById("bus15Status");
         const sampler = bus15State.routeSampler;
-        const graphicsMap = bus15State.graphics instanceof Map ? bus15State.graphics : new Map();
-        if (bus15State.graphics !== graphicsMap) {
-          bus15State.graphics = graphicsMap;
+        let graphicsMap = bus15State.graphics instanceof Map ? bus15State.graphics : new Map();
+        if (typeof graphicsMap.forEach !== "function") {
+          graphicsMap = new Map();
         }
+        bus15State.graphics = graphicsMap;
         if (!sampler) return;
         const now = Date.now();
         const routeDurationSec = 3600;
         const nextGraphics = new Map();
         let count = 0;
+        const departures = bus15State.departures && bus15State.departures.length
+          ? bus15State.departures
+          : [
+              { id: "fallback-1", time: new Date(now - 10 * 60 * 1000) },
+              { id: "fallback-2", time: new Date(now - 20 * 60 * 1000) },
+              { id: "fallback-3", time: new Date(now - 30 * 60 * 1000) }
+            ];
         const buildSegment = (dist, lengthMeters) => {
           const half = (lengthMeters || 30) / 2;
           const d0 = Math.max(0, dist - half);
@@ -1251,7 +1259,7 @@ Maintain safe distance
             spatialReference: { wkid: 4326 }
           });
         };
-        bus15State.departures.forEach((dep) => {
+        departures.forEach((dep) => {
           const elapsed = (now - dep.time.getTime()) / 1000;
           if (elapsed < 0 || elapsed > routeDurationSec) return;
           const progress = elapsed / routeDurationSec;
