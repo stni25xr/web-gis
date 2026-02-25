@@ -1020,6 +1020,12 @@ Maintain safe distance
         policeDriveGraphic = null;
       }
 
+      window.clearPoliceRoute = function () {
+        safetyRouteLayer.removeAll();
+        stopPoliceDriveAnimation();
+        setIncidentStatus("");
+      };
+
       function getAlarmTargetPoint() {
         const graphic = buildingGraphicsById.get(ALARM_OBJECT_ID);
         if (!graphic || !graphic.geometry) return null;
@@ -3154,9 +3160,7 @@ if (isBus) {
       window.showPoliceRouteToAlarm();
     });
     document.getElementById("incidentRouteClear")?.addEventListener("click", () => {
-      safetyRouteLayer.removeAll();
-      stopPoliceDriveAnimation();
-      setIncidentStatus("");
+      window.clearPoliceRoute();
     });
   </script>
   <script type="module" src="./electricity-sim.js"></script>
