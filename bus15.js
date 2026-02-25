@@ -321,14 +321,9 @@
 
     const outLine = new Polyline({ paths: [routes.out.route], spatialReference: { wkid: 4326 } });
     const inLine = new Polyline({ paths: [routes.in.route], spatialReference: { wkid: 4326 } });
-    state.routeLayer.add(new Graphic({
-      geometry: outLine,
-      symbol: { type: "simple-line", color: [0, 0, 0, 0], width: 2 }
-    }));
-    state.routeLayer2.add(new Graphic({
-      geometry: inLine,
-      symbol: { type: "simple-line", color: [0, 0, 0, 0], width: 2 }
-    }));
+    // Keep route layers hidden (no visible line)
+    state.routeLayer.visible = false;
+    state.routeLayer2.visible = false;
 
     state.samplers.out = buildSampler(Polyline, webMercatorUtils, routes.out.route);
     state.samplers.in = buildSampler(Polyline, webMercatorUtils, routes.in.route);
@@ -340,8 +335,6 @@
       toggle.addEventListener("change", () => {
         state.enabled = toggle.checked;
         state.layer.visible = state.enabled;
-        state.routeLayer.visible = state.enabled;
-        state.routeLayer2.visible = state.enabled;
       });
     }
 
@@ -385,7 +378,7 @@
       directions.forEach((dir) => {
         const sampler = state.samplers[dir.key];
         if (!sampler) return;
-        const speed = sampler.total / travelSec;
+        const speed = (sampler.total / travelSec) * 6;
         for (let i = 0; i < perDirCount; i++) {
           const id = `${dir.key}-${i}`;
           let offset = state.movingOffsets.get(id);
