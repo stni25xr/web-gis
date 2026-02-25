@@ -143,6 +143,16 @@
   font-size: 13px;
 }
 
+#alarmModal #alarmGoIncident {
+  border: none;
+  background: #ef4444;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
 #incidentModal {
   position: fixed;
   inset: 0;
@@ -196,15 +206,37 @@
   overflow: auto;
 }
 
+#incidentModal .incident-eta {
+  font-weight: 600;
+  color: #fecaca;
+  margin-bottom: 8px;
+}
+
 #incidentModal .incident-text {
   white-space: pre-line;
   color: #e2e8f0;
+}
+
+#incidentModal .incident-status {
+  margin-top: 10px;
+  color: #94a3b8;
 }
 
 #incidentModal .incident-actions {
   padding: 10px 14px 14px;
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
+}
+
+#incidentModal #incidentRoute {
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
 }
 
 #incidentModal #incidentAcknowledge {

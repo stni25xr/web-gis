@@ -555,7 +555,7 @@
         <div class="alarm-message">Robury - house. need immidely assistance.</div>
       </div>
       <div class="alarm-actions">
-        <button id="alarmAcknowledge" type="button">Acknowledge</button>
+        <button id="alarmGoIncident" type="button">Go to incident</button>
       </div>
     </div>
   </div>
@@ -566,6 +566,7 @@
         <button id="incidentClose" type="button" aria-label="Close incident">✕</button>
       </div>
       <div class="incident-body">
+        <div id="incidentEta" class="incident-eta">Polis på plats: beräknas…</div>
         <div class="incident-text">
 🚓 POLICE TRAINING SCENARIO
 Scenario Title: Disturbance with Unknown Object
@@ -632,8 +633,10 @@ Assess bystander risk
 
 Maintain safe distance
         </div>
+        <div id="incidentRouteStatus" class="incident-status"></div>
       </div>
       <div class="incident-actions">
+        <button id="incidentRoute" type="button">Visa polisväg</button>
         <button id="incidentAcknowledge" type="button">Bekräfta</button>
       </div>
     </div>
@@ -842,6 +845,7 @@ Maintain safe distance
         lastColorKey: null,
         baseSymbol: null
       };
+      let incidentEtaTimer = null;
 
       function colorKeyForW(w) {
         if (w >= 1500) return "red";
@@ -883,11 +887,104 @@ Maintain safe distance
       window.showIncidentModal = function () {
         const modal = document.getElementById("incidentModal");
         if (modal) modal.style.display = "flex";
+        if (!incidentEtaTimer) {
+          setIncidentEta(420);
+        }
       };
 
       window.hideIncidentModal = function () {
         const modal = document.getElementById("incidentModal");
         if (modal) modal.style.display = "none";
+      };
+
+      function formatEta(seconds) {
+        const sec = Math.max(0, Math.round(seconds));
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return `${m}:${String(s).padStart(2, "0")}`;
+      }
+
+      function setIncidentEta(seconds) {
+        const el = document.getElementById("incidentEta");
+        if (!el) return;
+        if (incidentEtaTimer) clearInterval(incidentEtaTimer);
+        let remaining = Math.max(0, Math.round(seconds));
+        const tick = () => {
+          el.textContent = remaining > 0
+            ? `Polis på plats om: ${formatEta(remaining)}`
+            : "Polis på plats: nu";
+          remaining = Math.max(0, remaining - 1);
+          if (remaining === 0 && incidentEtaTimer) {
+            clearInterval(incidentEtaTimer);
+            incidentEtaTimer = null;
+          }
+        };
+        tick();
+        incidentEtaTimer = setInterval(tick, 1000);
+      }
+
+      function setIncidentStatus(text) {
+        const el = document.getElementById("incidentRouteStatus");
+        if (el) el.textContent = text || "";
+      }
+
+      function getAlarmTargetPoint() {
+        const graphic = buildingGraphicsById.get(ALARM_OBJECT_ID);
+        if (!graphic || !graphic.geometry) return null;
+        const geom = graphic.geometry;
+        let center = null;
+        if (geometryEngine && typeof geometryEngine.centroid === "function") {
+          try { center = geometryEngine.centroid(geom); } catch (e) { /* ignore */ }
+        }
+        if (!center && geom.extent) center = geom.extent.center;
+        return center || null;
+      }
+
+      window.showPoliceRouteToAlarm = async function () {
+        setIncidentStatus("");
+        const targetPoint = getAlarmTargetPoint();
+        if (!targetPoint) {
+          setIncidentStatus("Kunde inte läsa målpunkt");
+          return;
+        }
+        await buildSafetyIndex();
+        const policeItems = safetyIndex.filter((s) => s.key === "police");
+        if (!policeItems.length) {
+          setIncidentStatus("Ingen polisstation hittades");
+          return;
+        }
+        const targetWgs = toGeographic(targetPoint);
+        if (!targetWgs) {
+          setIncidentStatus("Okänt koordinatsystem");
+          return;
+        }
+        let nearest = null;
+        let best = Infinity;
+        policeItems.forEach((p) => {
+          const pWgs = toGeographic(p.feature.geometry);
+          const d = pWgs ? distanceMeters(targetWgs, pWgs) : null;
+          if (d != null && d < best) {
+            best = d;
+            nearest = p;
+          }
+        });
+        if (!nearest) {
+          setIncidentStatus("Kunde inte beräkna närmaste polis");
+          return;
+        }
+        lastSafeMeasurePoint = toGeographic(nearest.feature.geometry);
+        if (!lastSafeMeasurePoint) {
+          setIncidentStatus("Kunde inte läsa polisstationens position");
+          return;
+        }
+        const summary = await drawDrivingRouteToFeature({ geometry: targetPoint }, "#ef4444", (msg) => {
+          setIncidentStatus(msg);
+        });
+        if (summary?.duration != null) {
+          setIncidentEta(summary.duration);
+        } else {
+          setIncidentEta(420);
+        }
       };
 
       function startAlarmFlashSession() {
@@ -2666,7 +2763,6 @@ Maintain safe distance
           const id = found.graphic.attributes?.objektidentitet;
           if (id === ALARM_OBJECT_ID) {
             window.showAlarmModal();
-            window.showIncidentModal();
           }
           if (SIM_OBJECT_IDS.includes(id)) {
             buildingLink.innerHTML = `
@@ -2943,8 +3039,9 @@ if (isBus) {
     document.getElementById("alarmClose")?.addEventListener("click", () => {
       window.hideAlarmModal();
     });
-    document.getElementById("alarmAcknowledge")?.addEventListener("click", () => {
+    document.getElementById("alarmGoIncident")?.addEventListener("click", () => {
       window.hideAlarmModal();
+      window.showIncidentModal();
     });
     document.addEventListener("click", (e) => {
       if (e.target && e.target.id === "incidentModal") {
@@ -2956,6 +3053,9 @@ if (isBus) {
     });
     document.getElementById("incidentAcknowledge")?.addEventListener("click", () => {
       window.hideIncidentModal();
+    });
+    document.getElementById("incidentRoute")?.addEventListener("click", () => {
+      window.showPoliceRouteToAlarm();
     });
   </script>
   <script type="module" src="./electricity-sim.js"></script>
