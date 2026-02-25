@@ -1235,31 +1235,42 @@ Maintain safe distance
         const routeDurationSec = 3600;
         const nextGraphics = new Map();
         let count = 0;
+        const buildSegment = (dist, lengthMeters) => {
+          const half = (lengthMeters || 30) / 2;
+          const d0 = Math.max(0, dist - half);
+          const d1 = Math.min(sampler.total, dist + half);
+          const p0 = sampler.toGeographicPoint(d0);
+          const p1 = sampler.toGeographicPoint(d1);
+          if (!p0 || !p1) return null;
+          return new Polyline({
+            paths: [[[p0.longitude, p0.latitude], [p1.longitude, p1.latitude]]],
+            spatialReference: { wkid: 4326 }
+          });
+        };
         bus15State.departures.forEach((dep) => {
           const elapsed = (now - dep.time.getTime()) / 1000;
           if (elapsed < 0 || elapsed > routeDurationSec) return;
           const progress = elapsed / routeDurationSec;
           const dist = sampler.total * progress;
-          const pt = sampler.toGeographicPoint(dist);
-          if (!pt) return;
+          const seg = buildSegment(dist, 30);
+          if (!seg) return;
           count += 1;
           let g = bus15State.graphics.get(dep.id);
           if (!g) {
             g = new Graphic({
-              geometry: pt,
+              geometry: seg,
               symbol: {
-                type: "point-3d",
+                type: "line-3d",
                 symbolLayers: [{
-                  type: "icon",
-                  resource: { href: busCompositeIcon },
-                  size: 20,
-                  anchor: "center"
+                  type: "line",
+                  size: 4,
+                  material: { color: "#2563eb" }
                 }]
               }
             });
             bus15Layer.add(g);
           } else {
-            g.geometry = pt;
+            g.geometry = seg;
           }
           nextGraphics.set(dep.id, g);
         });
