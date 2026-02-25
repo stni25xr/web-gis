@@ -160,6 +160,7 @@
     }
   </style>
   <link rel="stylesheet" href="./styles.css" />
+  <script src="./config.local.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -784,8 +785,8 @@ Maintain safe distance
       "esri/Graphic"
     ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, Search, geometryEngine, webMercatorUtils, Polyline, GraphicsLayer, Graphic) {
 
-      const RESROBOT_KEY = "a1ba6c34-9ea5-4b8f-907e-d4c18a3f58ec"; // Trafiklab ResRobot v2.1 API-nyckel
-      const ORS_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImE5ZjkyNWU1MGY0MzRiNzE4YmYyOGE4ZjQ0N2JmNzczIiwiaCI6Im11cm11cjY0In0="; // openrouteservice API-nyckel behövs för gångrutt
+      const RESROBOT_KEY = window.RESROBOT_KEY || "";
+      const ORS_KEY = window.ORS_KEY || "";
 
       const map = new Map({ basemap: "osm", ground: "world-elevation" });
 
