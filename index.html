@@ -163,9 +163,7 @@
   <script src="./config.local.js"></script>
   <script type="module">
     import JSZip from "https://esm.sh/jszip@3.10.1";
-    import protobuf from "https://esm.sh/protobufjs@7.2.5";
     window.JSZip = JSZip;
-    window.protobuf = protobuf;
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1062,6 +1060,96 @@ Maintain safe distance
         setIncidentStatus("");
       };
 
+      function parseCsv(text) {
+        const rows = [];
+        let row = [];
+        let cur = "";
+        let inQuotes = false;
+        for (let i = 0; i < text.length; i++) {
+          const ch = text[i];
+          if (ch === "\"") {
+            if (inQuotes && text[i + 1] === "\"") {
+              cur += "\"";
+              i++;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (ch === "," && !inQuotes) {
+            row.push(cur);
+            cur = "";
+          } else if ((ch === "\n" || ch === "\r") && !inQuotes) {
+            if (cur.length || row.length) {
+              row.push(cur);
+              rows.push(row);
+              row = [];
+              cur = "";
+            }
+          } else {
+            cur += ch;
+          }
+        }
+        if (cur.length || row.length) {
+          row.push(cur);
+          rows.push(row);
+        }
+        const headers = rows.shift() || [];
+        return rows.map((r) => {
+          const obj = {};
+          headers.forEach((h, idx) => {
+            obj[h] = r[idx] ?? "";
+          });
+          return obj;
+        });
+      }
+
+      async function loadBus15ShapeRoute() {
+        if (!GTFS_STATIC_KEY || !window.JSZip) return null;
+        try {
+          const url = `https://opendata.samtrafiken.se/gtfs/jlt/jlt.zip?key=${GTFS_STATIC_KEY}`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`GTFS static HTTP ${res.status}`);
+          const buf = await res.arrayBuffer();
+          const zip = await window.JSZip.loadAsync(buf);
+          const routesText = await zip.file("routes.txt").async("string");
+          const tripsText = await zip.file("trips.txt").async("string");
+          const shapesText = await zip.file("shapes.txt").async("string");
+          const routes = parseCsv(routesText);
+          const trips = parseCsv(tripsText);
+          const shapes = parseCsv(shapesText);
+
+          const routeIds = new Set();
+          routes.forEach((r) => {
+            const shortName = String(r.route_short_name || "").trim().replace(/^0+/, "");
+            if (shortName === "15") routeIds.add(r.route_id);
+          });
+          if (!routeIds.size) return null;
+
+          const shapeCounts = new Map();
+          trips.forEach((t) => {
+            if (routeIds.has(t.route_id) && t.shape_id) {
+              shapeCounts.set(t.shape_id, (shapeCounts.get(t.shape_id) || 0) + 1);
+            }
+          });
+          if (!shapeCounts.size) return null;
+          const bestShapeId = Array.from(shapeCounts.entries()).sort((a, b) => b[1] - a[1])[0][0];
+
+          const shapePoints = shapes
+            .filter((s) => s.shape_id === bestShapeId)
+            .map((s) => ({
+              lat: Number(s.shape_pt_lat),
+              lon: Number(s.shape_pt_lon),
+              seq: Number(s.shape_pt_sequence)
+            }))
+            .filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lon) && Number.isFinite(s.seq))
+            .sort((a, b) => a.seq - b.seq);
+          if (shapePoints.length < 2) return null;
+          return shapePoints.map((p) => [p.lon, p.lat]);
+        } catch (e) {
+          console.warn("Bus15 shapes load error:", e);
+          return null;
+        }
+      }
+
       function buildRouteSampler(routePoints) {
         if (!routePoints || routePoints.length < 2) return null;
         const baseLine = new Polyline({
@@ -1109,57 +1197,18 @@ Maintain safe distance
 
       async function initBus15Route() {
         if (bus15State.routePoints.length) return;
-        const features = await getBusFeatures();
-        const baseRoute = buildBus15Route(features);
-        if (!baseRoute.length) return;
-        const stopPoints = baseRoute.map((g) => {
-          const lon = g.longitude ?? g.x;
-          const lat = g.latitude ?? g.y;
-          return [lon, lat];
-        }).filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
-        if (stopPoints.length < 2) return;
-        let routePoints = stopPoints;
-        const cacheKey = "bus15_ors_route_v1";
-        try {
-          const cached = localStorage.getItem(cacheKey);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            if (Array.isArray(parsed) && parsed.length > 1) {
-              routePoints = parsed;
-            }
-          } else if (ORS_KEY) {
-            const chunks = [];
-            const maxPts = 40;
-            for (let i = 0; i < stopPoints.length; i += (maxPts - 1)) {
-              const slice = stopPoints.slice(i, i + maxPts);
-              if (slice.length >= 2) chunks.push(slice);
-            }
-            const allCoords = [];
-            for (let i = 0; i < chunks.length; i++) {
-              const body = { coordinates: chunks[i], instructions: false };
-              const res = await fetch("https://api.openrouteservice.org/v2/directions/driving-car/geojson", {
-                method: "POST",
-                headers: {
-                  "Authorization": ORS_KEY,
-                  "Content-Type": "application/json"
-                },
-                body: JSON.stringify(body)
-              });
-              if (!res.ok) throw new Error("ORS " + res.status);
-              const data = await res.json();
-              const coords = data?.features?.[0]?.geometry?.coordinates || [];
-              coords.forEach((c, idx) => {
-                if (i > 0 && idx === 0) return;
-                allCoords.push(c);
-              });
-            }
-            if (allCoords.length > 1) {
-              routePoints = allCoords;
-              localStorage.setItem(cacheKey, JSON.stringify(allCoords));
-            }
-          }
-        } catch (e) {
-          console.warn("Bus15 route ORS failed, fallback to straight segments", e);
+        let routePoints = await loadBus15ShapeRoute();
+        if (!routePoints || routePoints.length < 2) {
+          const features = await getBusFeatures();
+          const baseRoute = buildBus15Route(features);
+          if (!baseRoute.length) return;
+          const stopPoints = baseRoute.map((g) => {
+            const lon = g.longitude ?? g.x;
+            const lat = g.latitude ?? g.y;
+            return [lon, lat];
+          }).filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+          if (stopPoints.length < 2) return;
+          routePoints = stopPoints;
         }
         bus15State.routePoints = routePoints;
         bus15State.routeSampler = buildRouteSampler(routePoints);
