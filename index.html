@@ -1238,7 +1238,7 @@ Maintain safe distance
         if (!bus15Layer) return;
         if (!sampler) return;
         const now = Date.now();
-        const routeDurationSec = 3600;
+        const routeDurationSec = 900;
         const nextGraphics = new Map();
         let count = 0;
         const departures = bus15State.departures && bus15State.departures.length
@@ -1323,7 +1323,7 @@ Maintain safe distance
         initBus15Route().then(() => {
           fetchBus15Departures().then(updateBus15FromTimetable);
           bus15State.depTimer = setInterval(fetchBus15Departures, 60000);
-          bus15State.timer = setInterval(updateBus15FromTimetable, 3000);
+        bus15State.timer = setInterval(updateBus15FromTimetable, 1000);
         });
       }
 
