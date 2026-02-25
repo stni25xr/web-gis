@@ -192,15 +192,13 @@
   padding: 14px;
   font-size: 13px;
   line-height: 1.5;
+  max-height: min(60vh, 520px);
+  overflow: auto;
 }
 
-#incidentModal .incident-line {
-  margin-bottom: 6px;
-}
-
-#incidentModal .incident-note {
-  margin-top: 8px;
-  color: #cbd5e1;
+#incidentModal .incident-text {
+  white-space: pre-line;
+  color: #e2e8f0;
 }
 
 #incidentModal .incident-actions {
