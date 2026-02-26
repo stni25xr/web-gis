@@ -145,13 +145,13 @@
 
     /* ===== Map ===== */
     #sceneView {
-      position:absolute; top:110px; left:0; right:0; height:calc(100% - 110px); z-index:1;
+      position:absolute; top:110px; left:290px; right:320px; height:calc(100% - 110px); z-index:1;
     }
 
     @media (max-width: 900px) {
       #sidebar { width:220px; }
       #info-panel { width:260px; }
-      #sceneView { left:0; right:0; }
+      #sceneView { left:220px; right:260px; }
     }
     @media (max-width: 720px) {
       #sidebar { width:180px; }
@@ -204,14 +204,9 @@
     </div>
   </div>
 
-  <!-- Panel backdrop + handles -->
-  <div id="panelBackdrop" class="panel-backdrop" aria-hidden="true"></div>
-  <button id="leftHandle" class="panel-handle panel-handle-left" aria-label="Open left panel">Meny</button>
-  <button id="rightHandle" class="panel-handle panel-handle-right" aria-label="Open right panel">Info</button>
-
   <!-- SIDEBAR -->
   <aside id="sidebar" aria-label="Sidomeny">
-    <h2>Meny <button id="leftPanelClose" class="panel-close" type="button" aria-label="Close left panel">✕</button></h2>
+    <h2>Meny</h2>
     <div class="sidebar-scroll">
       <div id="searchContainer"></div>
 
@@ -481,7 +476,7 @@
 
   <!-- INFO PANEL -->
   <aside id="info-panel" aria-label="Info panel">
-    <h2>Information <button id="rightPanelClose" class="panel-close" type="button" aria-label="Close right panel">✕</button></h2>
+    <h2>Information</h2>
 
     <div class="panel-section">
       <details>
@@ -4078,58 +4073,6 @@ if (isBus) {
     document.getElementById("incidentRouteClear")?.addEventListener("click", () => {
       window.clearPoliceRoute();
     });
-
-    // Panel toggle logic (overlay panels)
-    const bodyEl = document.body;
-    const leftHandle = document.getElementById("leftHandle");
-    const rightHandle = document.getElementById("rightHandle");
-    const leftClose = document.getElementById("leftPanelClose");
-    const rightClose = document.getElementById("rightPanelClose");
-    const panelBackdrop = document.getElementById("panelBackdrop");
-    let isLeftOpen = false;
-    let isRightOpen = false;
-
-    function updatePanelUI() {
-      bodyEl.classList.toggle("left-open", isLeftOpen);
-      bodyEl.classList.toggle("right-open", isRightOpen);
-    }
-    function closeAllPanels() {
-      isLeftOpen = false;
-      isRightOpen = false;
-      updatePanelUI();
-    }
-    function openLeft() {
-      isRightOpen = false;
-      isLeftOpen = true;
-      updatePanelUI();
-    }
-    function openRight() {
-      isLeftOpen = false;
-      isRightOpen = true;
-      updatePanelUI();
-    }
-    function toggleLeft() {
-      isLeftOpen = !isLeftOpen;
-      if (isLeftOpen) isRightOpen = false;
-      updatePanelUI();
-    }
-    function toggleRight() {
-      isRightOpen = !isRightOpen;
-      if (isRightOpen) isLeftOpen = false;
-      updatePanelUI();
-    }
-
-    leftHandle?.addEventListener("click", openLeft);
-    rightHandle?.addEventListener("click", openRight);
-    leftClose?.addEventListener("click", closeAllPanels);
-    rightClose?.addEventListener("click", closeAllPanels);
-    panelBackdrop?.addEventListener("click", closeAllPanels);
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeAllPanels();
-    });
-
-    // Default collapsed on load
-    closeAllPanels();
   </script>
   <script>
     // Demo-only login gate (client-side)
