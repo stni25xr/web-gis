@@ -877,7 +877,8 @@ Maintain safe distance
       const view = new SceneView({
         container: "sceneView",
         map,
-        camera: { position: { latitude: 57.796, longitude: 14.200, z: 1800 }, tilt: 0 }
+        // Start at LOD1 camera to avoid post-load rescale
+        camera: { position: { latitude: 57.762686206841096, longitude: 14.187974955833315, z: 7500 }, tilt: 0 }
       });
       window.view = view;
       console.log("devicePixelRatio", window.devicePixelRatio);
@@ -2573,7 +2574,7 @@ Maintain safe distance
         el.dispatchEvent(new Event("change"));
       }
 
-      function applyLod(level) {
+      function applyLod(level, skipGoTo = false) {
         const lvl = Number(level);
         if (!Number.isFinite(lvl)) return;
         const profile = lvl <= 2 ? "low" : lvl === 3 ? "medium" : "high";
@@ -2585,7 +2586,7 @@ Maintain safe distance
             : lvl === 3 ? 2500
               : lvl === 4 ? 1500
                 : 500;
-        if (view) {
+        if (view && !skipGoTo) {
           if (lvl === 1) {
             view.goTo({ position: { latitude: 57.762686206841096, longitude: 14.187974955833315, z: targetZ }, tilt: 0 }, { duration: 600 });
           } else if (view.camera) {
@@ -2598,7 +2599,7 @@ Maintain safe distance
           }
         }
         if (lvl === 1) {
-          setChecked(swBase, false);
+          setChecked(swBase, true);
           setChecked(swArea, false);
           setChecked(swTransport, false);
           setChecked(swService, false);
@@ -2646,11 +2647,11 @@ Maintain safe distance
 
       document.querySelectorAll(".lod-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
-          applyLod(btn.dataset.lod);
+          applyLod(btn.dataset.lod, false);
         });
       });
-      // Start page in LOD1
-      applyLod(1);
+      // Start page in LOD1 without triggering a goTo animation
+      applyLod(1, true);
       bindGroup(swService, [swForskola, swGrund, swGymn, swVard]);
       bindGroup(swSafety, [swPolice, swFire, swHospital, swShelter]);
 
@@ -4095,6 +4096,10 @@ if (isBus) {
         overlay.classList.add("is-hidden");
         setTimeout(() => {
           overlay.style.display = "none";
+          if (window.view) {
+            window.view.resize();
+            if (typeof window.view.requestRender === "function") window.view.requestRender();
+          }
         }, 450);
         loggedIn = true;
       };
