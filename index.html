@@ -2493,14 +2493,7 @@ Maintain safe distance
 
       // Sökfunktion borttagen
 
-      // Auto‑zoom när lagret är redo
-      view.whenLayerView(ox).then(() => {
-        ox.queryExtent().then((res) => {
-          if (res && res.extent) {
-            view.goTo({ target: res.extent, tilt: 38 }, { duration: 1200 });
-          }
-        });
-      });
+      // Auto‑zoom removed to avoid label scaling changes after load
 
       // Switchar
       const swBase = document.getElementById("swBase");
