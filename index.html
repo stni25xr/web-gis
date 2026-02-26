@@ -1880,7 +1880,7 @@ Maintain safe distance
       map.add(bus);
       bus.when(() => {
         if (window.initBus15Layer) {
-          window.initBus15Layer({ view, map, GraphicsLayer, Graphic, Polyline, webMercatorUtils });
+          window.initBus15Layer({ view, map, GraphicsLayer, Graphic, Polyline, webMercatorUtils, busLayer: bus });
         }
       });
 

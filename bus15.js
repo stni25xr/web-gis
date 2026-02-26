@@ -28,7 +28,9 @@
     routeLayer: null,
     routeLayer2: null,
     statusEl: null,
-    widgetEl: null
+    widgetEl: null,
+    movingOffsets: new Map(),
+    lastTick: 0
   };
 
   function status(text) {
@@ -309,14 +311,38 @@
     map.addMany([state.routeLayer, state.routeLayer2, state.layer]);
 
     const key = window.TRAFIKLAB_API_KEY || window.GTFS_STATIC_KEY || "";
-    if (!key || !window.JSZip) {
-      status("Bus 15: Simulating from timetable (no realtime feed)");
-      return;
+    let routes = null;
+    if (key && window.JSZip) {
+      try {
+        routes = await loadGtfsShapes({ JSZip: window.JSZip, key, lineShortName: opts.lineShortName, stopNames: opts.stopNames });
+      } catch (e) {
+        routes = null;
+      }
     }
-    const routes = await loadGtfsShapes({ JSZip: window.JSZip, key, lineShortName: opts.lineShortName, stopNames: opts.stopNames });
     if (!routes || !routes.out?.route || !routes.in?.route) {
-      status("Bus 15: Simulating from timetable (no route)");
-      return;
+      status("Bus 15: Simulating from timetable (fallback route)");
+      // Fallback: build a simple loop from local bus stop points
+      const res = await ctx.busLayer.queryFeatures({ where: "1=1", outFields: ["Nr", "Hplnamn"], returnGeometry: true });
+      const feats = res.features || [];
+      const points = feats
+        .map((f) => {
+          const lon = f.geometry?.longitude ?? f.geometry?.x;
+          const lat = f.geometry?.latitude ?? f.geometry?.y;
+          return Number.isFinite(lon) && Number.isFinite(lat) ? [lon, lat] : null;
+        })
+        .filter(Boolean);
+      if (points.length < 4) {
+        status("Bus 15: Simulating (no route data)");
+        return;
+      }
+      // split into two directions by simple half split
+      const mid = Math.floor(points.length / 2);
+      routes = {
+        out: { route: points.slice(0, mid), stops: [] },
+        in: { route: points.slice(mid).concat(points[0]), stops: [] }
+      };
+    } else {
+      status("Bus 15: Simulating from timetable (GTFS shapes)");
     }
 
     const outLine = new Polyline({ paths: [routes.out.route], spatialReference: { wkid: 4326 } });
