@@ -32,8 +32,6 @@
     #sidebar h2 {
       margin:0 0 12px 0; font-size:16px; color:#ddd; border-bottom:1px solid #444; padding-bottom:8px;
     }
-    #searchContainer { margin-bottom:12px; }
-    #searchContainer .esri-search { width:100%; }
     #sidebar select {
       background:#111827; color:#e2e8f0; border:1px solid #374151; padding:4px 6px; border-radius:6px;
       font-size:12px;
@@ -208,7 +206,6 @@
   <aside id="sidebar" aria-label="Sidomeny">
     <h2>Meny</h2>
     <div class="sidebar-scroll">
-      <div id="searchContainer"></div>
 
     <details class="switch-group">
       <summary class="switch-group-title">LOD</summary>
@@ -841,13 +838,12 @@ Maintain safe distance
       "esri/layers/SceneLayer",
       "esri/layers/GeoJSONLayer",
       "esri/layers/FeatureLayer",
-      "esri/widgets/Search",
       "esri/geometry/geometryEngine",
       "esri/geometry/support/webMercatorUtils",
       "esri/geometry/Polyline",
       "esri/layers/GraphicsLayer",
       "esri/Graphic"
-    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, Search, geometryEngine, webMercatorUtils, Polyline, GraphicsLayer, Graphic) {
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, geometryEngine, webMercatorUtils, Polyline, GraphicsLayer, Graphic) {
 
       const RESROBOT_KEY = window.RESROBOT_KEY || "";
       const ORS_KEY = window.ORS_KEY || "";
@@ -2488,87 +2484,7 @@ Maintain safe distance
       });
       map.add(shelter);
 
-      // Sökfunktion (adresser + lager)
-      const search = new Search({
-        view,
-        container: "searchContainer",
-        includeDefaultSources: true,
-        sources: [
-          {
-            layer: bus,
-            searchFields: ["Hplnamn", "Nr"],
-            displayField: "Hplnamn",
-            exactMatch: false,
-            outFields: ["*"],
-            name: "Busshållplatser",
-            placeholder: "Sök busshållplats"
-          },
-          {
-            layer: forskola,
-            searchFields: ["name"],
-            displayField: "name",
-            outFields: ["*"],
-            name: "Förskolor",
-            placeholder: "Sök förskola"
-          },
-          {
-            layer: grund,
-            searchFields: ["name"],
-            displayField: "name",
-            outFields: ["*"],
-            name: "Grundskolor",
-            placeholder: "Sök grundskola"
-          },
-          {
-            layer: gymn,
-            searchFields: ["name"],
-            displayField: "name",
-            outFields: ["*"],
-            name: "Gymnasieskolor",
-            placeholder: "Sök gymnasium"
-          },
-          {
-            layer: vard,
-            searchFields: ["name"],
-            displayField: "name",
-            outFields: ["*"],
-            name: "Vårdcentral",
-            placeholder: "Sök vårdcentral"
-          },
-          {
-            layer: hospital,
-            searchFields: ["name"],
-            displayField: "name",
-            outFields: ["*"],
-            name: "Sjukhus",
-            placeholder: "Sök sjukhus"
-          },
-          {
-            layer: police,
-            searchFields: ["name"],
-            displayField: "name",
-            outFields: ["*"],
-            name: "Polis",
-            placeholder: "Sök polis"
-          },
-          {
-            layer: fire,
-            searchFields: ["name"],
-            displayField: "name",
-            outFields: ["*"],
-            name: "Räddningstjänst",
-            placeholder: "Sök räddningstjänst"
-          },
-          {
-            layer: shelter,
-            searchFields: ["namn", "name"],
-            displayField: "namn",
-            outFields: ["*"],
-            name: "Skyddsrum",
-            placeholder: "Sök skyddsrum"
-          }
-        ]
-      });
+      // Sökfunktion borttagen
 
       // Auto‑zoom när lagret är redo
       view.whenLayerView(ox).then(() => {
