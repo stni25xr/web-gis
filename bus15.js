@@ -43,11 +43,16 @@
   function updateWidget() {
     if (!state.widgetEl) return;
     const parts = [];
+    let total = 0;
     state.lines.forEach((line) => {
       if (!line.enabled) return;
       const cfg = line.config;
+      total += cfg.busCount;
       parts.push(`Bus ${cfg.label}: Simulated (${cfg.busCount} buses, every ${cfg.headwayMinutes} min, ${cfg.loopMinutes} min loop)`);
     });
+    if (parts.length) {
+      parts.push(`Total buses: ${total}`);
+    }
     state.widgetEl.innerHTML = parts.length ? parts.join("<br>") : "Bus simulation: av";
   }
 

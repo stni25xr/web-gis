@@ -855,7 +855,7 @@ Maintain safe distance
       const view = new SceneView({
         container: "sceneView",
         map,
-        camera: { position: { latitude: 57.796, longitude: 14.200, z: 1800 }, tilt: 45 }
+        camera: { position: { latitude: 57.796, longitude: 14.200, z: 1800 }, tilt: 0 }
       });
       view.popup.dockEnabled = true;
       view.popup.dockOptions = { position: "top-right", breakpoint: false };
@@ -3352,10 +3352,6 @@ Maintain safe distance
 
       async function drawDrivingRouteToFeature(targetFeature, safetyColor, setStatus) {
         const status = typeof setStatus === "function" ? setStatus : () => {};
-        if (!ORS_KEY) {
-          status("Lägg in din openrouteservice API‑nyckel i koden");
-          return null;
-        }
         if (!lastSafeMeasurePoint || !targetFeature) {
           status("Mät först en punkt på kartan");
           return null;
@@ -3370,29 +3366,51 @@ Maintain safe distance
         const eLon = end.longitude ?? end.x;
         const eLat = end.latitude ?? end.y;
 
-        const url = "https://api.openrouteservice.org/v2/directions/driving-car/geojson";
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": ORS_KEY },
-          body: JSON.stringify({ coordinates: [[sLon, sLat], [eLon, eLat]] })
-        });
-        const data = await res.json();
-        const feat = data?.features?.[0];
-        const coords = feat?.geometry?.coordinates;
-        const summary = feat?.properties?.summary;
-        if (!coords || coords.length < 2) {
-          status("Ingen rutt hittades");
-          return null;
+        const drawStraight = () => {
+          const route = new Polyline({ paths: [[[sLon, sLat], [eLon, eLat]]], spatialReference: { wkid: 4326 } });
+          safetyRouteLayer.removeAll();
+          safetyRouteLayer.add(new Graphic({
+            geometry: route,
+            symbol: { type: "simple-line", color: safetyColor || "#1d4ed8", width: 3 }
+          }));
+          const meters = geometryEngine.geodesicLength(route, "meters");
+          const duration = meters / (50 * 1000 / 3600); // 50 km/h fallback
+          return { distance: meters, duration };
+        };
+
+        if (!ORS_KEY) {
+          status("ORS saknas – visar rak linje");
+          return drawStraight();
         }
-        lastSafetyRouteCoords = coords;
-        lastSafetyRouteSummary = summary || null;
-        safetyRouteLayer.removeAll();
-        const route = new Polyline({ paths: [coords], spatialReference: { wkid: 4326 } });
-        safetyRouteLayer.add(new Graphic({
-          geometry: route,
-          symbol: { type: "simple-line", color: safetyColor || "#1d4ed8", width: 3 }
-        }));
-        return summary || null;
+
+        const url = "https://api.openrouteservice.org/v2/directions/driving-car/geojson";
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": ORS_KEY },
+            body: JSON.stringify({ coordinates: [[sLon, sLat], [eLon, eLat]] })
+          });
+          const data = await res.json();
+          const feat = data?.features?.[0];
+          const coords = feat?.geometry?.coordinates;
+          const summary = feat?.properties?.summary;
+          if (!coords || coords.length < 2) {
+            status("Ingen rutt hittades – visar rak linje");
+            return drawStraight();
+          }
+          lastSafetyRouteCoords = coords;
+          lastSafetyRouteSummary = summary || null;
+          safetyRouteLayer.removeAll();
+          const route = new Polyline({ paths: [coords], spatialReference: { wkid: 4326 } });
+          safetyRouteLayer.add(new Graphic({
+            geometry: route,
+            symbol: { type: "simple-line", color: safetyColor || "#1d4ed8", width: 3 }
+          }));
+          return summary || null;
+        } catch (e) {
+          status("Ruttfel – visar rak linje");
+          return drawStraight();
+        }
       }
 
       async function updateSelectedSafetyDistance(mapPoint) {
