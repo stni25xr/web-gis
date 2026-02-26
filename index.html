@@ -143,18 +143,18 @@
 
     /* ===== Map ===== */
     #sceneView {
-      position:absolute; top:110px; left:290px; right:320px; height:calc(100% - 110px); z-index:1;
+      position:absolute; top:110px; left:0; right:0; height:calc(100% - 110px); z-index:1;
     }
 
     @media (max-width: 900px) {
       #sidebar { width:220px; }
       #info-panel { width:260px; }
-      #sceneView { left:220px; right:260px; }
+      #sceneView { left:0; right:0; }
     }
     @media (max-width: 720px) {
       #sidebar { width:180px; }
       #info-panel { display:none; }
-      #sceneView { left:180px; right:0; }
+      #sceneView { left:0; right:0; }
     }
   </style>
   <link rel="stylesheet" href="./styles.css" />
@@ -202,9 +202,13 @@
     </div>
   </div>
 
+  <!-- Mini tabs -->
+  <button id="leftTab" class="panel-tab panel-tab-left" aria-label="Öppna meny">≡</button>
+  <button id="rightTab" class="panel-tab panel-tab-right" aria-label="Öppna information">≡</button>
+
   <!-- SIDEBAR -->
   <aside id="sidebar" aria-label="Sidomeny">
-    <h2>Meny</h2>
+    <h2>Meny <button id="leftPanelClose" class="panel-close" type="button" aria-label="Stäng meny">✕</button></h2>
     <div class="sidebar-scroll">
 
     <details class="switch-group">
@@ -473,7 +477,7 @@
 
   <!-- INFO PANEL -->
   <aside id="info-panel" aria-label="Info panel">
-    <h2>Information</h2>
+    <h2>Information <button id="rightPanelClose" class="panel-close" type="button" aria-label="Stäng information">✕</button></h2>
 
     <div class="panel-section">
       <details>
@@ -3989,6 +3993,59 @@ if (isBus) {
     document.getElementById("incidentRouteClear")?.addEventListener("click", () => {
       window.clearPoliceRoute();
     });
+
+    // Panel toggle logic
+    const leftPanel = document.getElementById("sidebar");
+    const rightPanel = document.getElementById("info-panel");
+    const leftTab = document.getElementById("leftTab");
+    const rightTab = document.getElementById("rightTab");
+    const leftClose = document.getElementById("leftPanelClose");
+    const rightClose = document.getElementById("rightPanelClose");
+
+    let leftOpen = false;
+    let rightOpen = false;
+
+    function updateUI() {
+      leftPanel?.classList.toggle("is-open", leftOpen);
+      rightPanel?.classList.toggle("is-open", rightOpen);
+      if (leftTab) leftTab.style.display = leftOpen ? "none" : "block";
+      if (rightTab) rightTab.style.display = rightOpen ? "none" : "block";
+    }
+
+    function openLeft() {
+      leftOpen = true;
+      rightOpen = false;
+      updateUI();
+    }
+    function closeLeft() {
+      leftOpen = false;
+      updateUI();
+    }
+    function openRight() {
+      rightOpen = true;
+      leftOpen = false;
+      updateUI();
+    }
+    function closeRight() {
+      rightOpen = false;
+      updateUI();
+    }
+    function closeAll() {
+      leftOpen = false;
+      rightOpen = false;
+      updateUI();
+    }
+
+    leftTab?.addEventListener("click", openLeft);
+    rightTab?.addEventListener("click", openRight);
+    leftClose?.addEventListener("click", closeLeft);
+    rightClose?.addEventListener("click", closeRight);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeAll();
+    });
+
+    // Default collapsed
+    closeAll();
   </script>
   <script>
     // Demo-only login gate (client-side)
