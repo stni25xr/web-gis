@@ -75,8 +75,8 @@
 
 #bus15Widget {
   position: absolute;
-  right: 18px;
-  top: 90px;
+  left: 290px;
+  top: 110px;
   z-index: 1002;
   pointer-events: none;
   padding: 6px 10px;
