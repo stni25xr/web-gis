@@ -207,7 +207,8 @@
   <!-- SIDEBAR -->
   <aside id="sidebar" aria-label="Sidomeny">
     <h2>Meny</h2>
-    <div id="searchContainer"></div>
+    <div class="sidebar-scroll">
+      <div id="searchContainer"></div>
 
     <details class="switch-group">
       <summary class="switch-group-title">LOD</summary>
@@ -466,6 +467,10 @@
           <span>Skyddsrum</span>
         </div>
       </details>
+    </div>
+    </div>
+    <div class="sidebar-footer">
+      <button id="logoutBtn" type="button" class="logout-btn">Logga ut</button>
     </div>
   </aside>
 
@@ -4078,19 +4083,43 @@ if (isBus) {
       const password = document.getElementById("loginPassword");
       const btn = document.getElementById("loginBtn");
       const error = document.getElementById("loginError");
+      const logoutBtn = document.getElementById("logoutBtn");
 
       const VALID_EMAIL = "stni25xr@mi31b.io";
       const VALID_PASS = "password";
+      let loggedIn = false;
+
+      const resetLoginFields = () => {
+        if (email) email.value = "";
+        if (password) password.value = "";
+        if (error) error.textContent = "";
+      };
+
+      const showLoginOverlay = () => {
+        if (!overlay) return;
+        resetLoginFields();
+        overlay.style.display = "flex";
+        requestAnimationFrame(() => {
+          overlay.classList.remove("is-hidden");
+        });
+        loggedIn = false;
+      };
+
+      const hideLoginOverlay = () => {
+        if (!overlay) return;
+        overlay.classList.add("is-hidden");
+        setTimeout(() => {
+          overlay.style.display = "none";
+        }, 450);
+        loggedIn = true;
+      };
 
       const tryLogin = () => {
         if (!email || !password || !overlay || !card) return;
         const ok = email.value.trim() === VALID_EMAIL && password.value === VALID_PASS;
         if (ok) {
           if (error) error.textContent = "";
-          overlay.classList.add("is-hidden");
-          setTimeout(() => {
-            overlay.remove();
-          }, 450);
+          hideLoginOverlay();
         } else {
           if (error) error.textContent = "Fel e‑post eller lösenord";
           card.classList.remove("is-shake");
@@ -4104,6 +4133,14 @@ if (isBus) {
         el?.addEventListener("keydown", (e) => {
           if (e.key === "Enter") tryLogin();
         });
+      });
+
+      logoutBtn?.addEventListener("click", () => {
+        if (loggedIn) {
+          showLoginOverlay();
+        } else {
+          showLoginOverlay();
+        }
       });
     });
   </script>

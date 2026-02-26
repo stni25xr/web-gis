@@ -192,6 +192,40 @@
   100% { transform: translateX(0); }
 }
 
+/* ===== Sidebar logout ===== */
+#sidebar {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.sidebar-footer {
+  flex: 0 0 auto;
+  padding-top: 12px;
+  border-top: 1px solid #2f3742;
+}
+
+.logout-btn {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #ef4444;
+  color: #fff;
+}
+
+.logout-btn:hover {
+  background: #dc2626;
+}
+
 #alarmModal {
   position: fixed;
   inset: 0;
