@@ -8,7 +8,7 @@
     serviceStartHour: 5,
     serviceEndHour: 23,
     headwayMinutes: 60,
-    travelMinutes: 23,
+    travelMinutes: 30,
     layoverMinutes: 3,
     updateMs: 5000
   };
