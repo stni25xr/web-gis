@@ -171,6 +171,22 @@
   <link rel="stylesheet" href="./ui-2026.css" />
 </head>
 <body class="app">
+  <!-- DEMO LOGIN OVERLAY (client-side only) -->
+  <div id="loginOverlay" class="login-overlay" aria-hidden="false">
+    <div class="login-card" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+      <h1 id="loginTitle" class="login-title">MI31b inställ</h1>
+      <div class="login-field">
+        <label for="loginEmail">E‑post</label>
+        <input id="loginEmail" type="email" autocomplete="username" placeholder="gisbimiot@student.ju.se" />
+      </div>
+      <div class="login-field">
+        <label for="loginPassword">Lösenord</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="password" />
+      </div>
+      <div id="loginError" class="login-error" role="alert" aria-live="polite"></div>
+      <button id="loginBtn" type="button" class="login-btn">Logga in</button>
+    </div>
+  </div>
 
   <!-- HEADER -->
   <div id="header">
@@ -4051,6 +4067,44 @@ if (isBus) {
     });
     document.getElementById("incidentRouteClear")?.addEventListener("click", () => {
       window.clearPoliceRoute();
+    });
+  </script>
+  <script>
+    // Demo-only login gate (client-side)
+    document.addEventListener("DOMContentLoaded", () => {
+      const overlay = document.getElementById("loginOverlay");
+      const card = overlay?.querySelector(".login-card");
+      const email = document.getElementById("loginEmail");
+      const password = document.getElementById("loginPassword");
+      const btn = document.getElementById("loginBtn");
+      const error = document.getElementById("loginError");
+
+      const VALID_EMAIL = "gisbimiot@student.ju.se";
+      const VALID_PASS = "password";
+
+      const tryLogin = () => {
+        if (!email || !password || !overlay || !card) return;
+        const ok = email.value.trim() === VALID_EMAIL && password.value === VALID_PASS;
+        if (ok) {
+          if (error) error.textContent = "";
+          overlay.classList.add("is-hidden");
+          setTimeout(() => {
+            overlay.remove();
+          }, 450);
+        } else {
+          if (error) error.textContent = "Fel e‑post eller lösenord";
+          card.classList.remove("is-shake");
+          void card.offsetWidth;
+          card.classList.add("is-shake");
+        }
+      };
+
+      btn?.addEventListener("click", tryLogin);
+      [email, password].forEach((el) => {
+        el?.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") tryLogin();
+        });
+      });
     });
   </script>
   <script type="module" src="./electricity-sim.js"></script>
