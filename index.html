@@ -194,6 +194,17 @@
     <div id="searchContainer"></div>
 
     <details class="switch-group">
+      <summary class="switch-group-title">LOD</summary>
+      <div class="lod-grid" role="group" aria-label="Level of detail">
+        <button class="lod-btn" type="button" data-lod="1">LOD1</button>
+        <button class="lod-btn" type="button" data-lod="2">LOD2</button>
+        <button class="lod-btn" type="button" data-lod="3">LOD3</button>
+        <button class="lod-btn" type="button" data-lod="4">LOD4</button>
+        <button class="lod-btn" type="button" data-lod="5">LOD5</button>
+      </div>
+    </details>
+
+    <details class="switch-group">
       <summary class="switch-group-title">Baslager</summary>
       <div class="switch-row">
         <span class="switch-label">Baslager</span>
@@ -229,17 +240,6 @@
           <input id="swWater" type="checkbox" checked />
           <span class="slider"></span>
         </label>
-      </div>
-    </details>
-
-    <details class="switch-group">
-      <summary class="switch-group-title">LOD</summary>
-      <div class="lod-grid" role="group" aria-label="Level of detail">
-        <button class="lod-btn" type="button" data-lod="1">LOD1</button>
-        <button class="lod-btn" type="button" data-lod="2">LOD2</button>
-        <button class="lod-btn" type="button" data-lod="3">LOD3</button>
-        <button class="lod-btn" type="button" data-lod="4">LOD4</button>
-        <button class="lod-btn" type="button" data-lod="5">LOD5</button>
       </div>
     </details>
 
@@ -2322,18 +2322,21 @@ Maintain safe distance
           setChecked(swTransport, false);
           setChecked(swService, false);
           setChecked(swSafety, false);
+          setChecked(swFastighet, false);
         } else if (lvl === 2) {
           setChecked(swBase, true);
           setChecked(swArea, false);
           setChecked(swTransport, false);
           setChecked(swService, false);
           setChecked(swSafety, false);
+          setChecked(swFastighet, false);
         } else if (lvl === 3) {
           setChecked(swBase, true);
           setChecked(swArea, true);
           setChecked(swTransport, false);
           setChecked(swService, false);
           setChecked(swSafety, false);
+          setChecked(swFastighet, false);
         } else if (lvl === 4) {
           setChecked(swBase, true);
           setChecked(swArea, true);
@@ -2341,6 +2344,7 @@ Maintain safe distance
           setChecked(swService, true);
           setChecked(swSafety, false);
           setChecked(swSkolWalk, false);
+          setChecked(swFastighet, false);
         } else {
           setChecked(swBase, true);
           setChecked(swArea, true);
@@ -2348,6 +2352,7 @@ Maintain safe distance
           setChecked(swService, true);
           setChecked(swSafety, false);
           setChecked(swSkolWalk, false);
+          setChecked(swFastighet, true);
         }
         document.querySelectorAll(".lod-btn").forEach((btn) => {
           btn.classList.toggle("is-active", Number(btn.dataset.lod) === lvl);
