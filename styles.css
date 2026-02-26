@@ -211,11 +211,12 @@
 }
 
 .logout-btn {
-  width: 100%;
-  border: none;
+  width: 70%;
+  margin: 0 auto;
+  border: 1px solid rgba(239, 68, 68, 0.5);
   border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 13px;
+  padding: 6px 10px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   background: #ef4444;
