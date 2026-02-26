@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="520" viewBox="0 0 800 520">
+  <rect width="800" height="520" fill="#f8fafc"/>
+  <rect x="40" y="40" width="720" height="440" fill="none" stroke="#94a3b8" stroke-width="6"/>
+  <rect x="80" y="90" width="260" height="140" fill="none" stroke="#94a3b8" stroke-width="4"/>
+  <rect x="380" y="90" width="300" height="140" fill="none" stroke="#94a3b8" stroke-width="4"/>
+  <rect x="80" y="260" width="220" height="180" fill="none" stroke="#94a3b8" stroke-width="4"/>
+  <rect x="320" y="260" width="360" height="180" fill="none" stroke="#94a3b8" stroke-width="4"/>
+  <line x1="80" y1="240" x2="680" y2="240" stroke="#cbd5e1" stroke-width="3" stroke-dasharray="6 6"/>
+  <text x="80" y="60" font-family="Inter, system-ui, sans-serif" font-size="22" fill="#64748b">Floorplan (demo)</text>
+</svg>

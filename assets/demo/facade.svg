@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="520" viewBox="0 0 800 520">
+  <rect width="800" height="520" fill="#f8fafc"/>
+  <rect x="120" y="120" width="560" height="280" fill="none" stroke="#94a3b8" stroke-width="6"/>
+  <line x1="120" y1="210" x2="680" y2="210" stroke="#cbd5e1" stroke-width="4"/>
+  <line x1="120" y1="300" x2="680" y2="300" stroke="#cbd5e1" stroke-width="4"/>
+  <rect x="170" y="160" width="80" height="60" fill="none" stroke="#94a3b8" stroke-width="4"/>
+  <rect x="280" y="160" width="80" height="60" fill="none" stroke="#94a3b8" stroke-width="4"/>
+  <rect x="390" y="160" width="80" height="60" fill="none" stroke="#94a3b8" stroke-width="4"/>
+  <rect x="500" y="160" width="80" height="60" fill="none" stroke="#94a3b8" stroke-width="4"/>
+  <rect x="170" y="250" width="80" height="60" fill="none" stroke="#94a3b8" stroke-width="4"/>
+  <rect x="280" y="250" width="80" height="60" fill="none" stroke="#94a3b8" stroke-width="4"/>
+  <rect x="390" y="250" width="80" height="60" fill="none" stroke="#94a3b8" stroke-width="4"/>
+  <rect x="500" y="250" width="80" height="60" fill="none" stroke="#94a3b8" stroke-width="4"/>
+  <text x="120" y="90" font-family="Inter, system-ui, sans-serif" font-size="22" fill="#64748b">Facade (demo)</text>
+</svg>

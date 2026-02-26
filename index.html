@@ -679,6 +679,24 @@ Maintain safe distance
       </div>
     </div>
   </div>
+  <div id="buildingInfoModal" style="display:none;">
+    <div class="bi-modal" role="dialog" aria-modal="true" aria-labelledby="biTitle">
+      <div class="bi-header">
+        <div>
+          <div id="biTitle" class="bi-title">Building information</div>
+          <div id="biSubtitle" class="bi-subtitle">Multi-residential building (demo)</div>
+        </div>
+        <div class="bi-badge">Demo data (mock) – not from IFC</div>
+        <button id="biClose" type="button" aria-label="Close building information">✕</button>
+      </div>
+      <div class="bi-body" id="biBody"></div>
+      <div class="bi-actions">
+        <button id="biCopySummary" type="button" class="bi-btn">Copy summary</button>
+        <button id="biDownloadJson" type="button" class="bi-btn primary">Download JSON</button>
+        <button id="biCloseFooter" type="button" class="bi-btn">Close</button>
+      </div>
+    </div>
+  </div>
 
   <!-- CLOCK -->
   <script>
@@ -955,6 +973,313 @@ Maintain safe distance
         const modal = document.getElementById("incidentModal");
         if (modal) modal.style.display = "none";
       };
+
+      const demoFactsheet = {
+        identity: {
+          name: "Brf Solgläntan",
+          address: "Solgläntan 12, 561 32 Huskvarna",
+          municipality: "Jönköpings kommun, Jönköpings län",
+          property: "Huskvarna 4:218",
+          owner: "Bostadsrättsförening (BRF)",
+          yearBuilt: 2014,
+          floors: "6 över mark + 1 källare",
+          apartments: 72,
+          residents: "≈ 160"
+        },
+        size: {
+          bta: "6 400 m²",
+          nta: "5 300 m²",
+          footprint: "980 m²",
+          height: "18.5 m"
+        },
+        apartmentMix: [
+          "1 rok: 12",
+          "2 rok: 28",
+          "3 rok: 22",
+          "4 rok: 10"
+        ],
+        commonAreas: [
+          "Tvättstuga",
+          "Cykelrum",
+          "Förråd",
+          "Barnvagnsrum",
+          "Teknikrum"
+        ],
+        renovation: {
+          facade: "Tilläggsisolering + fönsterbyte (möjligt)",
+          roof: "Solcellspotential: 35–45 kWp",
+          ventilation: "FTX‑uppgradering möjlig",
+          accessibility: "Entréjustering och hiss‑optimering",
+          complexity: "Medium",
+          constraints: "Assumed (demo): detaljplan, bärande stomme"
+        },
+        sustainability: {
+          embodied: "310 kgCO₂e/m² (A1–A5)",
+          operational: "78 000 kgCO₂e/år (est.)",
+          eui: "68 kWh/m²·år",
+          heat: "Fjärrvärme",
+          note: "Klimatdeklaration enligt Boverket (demo)"
+        },
+        lca: [
+          { module: "A1–A3", value: "240 kgCO₂e/m²" },
+          { module: "A4", value: "20 kgCO₂e/m²" },
+          { module: "A5", value: "50 kgCO₂e/m²" },
+          { module: "B6", value: "35 kgCO₂e/m²" },
+          { module: "C1–C4", value: "28 kgCO₂e/m²" }
+        ],
+        technical: {
+          hvac: "FTX, zonstyrd",
+          heating: "Fjärrvärme",
+          electrical: "Huvudsäkring 250 A",
+          fire: "Br1, 2 trapphus",
+          water: "VVC + läckageövervakning"
+        },
+        documents: [
+          "Drift- och underhållsplan",
+          "Energideklaration",
+          "OVK‑protokoll",
+          "Radonmätning"
+        ]
+      };
+
+      const buildingInfoState = {
+        open: false,
+        attrs: null,
+        factsheet: null,
+        lastFocus: null
+      };
+
+      function buildBuildingFactsheet(attrs) {
+        const meta = attrs ? { ...attrs } : null;
+        return {
+          source: "demo",
+          objectNumber: attrs?.objektidentitet || null,
+          metadata: meta,
+          demo: demoFactsheet
+        };
+      }
+
+      function renderBuildingModal(data) {
+        const body = document.getElementById("biBody");
+        if (!body) return;
+        if (!data || !data.metadata) {
+          body.innerHTML = `
+            <div class="bi-empty">Select a building to view information.</div>
+          `;
+          return;
+        }
+        const d = data.demo;
+        const metaRows = Object.entries(data.metadata || {})
+          .filter(([k, v]) => v != null && v !== "")
+          .sort((a, b) => a[0].localeCompare(b[0]));
+        body.innerHTML = `
+          <div class="bi-grid">
+            <div class="bi-card"><div class="bi-card-label">Building name</div><div class="bi-card-value">${d.identity.name}</div></div>
+            <div class="bi-card"><div class="bi-card-label">Address</div><div class="bi-card-value">${d.identity.address}</div></div>
+            <div class="bi-card"><div class="bi-card-label">Year built</div><div class="bi-card-value">${d.identity.yearBuilt}</div></div>
+            <div class="bi-card"><div class="bi-card-label">Apartments</div><div class="bi-card-value">${d.identity.apartments}</div></div>
+            <div class="bi-card"><div class="bi-card-label">BTA</div><div class="bi-card-value">${d.size.bta}</div></div>
+            <div class="bi-card"><div class="bi-card-label">NTA</div><div class="bi-card-value">${d.size.nta}</div></div>
+            <div class="bi-card"><div class="bi-card-label">Floors</div><div class="bi-card-value">${d.identity.floors}</div></div>
+            <div class="bi-card"><div class="bi-card-label">EUI</div><div class="bi-card-value">${d.sustainability.eui}</div></div>
+          </div>
+
+          <div class="bi-media">
+            <img src="./assets/demo/floorplan.svg" alt="Floorplan demo" />
+            <img src="./assets/demo/facade.svg" alt="Facade demo" />
+            <img src="./assets/demo/section.svg" alt="Section demo" />
+          </div>
+
+          <details class="bi-section" open>
+            <summary>Overview</summary>
+            <div class="bi-section-content">
+              <div><b>Municipality:</b> ${d.identity.municipality}</div>
+              <div><b>Property designation:</b> ${d.identity.property}</div>
+              <div><b>Owner:</b> ${d.identity.owner}</div>
+              <div><b>Footprint:</b> ${d.size.footprint}</div>
+              <div><b>Height:</b> ${d.size.height}</div>
+              <div><b>Residents:</b> ${d.identity.residents}</div>
+            </div>
+          </details>
+
+          <details class="bi-section">
+            <summary>Floorplan</summary>
+            <div class="bi-section-content">
+              Typical mix: ${d.apartmentMix.join(", ")}<br>
+              Common areas: ${d.commonAreas.join(", ")}
+            </div>
+          </details>
+
+          <details class="bi-section">
+            <summary>Facade</summary>
+            <div class="bi-section-content">
+              Facade: Tegel + trädetaljer (demo).<br>
+              Window U‑value: 1.0 W/m²K (demo).
+            </div>
+          </details>
+
+          <details class="bi-section">
+            <summary>Section</summary>
+            <div class="bi-section-content">
+              Structural system: Betongstomme (demo).<br>
+              Roof: Sadeltak, 14° (demo).
+            </div>
+          </details>
+
+          <details class="bi-section">
+            <summary>Sustainability / CO₂</summary>
+            <div class="bi-section-content">
+              <div><b>Embodied carbon:</b> ${d.sustainability.embodied}</div>
+              <div><b>Operational carbon:</b> ${d.sustainability.operational}</div>
+              <div><b>Heat source:</b> ${d.sustainability.heat}</div>
+              <div style="margin-top:6px;font-size:12px;color:#94a3b8;">${d.sustainability.note}</div>
+              <div style="margin-top:8px;">
+                <table class="bi-table">
+                  <thead><tr><th>Module</th><th>Value</th></tr></thead>
+                  <tbody>
+                    ${d.lca.map((row) => `<tr><td>${row.module}</td><td>${row.value}</td></tr>`).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </details>
+
+          <details class="bi-section">
+            <summary>Renovation</summary>
+            <div class="bi-section-content">
+              <div><b>Facade:</b> ${d.renovation.facade}</div>
+              <div><b>Roof/solar:</b> ${d.renovation.roof}</div>
+              <div><b>Ventilation:</b> ${d.renovation.ventilation}</div>
+              <div><b>Accessibility:</b> ${d.renovation.accessibility}</div>
+              <div><b>Complexity:</b> ${d.renovation.complexity}</div>
+              <div><b>Constraints:</b> ${d.renovation.constraints}</div>
+            </div>
+          </details>
+
+          <details class="bi-section">
+            <summary>Technical systems</summary>
+            <div class="bi-section-content">
+              <div><b>HVAC:</b> ${d.technical.hvac}</div>
+              <div><b>Heating:</b> ${d.technical.heating}</div>
+              <div><b>Electrical:</b> ${d.technical.electrical}</div>
+              <div><b>Fire strategy:</b> ${d.technical.fire}</div>
+              <div><b>Water:</b> ${d.technical.water}</div>
+            </div>
+          </details>
+
+          <details class="bi-section">
+            <summary>Documents / Downloads</summary>
+            <div class="bi-section-content">
+              ${d.documents.map((doc) => `<div>• ${doc}</div>`).join("")}
+            </div>
+          </details>
+
+          <details class="bi-section">
+            <summary>Building metadata</summary>
+            <div class="bi-section-content">
+              ${metaRows.length ? `
+                <table class="bi-table">
+                  <thead><tr><th>Field</th><th>Value</th></tr></thead>
+                  <tbody>
+                    ${metaRows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("")}
+                  </tbody>
+                </table>
+              ` : `<div class="bi-empty">No metadata available.</div>`}
+            </div>
+          </details>
+        `;
+      }
+
+      function setBuildingInfoButtonsEnabled(enabled) {
+        const btnJson = document.getElementById("biDownloadJson");
+        const btnCopy = document.getElementById("biCopySummary");
+        if (btnJson) btnJson.disabled = !enabled;
+        if (btnCopy) btnCopy.disabled = !enabled;
+      }
+
+      function openBuildingInfoModal(attrs) {
+        const modal = document.getElementById("buildingInfoModal");
+        if (!modal) return;
+        buildingInfoState.attrs = attrs || lastSelectedBuildingAttrs || null;
+        buildingInfoState.factsheet = buildBuildingFactsheet(buildingInfoState.attrs);
+        renderBuildingModal(buildingInfoState.factsheet);
+        setBuildingInfoButtonsEnabled(!!buildingInfoState.attrs);
+        modal.style.display = "flex";
+        buildingInfoState.open = true;
+        buildingInfoState.lastFocus = document.activeElement;
+        const closeBtn = document.getElementById("biClose");
+        if (closeBtn) closeBtn.focus();
+      }
+
+      function closeBuildingInfoModal() {
+        const modal = document.getElementById("buildingInfoModal");
+        if (!modal) return;
+        modal.style.display = "none";
+        buildingInfoState.open = false;
+        if (buildingInfoState.lastFocus && typeof buildingInfoState.lastFocus.focus === "function") {
+          buildingInfoState.lastFocus.focus();
+        }
+      }
+
+      window.openBuildingInfoModal = openBuildingInfoModal;
+
+      document.addEventListener("click", (e) => {
+        if (!buildingInfoState.open) return;
+        const modal = document.getElementById("buildingInfoModal");
+        if (modal && e.target === modal) closeBuildingInfoModal();
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (!buildingInfoState.open) return;
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeBuildingInfoModal();
+          return;
+        }
+        if (e.key === "Tab") {
+          const modal = document.getElementById("buildingInfoModal");
+          if (!modal) return;
+          const focusables = modal.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex=\"-1\"])");
+          if (!focusables.length) return;
+          const list = Array.from(focusables);
+          const first = list[0];
+          const last = list[list.length - 1];
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      });
+
+      document.addEventListener("click", (e) => {
+        if (e.target && e.target.id === "biClose") closeBuildingInfoModal();
+        if (e.target && e.target.id === "biCloseFooter") closeBuildingInfoModal();
+      });
+
+      document.addEventListener("click", (e) => {
+        if (e.target && e.target.id === "biDownloadJson") {
+          if (!buildingInfoState.factsheet || !buildingInfoState.attrs) return;
+          const name = (demoFactsheet.identity.name || "building").toLowerCase().replace(/\\s+/g, "-");
+          const blob = new Blob([JSON.stringify(buildingInfoState.factsheet, null, 2)], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `${name}-factsheet-demo.json`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 500);
+        }
+        if (e.target && e.target.id === "biCopySummary") {
+          if (!buildingInfoState.factsheet || !buildingInfoState.attrs) return;
+          const d = demoFactsheet;
+          const summary = `${d.identity.name} – ${d.identity.address}. ${d.identity.apartments} lgh, BTA ${d.size.bta}, ${d.identity.floors}. EUI ${d.sustainability.eui}.`;
+          navigator.clipboard?.writeText(summary);
+        }
+      });
 
       function formatEta(seconds) {
         const sec = Math.max(0, Math.round(seconds));
@@ -1672,9 +1997,9 @@ Maintain safe distance
                   infoBtn.style.fontSize = "14px";
                   infoBtn.style.cursor = "pointer";
                   infoBtn.addEventListener("click", () => {
-                    const objectNumber = attrs.objektidentitet;
-                    const url = `building-information.html?objectNumber=${encodeURIComponent(objectNumber)}`;
-                    window.open(url, "_blank");
+                    if (window.openBuildingInfoModal) {
+                      window.openBuildingInfoModal(attrs);
+                    }
                   });
                   wrap.appendChild(infoBtn);
 
@@ -2467,6 +2792,7 @@ Maintain safe distance
       }
 
       let lastSelection = null;
+      let lastSelectedBuildingAttrs = null;
       let lastHighlight = null;
       let busFeaturesCache = null;
       let measureEnabled = false;
@@ -3378,6 +3704,7 @@ Maintain safe distance
           attrHint.textContent = "Inga attribut för valt objekt";
           attrTable.innerHTML = "";
           lastSelection = null;
+          lastSelectedBuildingAttrs = null;
           clearHighlight();
           clearDepartures();
           return;
@@ -3396,6 +3723,7 @@ Maintain safe distance
         renderAttributes(found.graphic.attributes);
         if (buildingLink) buildingLink.innerHTML = "";
         if (isBuilding) {
+          lastSelectedBuildingAttrs = found.graphic.attributes || null;
           const id = found.graphic.attributes?.objektidentitet;
           if (id === ALARM_OBJECT_ID) {
             window.showAlarmModal();
@@ -3405,7 +3733,7 @@ Maintain safe distance
               <button type="button" style="display:inline-block;margin-top:6px;color:#fff;background:#1f6feb;padding:6px 10px;border-radius:8px;font-size:12px;text-decoration:none;border:none;cursor:pointer;" onclick="openBimModal();">Se BIM Model</button>
               <div style="margin-top:8px;"><button id="iotBox" type="button" style="width:100%;" onclick="openIoTSimulation();">Visa El‑simulering</button></div>
               <div style="margin-top:8px;">
-                <button type="button" style="width:100%;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#0f172a;padding:6px 10px;font-size:12px;cursor:pointer;" onclick="window.open('building-information.html?objectNumber=${id}', '_blank');">Building information</button>
+                <button type="button" style="width:100%;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#0f172a;padding:6px 10px;font-size:12px;cursor:pointer;" onclick="window.openBuildingInfoModal && window.openBuildingInfoModal(lastSelection?.graphic?.attributes || null);">Building information</button>
                 <div style="margin-top:4px;font-size:11px;color:#64748b;">ID: ${id}</div>
               </div>
             `;

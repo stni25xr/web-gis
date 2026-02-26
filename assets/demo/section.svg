@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="520" viewBox="0 0 800 520">
+  <rect width="800" height="520" fill="#f8fafc"/>
+  <polygon points="120,320 400,120 680,320" fill="none" stroke="#94a3b8" stroke-width="6"/>
+  <rect x="160" y="320" width="480" height="140" fill="none" stroke="#94a3b8" stroke-width="6"/>
+  <line x1="160" y1="370" x2="640" y2="370" stroke="#cbd5e1" stroke-width="4"/>
+  <line x1="160" y1="420" x2="640" y2="420" stroke="#cbd5e1" stroke-width="4"/>
+  <text x="120" y="90" font-family="Inter, system-ui, sans-serif" font-size="22" fill="#64748b">Section (demo)</text>
+</svg>

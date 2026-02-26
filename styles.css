@@ -273,6 +273,193 @@
   font-size: 13px;
 }
 
+#buildingInfoModal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 6, 23, 0.45);
+  z-index: 10002;
+  font-family: inherit;
+}
+
+#buildingInfoModal .bi-modal {
+  width: min(720px, 94vw);
+  max-height: min(88vh, 820px);
+  background: #0b1220;
+  border: 1px solid #24324a;
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(2, 6, 23, 0.55);
+  color: #e2e8f0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#buildingInfoModal .bi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: #111827;
+  border-bottom: 1px solid #1f2937;
+  gap: 10px;
+}
+
+#buildingInfoModal .bi-title {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #e2e8f0;
+}
+
+#buildingInfoModal .bi-subtitle {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+#buildingInfoModal .bi-badge {
+  font-size: 11px;
+  color: #cbd5e1;
+  background: rgba(148, 163, 184, 0.15);
+  border: 1px solid #334155;
+  padding: 4px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+#buildingInfoModal #biClose {
+  border: none;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+#buildingInfoModal .bi-body {
+  padding: 14px;
+  overflow: auto;
+}
+
+#buildingInfoModal .bi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+#buildingInfoModal .bi-card {
+  background: #0f172a;
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+#buildingInfoModal .bi-card-label {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+
+#buildingInfoModal .bi-card-value {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#buildingInfoModal .bi-section {
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  background: #0f172a;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+#buildingInfoModal .bi-section summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 12px;
+  font-weight: 600;
+  color: #e2e8f0;
+  background: #111827;
+  border-bottom: 1px solid #1f2937;
+}
+
+#buildingInfoModal .bi-section summary::-webkit-details-marker {
+  display: none;
+}
+
+#buildingInfoModal .bi-section-content {
+  padding: 12px;
+  font-size: 13px;
+  color: #e2e8f0;
+}
+
+#buildingInfoModal .bi-media {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+#buildingInfoModal .bi-media img {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #1f2937;
+  background: #f8fafc;
+}
+
+#buildingInfoModal .bi-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+#buildingInfoModal .bi-table th,
+#buildingInfoModal .bi-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #1f2937;
+  text-align: left;
+  vertical-align: top;
+}
+
+#buildingInfoModal .bi-empty {
+  font-size: 12px;
+  color: #94a3b8;
+  padding: 8px 0;
+}
+
+#buildingInfoModal .bi-actions {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  border-top: 1px solid #1f2937;
+  background: #0b1220;
+}
+
+#buildingInfoModal .bi-btn {
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+#buildingInfoModal .bi-btn.primary {
+  border: none;
+  background: #1f6feb;
+  color: #fff;
+}
+
+#buildingInfoModal .bi-btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .elsim-modal {
   width: min(980px, 95vw);
   max-height: min(92vh, 860px);
