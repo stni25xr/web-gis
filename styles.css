@@ -75,9 +75,10 @@
 
 #bus15Widget {
   position: absolute;
-  right: 48px;
-  bottom: 28px;
-  z-index: 5;
+  right: 18px;
+  top: 90px;
+  z-index: 1002;
+  pointer-events: none;
   padding: 6px 10px;
   background: rgba(255, 255, 255, 0.9);
   color: #0f172a;
