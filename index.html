@@ -894,6 +894,8 @@ Maintain safe distance
         "e11f4a59-b4e9-4316-8850-3fe72633a93d",
         "5f1faa24-108f-419c-b83a-ed80b80e4501"
       ];
+      // Force 18m height for specific objektidentitet values
+      const FIXED_HEIGHT_IDS = new Set(SIM_OBJECT_IDS);
       const ALARM_OBJECT_ID = "e0c44880-6f88-4525-96e3-158cba7b058f";
       const BIM_OVERLAY_IDS = Array.from(new Set([...SIM_OBJECT_IDS, ALARM_OBJECT_ID]));
       const buildingGraphicsById = new window.Map();
@@ -938,13 +940,19 @@ Maintain safe distance
         return [34, 197, 94, 0.9];
       }
 
+      function getBuildingExtrudeSize(objectId) {
+        return FIXED_HEIGHT_IDS.has(objectId) ? 18 : 6;
+      }
+
       function setBuildingGraphicColor(graphic, color) {
         if (!graphic) return;
+        const id = graphic.attributes?.objektidentitet;
         graphic.symbol = {
           type: "polygon-3d",
           symbolLayers: [{
             type: "extrude",
-            size: 6,
+            // Ensure 18m height for the two specified objects
+            size: getBuildingExtrudeSize(id),
             material: { color },
             edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
           }]
@@ -1857,7 +1865,7 @@ Maintain safe distance
           type: "polygon-3d",
           symbolLayers: [{
             type: "extrude",
-            size: 6,
+            size: getBuildingExtrudeSize(alarmState.targetId),
             material: { color: [255, 255, 255, 0.9] },
             edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
           }]
@@ -1917,7 +1925,7 @@ Maintain safe distance
           type: "polygon-3d",
           symbolLayers: [{
             type: "extrude",
-            size: 6,
+            size: getBuildingExtrudeSize(objectId),
             material: { color },
             edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
           }]
@@ -2035,7 +2043,8 @@ Maintain safe distance
                 type: "polygon-3d",
                 symbolLayers: [{
                   type: "extrude",
-                  size: 6,
+                  // Ensure 18m height for the two specified objects
+                  size: getBuildingExtrudeSize(id),
                   material: { color: [220, 38, 38, 0.9] },
                   edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
                 }]
@@ -2703,7 +2712,8 @@ Maintain safe distance
           applyLod(btn.dataset.lod);
         });
       });
-      applyLod(5);
+      // Start page in LOD1
+      applyLod(1);
       bindGroup(swService, [swForskola, swGrund, swGymn, swVard]);
       bindGroup(swSafety, [swPolice, swFire, swHospital, swShelter]);
 

@@ -11,7 +11,8 @@
       stopNames: { a: "Öxnehaga", b: "Esplanaden" },
       headwayMinutes: 10,
       loopMinutes: 30,
-      busCount: 3,
+      // +1 bus compared to previous count
+      busCount: 4,
       colors: ["#ff6b00", "#10b981", "#2563eb"]
     },
     "2": {
@@ -20,7 +21,8 @@
       stopNames: null,
       headwayMinutes: 10,
       loopMinutes: 30,
-      busCount: 4,
+      // +5 buses compared to previous count
+      busCount: 9,
       colors: ["#f97316", "#14b8a6", "#8b5cf6", "#0ea5e9"]
     }
   };
