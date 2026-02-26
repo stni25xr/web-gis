@@ -24,13 +24,16 @@
     lastUpdate: 0,
     samplers: { out: null, in: null, loop: null },
     stopSeq: { out: [], in: [] },
+    loopStops: [],
+    loopStopDistances: [],
     buses: new Map(),
     layer: null,
     routeLayer: null,
     routeLayer2: null,
     statusEl: null,
     widgetEl: null,
-    lastTick: 0
+    lastTick: 0,
+    startMs: 0
   };
 
   function status(text) {
@@ -111,8 +114,40 @@
       const p1 = path[i];
       return [p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t];
     };
+    const distanceAtPoint = (pt) => {
+      if (!pt) return 0;
+      let bestDist = 0;
+      let bestSq = Infinity;
+      for (let i = 1; i < path.length; i++) {
+        const x1 = path[i - 1][0];
+        const y1 = path[i - 1][1];
+        const x2 = path[i][0];
+        const y2 = path[i][1];
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const lenSq = dx * dx + dy * dy;
+        let t = 0;
+        if (lenSq > 0) {
+          t = ((pt[0] - x1) * dx + (pt[1] - y1) * dy) / lenSq;
+          t = Math.max(0, Math.min(1, t));
+        }
+        const projX = x1 + t * dx;
+        const projY = y1 + t * dy;
+        const sx = pt[0] - projX;
+        const sy = pt[1] - projY;
+        const sq = sx * sx + sy * sy;
+        if (sq < bestSq) {
+          bestSq = sq;
+          bestDist = cum[i - 1] + Math.hypot(projX - x1, projY - y1);
+        }
+      }
+      return bestDist;
+    };
     return {
       total,
+      wmPath: path,
+      wmCum: cum,
+      distanceAtPoint,
       toGeo: (dist) => {
         const pt = pointAt(dist);
         return webMercatorUtils.webMercatorToGeographic({
@@ -358,6 +393,20 @@
     state.samplers.loop = buildSampler(Polyline, webMercatorUtils, loopRoute);
     state.stopSeq.out = routes.out.stops || [];
     state.stopSeq.in = routes.in.stops || [];
+    state.loopStops = state.stopSeq.out.concat(state.stopSeq.in.slice(1));
+    if (state.samplers.loop && state.loopStops.length) {
+      const wmStops = state.loopStops.map((s) => {
+        if (!Number.isFinite(s.lon) || !Number.isFinite(s.lat)) return null;
+        const wm = webMercatorUtils.geographicToWebMercator({
+          type: "point",
+          longitude: s.lon,
+          latitude: s.lat,
+          spatialReference: { wkid: 4326 }
+        });
+        return wm ? [wm.x, wm.y] : null;
+      }).filter(Boolean);
+      state.loopStopDistances = wmStops.map((p) => state.samplers.loop.distanceAtPoint(p));
+    }
 
     const toggle = document.getElementById("swBus15Live");
     if (toggle) {
@@ -379,6 +428,7 @@
     });
 
     state.lastUpdate = Date.now();
+    state.startMs = Date.now();
     state.mode = "Simulated";
 
     const tick = () => {
@@ -402,16 +452,45 @@
       const outLen = outSampler.total;
       const inLen = inSampler.total;
       const loopLen = loopSampler.total;
-      const startMs = new Date(new Date().toDateString()).getTime();
       const offsets = [0, 10, 20].map((m) => m * 60 * 1000);
       const buses = [
         { id: "A", color: "#ff6b00", offsetMs: offsets[0] },
         { id: "B", color: "#10b981", offsetMs: offsets[1] },
         { id: "C", color: "#2563eb", offsetMs: offsets[2] }
       ];
+
+      const stopDistances = state.loopStopDistances || [];
+      const stopCount = stopDistances.length;
+      const dwellMs = 5000;
+      const travelMs = Math.max(0, loopMs - dwellMs * stopCount);
       buses.forEach((bus) => {
-        const progress = ((now - startMs - bus.offsetMs) % loopMs + loopMs) % loopMs / loopMs;
-        const dist = progress * loopLen;
+        const t = ((now - state.startMs - bus.offsetMs) % loopMs + loopMs) % loopMs;
+        let dist = 0;
+        if (stopCount >= 2) {
+          let remaining = t;
+          for (let i = 0; i < stopCount; i++) {
+            const cur = stopDistances[i];
+            const next = stopDistances[(i + 1) % stopCount];
+            const segLen = i === stopCount - 1 ? (loopLen - cur + next) : (next - cur);
+            const segMs = segLen / loopLen * travelMs;
+            if (remaining <= dwellMs) {
+              dist = cur;
+              remaining = 0;
+              break;
+            }
+            remaining -= dwellMs;
+            if (remaining <= segMs) {
+              const frac = segMs === 0 ? 0 : remaining / segMs;
+              dist = cur + segLen * frac;
+              if (dist > loopLen) dist -= loopLen;
+              remaining = 0;
+              break;
+            }
+            remaining -= segMs;
+          }
+        } else {
+          dist = (t / loopMs) * loopLen;
+        }
         const pt = loopSampler.toGeo(dist);
         if (!pt) return;
         const outbound = dist <= outLen;
