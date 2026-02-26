@@ -1,44 +1,52 @@
 (() => {
   const DEFAULTS = {
-    lineShortName: "15",
-    stopNames: {
-      a: "Öxnehaga",
-      b: "Esplanaden"
+    updateMs: 5000,
+    dwellMs: 5000
+  };
+
+  const LINES = {
+    "15": {
+      lineShortName: "15",
+      label: "15",
+      stopNames: { a: "Öxnehaga", b: "Esplanaden" },
+      headwayMinutes: 10,
+      loopMinutes: 30,
+      busCount: 3,
+      colors: ["#ff6b00", "#10b981", "#2563eb"]
     },
-    serviceStartHour: 5,
-    serviceEndHour: 23,
-    headwayMinutes: 10,
-    loopMinutes: 30,
-    busCount: 3,
-    layoverMinutes: 3,
-    updateMs: 5000
+    "2": {
+      lineShortName: "2",
+      label: "2",
+      stopNames: null,
+      headwayMinutes: 10,
+      loopMinutes: 30,
+      busCount: 4,
+      colors: ["#f97316", "#14b8a6", "#8b5cf6", "#0ea5e9"]
+    }
   };
 
   const state = {
-    enabled: true,
-    mode: "simulated",
-    lastRealtimeOk: false,
-    realtimeTimer: null,
-    simTimer: null,
-    raf: null,
-    lastUpdate: 0,
-    samplers: { out: null, in: null, loop: null },
-    stopSeq: { out: [], in: [] },
-    loopStops: [],
-    loopStopDistances: [],
-    buses: new Map(),
-    layer: null,
-    routeLayer: null,
-    routeLayer2: null,
-    statusEl: null,
+    lines: new Map(),
     widgetEl: null,
-    lastTick: 0,
-    startMs: 0
+    raf: null,
+    lastStatusUpdate: 0,
+    startMs: 0,
+    clickHandle: null
   };
 
-  function status(text) {
-    if (state.statusEl) state.statusEl.textContent = text;
-    if (state.widgetEl) state.widgetEl.textContent = text;
+  function statusLine(lineState, text) {
+    if (lineState.statusEl) lineState.statusEl.textContent = text;
+  }
+
+  function updateWidget() {
+    if (!state.widgetEl) return;
+    const parts = [];
+    state.lines.forEach((line) => {
+      if (!line.enabled) return;
+      const cfg = line.config;
+      parts.push(`Bus ${cfg.label}: Simulated (${cfg.busCount} buses, every ${cfg.headwayMinutes} min, ${cfg.loopMinutes} min loop)`);
+    });
+    state.widgetEl.innerHTML = parts.length ? parts.join("<br>") : "Bus simulation: av";
   }
 
   function parseCsv(text) {
@@ -145,8 +153,6 @@
     };
     return {
       total,
-      wmPath: path,
-      wmCum: cum,
       distanceAtPoint,
       toGeo: (dist) => {
         const pt = pointAt(dist);
@@ -191,17 +197,22 @@
       if (s.stop_id) stopById.set(s.stop_id, s);
     });
 
-    const matchStopIds = (needle) => {
-      const ids = [];
-      stops.forEach((s) => {
-        const name = String(s.stop_name || "").toLowerCase();
-        if (name.includes(needle.toLowerCase())) ids.push(s.stop_id);
-      });
-      return ids;
-    };
-    const stopAIds = matchStopIds(stopNames.a);
-    const stopBIds = matchStopIds(stopNames.b);
-    if (!stopAIds.length || !stopBIds.length) return null;
+    const useStopFilter = !!(stopNames && stopNames.a && stopNames.b);
+    let stopAIds = [];
+    let stopBIds = [];
+    if (useStopFilter) {
+      const matchStopIds = (needle) => {
+        const ids = [];
+        stops.forEach((s) => {
+          const name = String(s.stop_name || "").toLowerCase();
+          if (name.includes(needle.toLowerCase())) ids.push(s.stop_id);
+        });
+        return ids;
+      };
+      stopAIds = matchStopIds(stopNames.a);
+      stopBIds = matchStopIds(stopNames.b);
+      if (!stopAIds.length || !stopBIds.length) return null;
+    }
 
     const tripsById = new Map();
     trips.forEach((t) => {
@@ -223,9 +234,11 @@
     tripsWithStops.forEach((stopsForTrip, tripId) => {
       const trip = tripsById.get(tripId);
       const dir = trip?.direction_id != null ? String(trip.direction_id) : "0";
-      const hasA = stopsForTrip.some((s) => stopAIds.includes(s.stop_id));
-      const hasB = stopsForTrip.some((s) => stopBIds.includes(s.stop_id));
-      if (!hasA || !hasB) return;
+      if (useStopFilter) {
+        const hasA = stopsForTrip.some((s) => stopAIds.includes(s.stop_id));
+        const hasB = stopsForTrip.some((s) => stopBIds.includes(s.stop_id));
+        if (!hasA || !hasB) return;
+      }
       const shapeId = trip?.shape_id;
       if (!shapeId) return;
       const key = `${dir}:${shapeId}`;
@@ -274,28 +287,6 @@
     };
   }
 
-  function buildDepartures(now, opts) {
-    const list = [];
-    const start = new Date(now);
-    start.setHours(opts.serviceStartHour, 0, 0, 0);
-    const end = new Date(now);
-    end.setHours(opts.serviceEndHour, 59, 0, 0);
-    const headwayMs = opts.headwayMinutes * 60 * 1000;
-    for (let t = start.getTime(); t <= end.getTime(); t += headwayMs) {
-      list.push(new Date(t));
-    }
-    return list;
-  }
-
-  function computeSimulatedBuses(now, opts, direction, departures) {
-    const travelMs = opts.travelMinutes * 60 * 1000;
-    const active = departures
-      .map((d) => ({ dep: d, elapsed: now - d.getTime() }))
-      .filter((x) => x.elapsed >= 0 && x.elapsed <= travelMs);
-    if (active.length) return active;
-    return [{ dep: new Date(now - travelMs / 2), elapsed: travelMs / 2 }];
-  }
-
   function etaToNextStop(progress, stopCount, travelMinutes) {
     if (stopCount < 2) return null;
     const segCount = stopCount - 1;
@@ -308,7 +299,7 @@
 
   function updatePopup(view, graphic, info) {
     view.popup.open({
-      title: "Line 15",
+      title: `Line ${info.line || ""}`,
       location: graphic.geometry,
       content: `
         <div><b>Bus:</b> ${info.busId || "-"}</div>
@@ -335,29 +326,43 @@
     });
   }
 
-  async function initBus15Layer(ctx, options = {}) {
-    const opts = { ...DEFAULTS, ...options };
-    const { map, view, GraphicsLayer, Graphic, Polyline, webMercatorUtils } = ctx;
-    state.statusEl = document.getElementById("bus15Status");
-    state.widgetEl = document.getElementById("bus15Widget");
+  async function buildLineState(ctx, config, overrides = {}) {
+    const opts = { ...DEFAULTS, ...config, ...overrides };
+    const { map, GraphicsLayer, Polyline, webMercatorUtils } = ctx;
 
-    state.layer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 6 } });
-    state.routeLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 }, visible: false });
-    state.routeLayer2 = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 }, visible: false });
-    map.addMany([state.routeLayer, state.routeLayer2, state.layer]);
+    const lineState = {
+      config: opts,
+      enabled: true,
+      statusEl: null,
+      layer: new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 6 } }),
+      routeLayer: new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 }, visible: false }),
+      routeLayer2: new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 }, visible: false }),
+      samplers: { out: null, in: null, loop: null },
+      stopSeq: { out: [], in: [] },
+      loopStops: [],
+      loopStopDistances: [],
+      graphics: new Map()
+    };
+
+    map.addMany([lineState.routeLayer, lineState.routeLayer2, lineState.layer]);
 
     const key = window.TRAFIKLAB_API_KEY || window.GTFS_STATIC_KEY || "";
     let routes = null;
     if (key && window.JSZip) {
       try {
-        routes = await loadGtfsShapes({ JSZip: window.JSZip, key, lineShortName: opts.lineShortName, stopNames: opts.stopNames });
+        routes = await loadGtfsShapes({
+          JSZip: window.JSZip,
+          key,
+          lineShortName: opts.lineShortName,
+          stopNames: opts.stopNames
+        });
       } catch (e) {
         routes = null;
       }
     }
+
     if (!routes || !routes.out?.route || !routes.in?.route) {
-      status("Bus 15: Simulating from timetable (fallback route)");
-      // Fallback: build a simple loop from local bus stop points
+      statusLine(lineState, `Bus ${opts.label}: Simulating (fallback route)`);
       const res = await ctx.busLayer.queryFeatures({ where: "1=1", outFields: ["Nr", "Hplnamn"], returnGeometry: true });
       const feats = res.features || [];
       const points = feats
@@ -368,157 +373,210 @@
         })
         .filter(Boolean);
       if (points.length < 4) {
-        status("Bus 15: Simulating (no route data)");
-        return;
+        statusLine(lineState, `Bus ${opts.label}: Simulating (no route data)`);
+        return null;
       }
-      // split into two directions by simple half split
       const mid = Math.floor(points.length / 2);
       routes = {
         out: { route: points.slice(0, mid), stops: [] },
         in: { route: points.slice(mid).concat(points[0]), stops: [] }
       };
     } else {
-      status("Bus 15: Simulating from timetable (GTFS shapes)");
+      statusLine(lineState, `Bus ${opts.label}: Simulating from timetable (GTFS shapes)`);
     }
 
     const outLine = new Polyline({ paths: [routes.out.route], spatialReference: { wkid: 4326 } });
     const inLine = new Polyline({ paths: [routes.in.route], spatialReference: { wkid: 4326 } });
-    // Keep route layers hidden (no visible line)
-    state.routeLayer.visible = false;
-    state.routeLayer2.visible = false;
+    lineState.routeLayer.visible = false;
+    lineState.routeLayer2.visible = false;
 
-    state.samplers.out = buildSampler(Polyline, webMercatorUtils, routes.out.route);
-    state.samplers.in = buildSampler(Polyline, webMercatorUtils, routes.in.route);
+    lineState.samplers.out = buildSampler(Polyline, webMercatorUtils, routes.out.route);
+    lineState.samplers.in = buildSampler(Polyline, webMercatorUtils, routes.in.route);
     const loopRoute = routes.out.route.concat(routes.in.route.slice(1));
-    state.samplers.loop = buildSampler(Polyline, webMercatorUtils, loopRoute);
-    state.stopSeq.out = routes.out.stops || [];
-    state.stopSeq.in = routes.in.stops || [];
-    state.loopStops = state.stopSeq.out.concat(state.stopSeq.in.slice(1));
-    if (state.samplers.loop && state.loopStops.length) {
-      const wmStops = state.loopStops.map((s) => {
-        if (!Number.isFinite(s.lon) || !Number.isFinite(s.lat)) return null;
-        const wm = webMercatorUtils.geographicToWebMercator({
-          type: "point",
-          longitude: s.lon,
-          latitude: s.lat,
-          spatialReference: { wkid: 4326 }
-        });
-        return wm ? [wm.x, wm.y] : null;
-      }).filter(Boolean);
-      state.loopStopDistances = wmStops.map((p) => state.samplers.loop.distanceAtPoint(p));
+    lineState.samplers.loop = buildSampler(Polyline, webMercatorUtils, loopRoute);
+    lineState.stopSeq.out = routes.out.stops || [];
+    lineState.stopSeq.in = routes.in.stops || [];
+    lineState.loopStops = lineState.stopSeq.out.concat(lineState.stopSeq.in.slice(1));
+
+    if (lineState.samplers.loop && lineState.loopStops.length) {
+      const wmStops = lineState.loopStops
+        .map((s) => {
+          if (!Number.isFinite(s.lon) || !Number.isFinite(s.lat)) return null;
+          const wm = webMercatorUtils.geographicToWebMercator({
+            type: "point",
+            longitude: s.lon,
+            latitude: s.lat,
+            spatialReference: { wkid: 4326 }
+          });
+          return wm ? [wm.x, wm.y] : null;
+        })
+        .filter(Boolean);
+      lineState.loopStopDistances = wmStops.map((p) => lineState.samplers.loop.distanceAtPoint(p));
     }
 
-    const toggle = document.getElementById("swBus15Live");
-    if (toggle) {
-      toggle.addEventListener("change", () => {
-        state.enabled = toggle.checked;
-        state.layer.visible = state.enabled;
-      });
-    }
+    return lineState;
+  }
 
-    view.on("click", (event) => {
-      if (!state.enabled) return;
-      view.hitTest(event).then((hit) => {
-        const result = hit.results.find((r) => r.graphic && r.graphic.layer === state.layer);
-        if (!result) return;
-        const g = result.graphic;
-        const info = g.attributes || {};
-        updatePopup(view, g, info);
-      });
+  function buildBusList(config) {
+    const ids = ["A", "B", "C", "D", "E", "F", "G"];
+    const offsets = [];
+    for (let i = 0; i < config.busCount; i++) {
+      offsets.push(i * config.headwayMinutes * 60 * 1000);
+    }
+    return offsets.map((offsetMs, idx) => ({
+      id: ids[idx] || String(idx + 1),
+      color: config.colors[idx % config.colors.length],
+      offsetMs
+    }));
+  }
+
+  function updateLine(ctx, lineState, now) {
+    if (!lineState.enabled) return;
+    const { Graphic } = ctx;
+    const { config } = lineState;
+    const loopSampler = lineState.samplers.loop;
+    const outSampler = lineState.samplers.out;
+    const inSampler = lineState.samplers.in;
+    if (!loopSampler || !outSampler || !inSampler) {
+      console.warn(`Bus ${config.label}: missing route sampler`);
+      return;
+    }
+    const loopMs = config.loopMinutes * 60 * 1000;
+    const loopLen = loopSampler.total;
+    const outLen = outSampler.total;
+    const inLen = inSampler.total;
+    const stopDistances = lineState.loopStopDistances || [];
+    const stopCount = stopDistances.length;
+    const travelMs = Math.max(0, loopMs - DEFAULTS.dwellMs * stopCount);
+    const buses = buildBusList(config);
+
+    buses.forEach((bus) => {
+      const t = ((now - state.startMs - bus.offsetMs) % loopMs + loopMs) % loopMs;
+      let dist = 0;
+      if (stopCount >= 2) {
+        let remaining = t;
+        for (let i = 0; i < stopCount; i++) {
+          const cur = stopDistances[i];
+          const next = stopDistances[(i + 1) % stopCount];
+          const segLen = i === stopCount - 1 ? (loopLen - cur + next) : (next - cur);
+          const segMs = segLen / loopLen * travelMs;
+          if (remaining <= DEFAULTS.dwellMs) {
+            dist = cur;
+            remaining = 0;
+            break;
+          }
+          remaining -= DEFAULTS.dwellMs;
+          if (remaining <= segMs) {
+            const frac = segMs === 0 ? 0 : remaining / segMs;
+            dist = cur + segLen * frac;
+            if (dist > loopLen) dist -= loopLen;
+            remaining = 0;
+            break;
+          }
+          remaining -= segMs;
+        }
+      } else {
+        dist = (t / loopMs) * loopLen;
+      }
+
+      const pt = loopSampler.toGeo(dist);
+      if (!pt) return;
+      const outbound = dist <= outLen;
+      const dirKey = outbound ? "out" : "in";
+      const dirName = outbound ? "Outbound" : "Inbound";
+      const dirProgress = outbound ? dist / outLen : (dist - outLen) / inLen;
+      const seq = lineState.stopSeq[dirKey] || [];
+      const eta = etaToNextStop(dirProgress, seq.length, config.loopMinutes / 2);
+      const nextStop = eta && seq[eta.nextIdx] ? seq[eta.nextIdx].name : "Okänd";
+      const segment = eta && seq[eta.nextIdx - 1] && seq[eta.nextIdx]
+        ? `${seq[eta.nextIdx - 1].name} → ${seq[eta.nextIdx].name}`
+        : "Okänd";
+
+      let g = lineState.graphics.get(bus.id);
+      if (!g) {
+        g = createBusGraphic(Graphic, pt, bus.color);
+        lineState.graphics.set(bus.id, g);
+        lineState.layer.add(g);
+      } else {
+        g.geometry = pt;
+      }
+      g.attributes = {
+        line: config.label,
+        direction: dirName,
+        nextStop,
+        segment,
+        eta: eta ? Math.max(1, Math.round(eta.eta / 60)) : "?",
+        source: "Simulated",
+        busId: bus.id
+      };
     });
+  }
 
-    state.lastUpdate = Date.now();
+  async function initBus15Layer(ctx, options = {}) {
+    if (!ctx || !ctx.map) return;
+    state.widgetEl = document.getElementById("bus15Widget");
     state.startMs = Date.now();
-    state.mode = "Simulated";
+
+    const lineOverrides = options.lines || {};
+    const lineKeys = Object.keys(LINES);
+    for (const key of lineKeys) {
+      const config = { ...LINES[key], ...(lineOverrides[key] || {}) };
+      const lineState = await buildLineState(ctx, config, {});
+      if (!lineState) continue;
+      state.lines.set(key, lineState);
+    }
+
+    const line15 = state.lines.get("15");
+    if (line15) line15.statusEl = document.getElementById("bus15Status");
+    const line2 = state.lines.get("2");
+    if (line2) line2.statusEl = document.getElementById("bus2Status");
+
+    const toggle15 = document.getElementById("swBus15Live");
+    if (toggle15 && line15) {
+      line15.enabled = toggle15.checked;
+      line15.layer.visible = line15.enabled;
+      toggle15.addEventListener("change", () => {
+        line15.enabled = toggle15.checked;
+        line15.layer.visible = line15.enabled;
+        updateWidget();
+      });
+    }
+
+    const toggle2 = document.getElementById("swBus2Live");
+    if (toggle2 && line2) {
+      line2.enabled = toggle2.checked;
+      line2.layer.visible = line2.enabled;
+      toggle2.addEventListener("change", () => {
+        line2.enabled = toggle2.checked;
+        line2.layer.visible = line2.enabled;
+        updateWidget();
+      });
+    }
+
+    if (!state.clickHandle) {
+      state.clickHandle = ctx.view.on("click", (event) => {
+        ctx.view.hitTest(event).then((hit) => {
+          const result = hit.results.find((r) => {
+            return r.graphic && [...state.lines.values()].some((line) => r.graphic.layer === line.layer);
+          });
+          if (!result) return;
+          const g = result.graphic;
+          const info = g.attributes || {};
+          updatePopup(ctx.view, g, info);
+        });
+      });
+    }
 
     const tick = () => {
-      if (!state.enabled) {
-        state.raf = requestAnimationFrame(tick);
-        return;
-      }
       const now = Date.now();
-      if (now - state.lastUpdate >= opts.updateMs) {
-        state.lastUpdate = now;
+      state.lines.forEach((lineState) => updateLine(ctx, lineState, now));
+      if (now - state.lastStatusUpdate > 1000) {
+        state.lastStatusUpdate = now;
+        updateWidget();
       }
-      state.layer.removeAll();
-      const loopSampler = state.samplers.loop;
-      const outSampler = state.samplers.out;
-      const inSampler = state.samplers.in;
-      if (!loopSampler || !outSampler || !inSampler) {
-        console.warn("Bus 15: missing route sampler");
-        return;
-      }
-      const loopMs = opts.loopMinutes * 60 * 1000;
-      const outLen = outSampler.total;
-      const inLen = inSampler.total;
-      const loopLen = loopSampler.total;
-      const offsets = [0, 10, 20].map((m) => m * 60 * 1000);
-      const buses = [
-        { id: "A", color: "#ff6b00", offsetMs: offsets[0] },
-        { id: "B", color: "#10b981", offsetMs: offsets[1] },
-        { id: "C", color: "#2563eb", offsetMs: offsets[2] }
-      ];
-
-      const stopDistances = state.loopStopDistances || [];
-      const stopCount = stopDistances.length;
-      const dwellMs = 5000;
-      const travelMs = Math.max(0, loopMs - dwellMs * stopCount);
-      buses.forEach((bus) => {
-        const t = ((now - state.startMs - bus.offsetMs) % loopMs + loopMs) % loopMs;
-        let dist = 0;
-        if (stopCount >= 2) {
-          let remaining = t;
-          for (let i = 0; i < stopCount; i++) {
-            const cur = stopDistances[i];
-            const next = stopDistances[(i + 1) % stopCount];
-            const segLen = i === stopCount - 1 ? (loopLen - cur + next) : (next - cur);
-            const segMs = segLen / loopLen * travelMs;
-            if (remaining <= dwellMs) {
-              dist = cur;
-              remaining = 0;
-              break;
-            }
-            remaining -= dwellMs;
-            if (remaining <= segMs) {
-              const frac = segMs === 0 ? 0 : remaining / segMs;
-              dist = cur + segLen * frac;
-              if (dist > loopLen) dist -= loopLen;
-              remaining = 0;
-              break;
-            }
-            remaining -= segMs;
-          }
-        } else {
-          dist = (t / loopMs) * loopLen;
-        }
-        const pt = loopSampler.toGeo(dist);
-        if (!pt) return;
-        const outbound = dist <= outLen;
-        const dirKey = outbound ? "out" : "in";
-        const dirName = outbound ? "Outbound" : "Inbound";
-        const dirProgress = outbound ? dist / outLen : (dist - outLen) / inLen;
-        const seq = state.stopSeq[dirKey] || [];
-        const eta = etaToNextStop(dirProgress, seq.length, opts.loopMinutes / 2);
-        const nextStop = eta && seq[eta.nextIdx] ? seq[eta.nextIdx].name : "Okänd";
-        const segment = eta && seq[eta.nextIdx - 1] && seq[eta.nextIdx]
-          ? `${seq[eta.nextIdx - 1].name} → ${seq[eta.nextIdx].name}`
-          : "Okänd";
-        const g = createBusGraphic(Graphic, pt, bus.color);
-        g.attributes = {
-          direction: dirName,
-          nextStop,
-          segment,
-          eta: eta ? Math.max(1, Math.round(eta.eta / 60)) : "?",
-          source: "Simulated",
-          busId: bus.id
-        };
-        state.layer.add(g);
-      });
-
-      status("Bus 15: Simulated (3 buses, every 10 min, 30 min loop)");
       state.raf = requestAnimationFrame(tick);
     };
-    tick();
+    if (!state.raf) tick();
   }
 
   window.initBus15Layer = initBus15Layer;
