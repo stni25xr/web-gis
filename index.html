@@ -12,6 +12,7 @@
   <style>
     /* ===== Global ===== */
     html, body { margin:0; padding:0; height:100%; width:100%; overflow:hidden; font-family:"IBM Plex Sans", "Helvetica Neue", Arial, sans-serif; background:#eef1f4; }
+    body.app { height:100%; }
 
     /* ===== Header ===== */
     #header {
@@ -143,7 +144,7 @@
 
     /* ===== Map ===== */
     #sceneView {
-      position:absolute; top:110px; left:0; right:0; height:calc(100% - 110px); z-index:1;
+      position:absolute; top:110px; left:0; right:0; bottom:0; width:100%; height:auto; z-index:1;
     }
 
     @media (max-width: 900px) {
@@ -878,6 +879,8 @@ Maintain safe distance
         map,
         camera: { position: { latitude: 57.796, longitude: 14.200, z: 1800 }, tilt: 0 }
       });
+      window.view = view;
+      console.log("devicePixelRatio", window.devicePixelRatio);
       view.popup.dockEnabled = true;
       view.popup.dockOptions = { position: "top-right", breakpoint: false };
       view.popup.highlightEnabled = false;
@@ -4010,6 +4013,10 @@ if (isBus) {
       rightPanel?.classList.toggle("is-open", rightOpen);
       if (leftTab) leftTab.style.display = leftOpen ? "none" : "block";
       if (rightTab) rightTab.style.display = rightOpen ? "none" : "block";
+      if (window.view) {
+        window.view.resize();
+        if (typeof window.view.requestRender === "function") window.view.requestRender();
+      }
     }
 
     function openLeft() {
@@ -4046,6 +4053,18 @@ if (isBus) {
 
     // Default collapsed
     closeAll();
+
+    // Debounced resize -> re-render ArcGIS
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (window.view) {
+          window.view.resize();
+          if (typeof window.view.requestRender === "function") window.view.requestRender();
+        }
+      }, 150);
+    });
   </script>
   <script>
     // Demo-only login gate (client-side)
