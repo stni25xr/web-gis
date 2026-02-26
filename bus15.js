@@ -7,10 +7,11 @@
     },
     serviceStartHour: 5,
     serviceEndHour: 23,
-    headwayMinutes: 60,
-    travelMinutes: 30,
+    headwayMinutes: 10,
+    travelMinutes: 10,
     layoverMinutes: 3,
-    updateMs: 5000
+    updateMs: 5000,
+    busCount: 3
   };
 
   const state = {
@@ -396,16 +397,18 @@
         { key: "in", name: "Inbound", color: "#10b981" }
       ];
       const travelSec = opts.travelMinutes * 60;
-      const headwaySec = opts.headwayMinutes * 60;
-      const perDirCount = Math.max(1, Math.round((travelSec + opts.layoverMinutes * 60) / headwaySec));
+      const totalBuses = Math.max(1, Number(opts.busCount || 3));
+      const outCount = Math.ceil(totalBuses / 2);
+      const inCount = Math.max(1, totalBuses - outCount);
       const dt = Math.max(0.5, (now - state.lastTick) / 1000);
       state.lastTick = now;
 
       directions.forEach((dir) => {
         const sampler = state.samplers[dir.key];
         if (!sampler) return;
-        const speed = (sampler.total / travelSec) * 6;
-        for (let i = 0; i < perDirCount; i++) {
+        const speed = (sampler.total / travelSec);
+        const count = dir.key === "out" ? outCount : inCount;
+        for (let i = 0; i < count; i++) {
           const id = `${dir.key}-${i}`;
           let offset = state.movingOffsets.get(id);
           if (offset == null) {
