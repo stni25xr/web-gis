@@ -8,10 +8,10 @@
     serviceStartHour: 5,
     serviceEndHour: 23,
     headwayMinutes: 10,
-    travelMinutes: 10,
+    loopMinutes: 30,
+    busCount: 3,
     layoverMinutes: 3,
-    updateMs: 5000,
-    busCount: 3
+    updateMs: 5000
   };
 
   const state = {
@@ -22,7 +22,7 @@
     simTimer: null,
     raf: null,
     lastUpdate: 0,
-    samplers: { out: null, in: null },
+    samplers: { out: null, in: null, loop: null },
     stopSeq: { out: [], in: [] },
     buses: new Map(),
     layer: null,
@@ -30,7 +30,6 @@
     routeLayer2: null,
     statusEl: null,
     widgetEl: null,
-    movingOffsets: new Map(),
     lastTick: 0
   };
 
@@ -277,6 +276,7 @@
       title: "Line 15",
       location: graphic.geometry,
       content: `
+        <div><b>Bus:</b> ${info.busId || "-"}</div>
         <div><b>Direction:</b> ${info.direction}</div>
         <div><b>Segment:</b> ${info.segment}</div>
         <div><b>Next stop:</b> ${info.nextStop} (${info.eta} min)</div>
@@ -354,6 +354,8 @@
 
     state.samplers.out = buildSampler(Polyline, webMercatorUtils, routes.out.route);
     state.samplers.in = buildSampler(Polyline, webMercatorUtils, routes.in.route);
+    const loopRoute = routes.out.route.concat(routes.in.route.slice(1));
+    state.samplers.loop = buildSampler(Polyline, webMercatorUtils, loopRoute);
     state.stopSeq.out = routes.out.stops || [];
     state.stopSeq.in = routes.in.stops || [];
 
@@ -376,7 +378,6 @@
       });
     });
 
-    const departures = buildDepartures(new Date(), opts);
     state.lastUpdate = Date.now();
     state.mode = "Simulated";
 
@@ -390,55 +391,52 @@
         state.lastUpdate = now;
       }
       state.layer.removeAll();
-      let count = 0;
-
-      const directions = [
-        { key: "out", name: "Outbound", color: "#ff6b00" },
-        { key: "in", name: "Inbound", color: "#10b981" }
+      const loopSampler = state.samplers.loop;
+      const outSampler = state.samplers.out;
+      const inSampler = state.samplers.in;
+      if (!loopSampler || !outSampler || !inSampler) {
+        console.warn("Bus 15: missing route sampler");
+        return;
+      }
+      const loopMs = opts.loopMinutes * 60 * 1000;
+      const outLen = outSampler.total;
+      const inLen = inSampler.total;
+      const loopLen = loopSampler.total;
+      const startMs = new Date(new Date().toDateString()).getTime();
+      const offsets = [0, 10, 20].map((m) => m * 60 * 1000);
+      const buses = [
+        { id: "A", color: "#ff6b00", offsetMs: offsets[0] },
+        { id: "B", color: "#10b981", offsetMs: offsets[1] },
+        { id: "C", color: "#2563eb", offsetMs: offsets[2] }
       ];
-      const travelSec = opts.travelMinutes * 60;
-      const totalBuses = Math.max(1, Number(opts.busCount || 3));
-      const outCount = Math.ceil(totalBuses / 2);
-      const inCount = Math.max(1, totalBuses - outCount);
-      const dt = Math.max(0.5, (now - state.lastTick) / 1000);
-      state.lastTick = now;
-
-      directions.forEach((dir) => {
-        const sampler = state.samplers[dir.key];
-        if (!sampler) return;
-        const speed = (sampler.total / travelSec);
-        const count = dir.key === "out" ? outCount : inCount;
-        for (let i = 0; i < count; i++) {
-          const id = `${dir.key}-${i}`;
-          let offset = state.movingOffsets.get(id);
-          if (offset == null) {
-            offset = (i / perDirCount) * sampler.total;
-          }
-          offset = (offset + speed * dt) % sampler.total;
-          state.movingOffsets.set(id, offset);
-          const progress = offset / sampler.total;
-          const pt = sampler.toGeo(offset);
-          if (!pt) continue;
-          const seq = state.stopSeq[dir.key] || [];
-          const eta = etaToNextStop(progress, seq.length, opts.travelMinutes);
-          const nextStop = eta && seq[eta.nextIdx] ? seq[eta.nextIdx].name : "Okänd";
-          const segment = eta && seq[eta.nextIdx - 1] && seq[eta.nextIdx]
-            ? `${seq[eta.nextIdx - 1].name} → ${seq[eta.nextIdx].name}`
-            : "Okänd";
-          const g = createBusGraphic(Graphic, pt, dir.color);
-          g.attributes = {
-            direction: dir.name,
-            nextStop,
-            segment,
-            eta: eta ? Math.max(1, Math.round(eta.eta / 60)) : "?",
-            source: state.mode
-          };
-          state.layer.add(g);
-          count += 1;
-        }
+      buses.forEach((bus) => {
+        const progress = ((now - startMs - bus.offsetMs) % loopMs + loopMs) % loopMs / loopMs;
+        const dist = progress * loopLen;
+        const pt = loopSampler.toGeo(dist);
+        if (!pt) return;
+        const outbound = dist <= outLen;
+        const dirKey = outbound ? "out" : "in";
+        const dirName = outbound ? "Outbound" : "Inbound";
+        const dirProgress = outbound ? dist / outLen : (dist - outLen) / inLen;
+        const seq = state.stopSeq[dirKey] || [];
+        const eta = etaToNextStop(dirProgress, seq.length, opts.loopMinutes / 2);
+        const nextStop = eta && seq[eta.nextIdx] ? seq[eta.nextIdx].name : "Okänd";
+        const segment = eta && seq[eta.nextIdx - 1] && seq[eta.nextIdx]
+          ? `${seq[eta.nextIdx - 1].name} → ${seq[eta.nextIdx].name}`
+          : "Okänd";
+        const g = createBusGraphic(Graphic, pt, bus.color);
+        g.attributes = {
+          direction: dirName,
+          nextStop,
+          segment,
+          eta: eta ? Math.max(1, Math.round(eta.eta / 60)) : "?",
+          source: "Simulated",
+          busId: bus.id
+        };
+        state.layer.add(g);
       });
 
-      status(`Bus 15: Simulating from timetable (no realtime feed) • ${count} buses`);
+      status("Bus 15: Simulated (3 buses, every 10 min, 30 min loop)");
       state.raf = requestAnimationFrame(tick);
     };
     tick();
