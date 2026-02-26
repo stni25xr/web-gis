@@ -91,6 +91,17 @@
   white-space: normal;
 }
 
+/* Force map to full size (override ui-2026 defaults) */
+#sceneView {
+  top: 110px !important;
+  left: 0 !important;
+  right: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  height: calc(100% - 110px) !important;
+}
+
 /* ===== Demo login overlay ===== */
 .login-overlay {
   position: fixed;
