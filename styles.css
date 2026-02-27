@@ -320,6 +320,97 @@ html, body, body.app {
   cursor: pointer;
 }
 
+/* Digital panel + tabs */
+#digitalPanel {
+  position: fixed;
+  top: 110px;
+  bottom: 0;
+  left: 0;
+  width: 440px;
+  background: #1f232b;
+  color: #e2e8f0;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  z-index: 1000;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+}
+
+#digitalPanel.is-open {
+  transform: translateX(0);
+}
+
+.panel-tab-offset {
+  top: calc(50% + 90px);
+}
+
+/* Simulation time bar */
+.sim-time-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  width: min(900px, calc(100vw - 40px));
+  background: rgba(15, 23, 42, 0.85);
+  color: #e2e8f0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 1500;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+
+.sim-time-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+}
+
+.sim-time-value {
+  font-weight: 600;
+  min-width: 140px;
+  font-size: 13px;
+}
+
+.sim-time-slider {
+  flex: 1;
+}
+
+.sim-btn {
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.sim-speed {
+  display: flex;
+  gap: 6px;
+}
+
+.sim-speed-btn {
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.sim-speed-btn.is-active {
+  background: #1f6feb;
+  border-color: #1f6feb;
+  color: #fff;
+}
+
 #alarmModal {
   position: fixed;
   inset: 0;

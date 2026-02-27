@@ -204,24 +204,14 @@
   </div>
 
   <!-- Mini tabs -->
-  <button id="leftTab" class="panel-tab panel-tab-left" aria-label="Öppna meny">≡</button>
+  <button id="leftTabDigital" class="panel-tab panel-tab-left" aria-label="Öppna DIGITAL CITY">≡</button>
+  <button id="leftTabMain" class="panel-tab panel-tab-left panel-tab-offset" aria-label="Öppna meny">≡</button>
   <button id="rightTab" class="panel-tab panel-tab-right" aria-label="Öppna information">≡</button>
 
   <!-- SIDEBAR -->
   <aside id="sidebar" aria-label="Sidomeny">
     <h2>Meny <button id="leftPanelClose" class="panel-close" type="button" aria-label="Stäng meny">✕</button></h2>
     <div class="sidebar-scroll">
-
-    <details class="switch-group">
-      <summary class="switch-group-title">LOD</summary>
-      <div class="lod-grid" role="group" aria-label="Level of detail">
-        <button class="lod-btn" type="button" data-lod="1">LOD1</button>
-        <button class="lod-btn" type="button" data-lod="2">LOD2</button>
-        <button class="lod-btn" type="button" data-lod="3">LOD3</button>
-        <button class="lod-btn" type="button" data-lod="4">LOD4</button>
-        <button class="lod-btn" type="button" data-lod="5">LOD5</button>
-      </div>
-    </details>
 
     <details class="switch-group">
       <summary class="switch-group-title">Baslager</summary>
@@ -476,6 +466,23 @@
     </div>
   </aside>
 
+  <!-- DIGITAL CITY PANEL -->
+  <aside id="digitalPanel" aria-label="Digital City panel">
+    <h2>DIGITAL CITY <button id="digitalPanelClose" class="panel-close" type="button" aria-label="Stäng DIGITAL CITY">✕</button></h2>
+    <div class="sidebar-scroll">
+      <details class="switch-group" open>
+        <summary class="switch-group-title">LOD</summary>
+        <div class="lod-grid" role="group" aria-label="Level of detail">
+          <button class="lod-btn" type="button" data-lod="1">LOD1</button>
+          <button class="lod-btn" type="button" data-lod="2">LOD2</button>
+          <button class="lod-btn" type="button" data-lod="3">LOD3</button>
+          <button class="lod-btn" type="button" data-lod="4">LOD4</button>
+          <button class="lod-btn" type="button" data-lod="5">LOD5</button>
+        </div>
+      </details>
+    </div>
+  </aside>
+
   <!-- INFO PANEL -->
   <aside id="info-panel" aria-label="Info panel">
     <h2>Information <button id="rightPanelClose" class="panel-close" type="button" aria-label="Stäng information">✕</button></h2>
@@ -700,6 +707,20 @@ Maintain safe distance
         <button id="incidentRouteClear" type="button">Avbryt</button>
         <button id="incidentAcknowledge" type="button">Bekräfta</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Simulation time bar -->
+  <div id="simTimeBar" class="sim-time-bar">
+    <div class="sim-time-label">Simulation time</div>
+    <div id="simTimeValue" class="sim-time-value">—</div>
+    <input id="simTimeSlider" type="range" class="sim-time-slider" min="0" max="43200" value="0" step="15" />
+    <button id="simPlayPause" type="button" class="sim-btn">Play</button>
+    <div class="sim-speed">
+      <button class="sim-speed-btn" data-speed="1">1x</button>
+      <button class="sim-speed-btn" data-speed="5">5x</button>
+      <button class="sim-speed-btn" data-speed="10">10x</button>
+      <button class="sim-speed-btn" data-speed="100">100x</button>
     </div>
   </div>
   <div id="buildingInfoModal" style="display:none;">
@@ -4083,19 +4104,25 @@ if (isBus) {
 
     // Panel toggle logic
     const leftPanel = document.getElementById("sidebar");
+    const digitalPanel = document.getElementById("digitalPanel");
     const rightPanel = document.getElementById("info-panel");
-    const leftTab = document.getElementById("leftTab");
+    const leftTabMain = document.getElementById("leftTabMain");
+    const leftTabDigital = document.getElementById("leftTabDigital");
     const rightTab = document.getElementById("rightTab");
     const leftClose = document.getElementById("leftPanelClose");
+    const digitalClose = document.getElementById("digitalPanelClose");
     const rightClose = document.getElementById("rightPanelClose");
 
     let leftOpen = false;
+    let digitalOpen = false;
     let rightOpen = false;
 
     function updateUI() {
       leftPanel?.classList.toggle("is-open", leftOpen);
+      digitalPanel?.classList.toggle("is-open", digitalOpen);
       rightPanel?.classList.toggle("is-open", rightOpen);
-      if (leftTab) leftTab.style.display = leftOpen ? "none" : "block";
+      if (leftTabMain) leftTabMain.style.display = leftOpen ? "none" : "block";
+      if (leftTabDigital) leftTabDigital.style.display = digitalOpen ? "none" : "block";
       if (rightTab) rightTab.style.display = rightOpen ? "none" : "block";
       if (window.view && typeof window.refreshViewSize === "function") {
         window.refreshViewSize();
@@ -4107,6 +4134,7 @@ if (isBus) {
 
     function openLeft() {
       leftOpen = true;
+      digitalOpen = false;
       rightOpen = false;
       updateUI();
     }
@@ -4114,9 +4142,20 @@ if (isBus) {
       leftOpen = false;
       updateUI();
     }
+    function openDigital() {
+      digitalOpen = true;
+      leftOpen = false;
+      rightOpen = false;
+      updateUI();
+    }
+    function closeDigital() {
+      digitalOpen = false;
+      updateUI();
+    }
     function openRight() {
       rightOpen = true;
       leftOpen = false;
+      digitalOpen = false;
       updateUI();
     }
     function closeRight() {
@@ -4125,13 +4164,16 @@ if (isBus) {
     }
     function closeAll() {
       leftOpen = false;
+      digitalOpen = false;
       rightOpen = false;
       updateUI();
     }
 
-    leftTab?.addEventListener("click", openLeft);
+    leftTabMain?.addEventListener("click", openLeft);
+    leftTabDigital?.addEventListener("click", openDigital);
     rightTab?.addEventListener("click", openRight);
     leftClose?.addEventListener("click", closeLeft);
+    digitalClose?.addEventListener("click", closeDigital);
     rightClose?.addEventListener("click", closeRight);
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeAll();
@@ -4153,6 +4195,91 @@ if (isBus) {
         }
       }, 150);
     });
+
+    // Simulation time control
+    const simState = {
+      startReal: new Date(),
+      simNow: new Date(),
+      speed: 1,
+      running: false,
+      timer: null
+    };
+    const simSlider = document.getElementById("simTimeSlider");
+    const simValue = document.getElementById("simTimeValue");
+    const simPlay = document.getElementById("simPlayPause");
+    const simSpeedBtns = document.querySelectorAll(".sim-speed-btn");
+
+    function formatSim(dt) {
+      const pad = (v) => String(v).padStart(2, "0");
+      return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    }
+    function dispatchSimEvent() {
+      window.dispatchEvent(new CustomEvent("simtime:change", {
+        detail: { simNow: simState.simNow, simSpeed: simState.speed, simRunning: simState.running }
+      }));
+    }
+    function updateSimUI() {
+      if (simValue) simValue.textContent = formatSim(simState.simNow);
+      simSpeedBtns.forEach((btn) => {
+        btn.classList.toggle("is-active", Number(btn.dataset.speed) === simState.speed);
+      });
+    }
+
+    if (simSlider) {
+      const start = simState.startReal.getTime();
+      const end = start + 30 * 24 * 60 * 60 * 1000;
+      simSlider.min = "0";
+      simSlider.max = String(Math.floor((end - start) / 60000));
+      simSlider.value = "0";
+      simSlider.step = "15";
+      simSlider.addEventListener("input", () => {
+        const mins = Number(simSlider.value);
+        simState.simNow = new Date(start + mins * 60000);
+        updateSimUI();
+        dispatchSimEvent();
+      });
+    }
+
+    simPlay?.addEventListener("click", () => {
+      simState.running = !simState.running;
+      simPlay.textContent = simState.running ? "Pause" : "Play";
+      if (simState.running && !simState.timer) {
+        let last = Date.now();
+        simState.timer = setInterval(() => {
+          const now = Date.now();
+          const dt = (now - last) / 1000;
+          last = now;
+          simState.simNow = new Date(simState.simNow.getTime() + dt * 1000 * simState.speed);
+          const start = simState.startReal.getTime();
+          const end = start + 30 * 24 * 60 * 60 * 1000;
+          if (simState.simNow.getTime() >= end) {
+            simState.simNow = new Date(end);
+            simState.running = false;
+            simPlay.textContent = "Play";
+            clearInterval(simState.timer);
+            simState.timer = null;
+          }
+          const mins = Math.floor((simState.simNow.getTime() - start) / 60000);
+          if (simSlider) simSlider.value = String(mins);
+          updateSimUI();
+          dispatchSimEvent();
+        }, 200);
+      } else if (!simState.running && simState.timer) {
+        clearInterval(simState.timer);
+        simState.timer = null;
+      }
+      dispatchSimEvent();
+    });
+
+    simSpeedBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        simState.speed = Number(btn.dataset.speed);
+        updateSimUI();
+        dispatchSimEvent();
+      });
+    });
+
+    updateSimUI();
   </script>
   <script>
     // Demo-only login gate (client-side)
