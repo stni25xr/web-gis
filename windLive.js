@@ -4,6 +4,7 @@ const WIND_API_BASES = [
 ];
 const WIND_CENTER = { lon: 14.1618, lat: 57.7826 };
 const WIND_RADIUS_KM = 30;
+const WIND_RADIUS_FALLBACK_KM = 120;
 const WIND_REFRESH_MS = 5 * 60 * 1000;
 
 let windState = {
@@ -263,11 +264,19 @@ async function refreshWind() {
     windState.layer.removeAll();
 
     const stations = await fetchStations(windState.windSpeedParam);
-    const nearby = stations.filter((st) => {
+    let nearby = stations.filter((st) => {
       const coords = getStationCoords(st);
       if (!coords) return false;
       return distanceKm(WIND_CENTER, { lat: coords.lat, lon: coords.lon }) <= WIND_RADIUS_KM;
     });
+
+    if (!nearby.length) {
+      nearby = stations.filter((st) => {
+        const coords = getStationCoords(st);
+        if (!coords) return false;
+        return distanceKm(WIND_CENTER, { lat: coords.lat, lon: coords.lon }) <= WIND_RADIUS_FALLBACK_KM;
+      });
+    }
 
     if (!nearby.length) {
       setStatus("Inga vindstationer hittades", true);
