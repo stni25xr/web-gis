@@ -263,18 +263,19 @@ function ensureHeatLayer() {
     objectIdField: "ObjectID",
     source: [],
     elevationInfo: { mode: "on-the-ground" },
+    opacity: 0.75,
     renderer: {
       type: "heatmap",
       field: "speed",
-      blurRadius: 22,
-      maxPixelIntensity: 20,
+      blurRadius: 40,
+      maxPixelIntensity: 8,
       minPixelIntensity: 0,
       colorStops: [
-        { ratio: 0, color: "rgba(34, 197, 94, 0)" },
-        { ratio: 0.25, color: "rgba(132, 204, 22, 0.6)" },
-        { ratio: 0.5, color: "rgba(250, 204, 21, 0.7)" },
-        { ratio: 0.75, color: "rgba(249, 115, 22, 0.8)" },
-        { ratio: 1, color: "rgba(239, 68, 68, 0.9)" }
+        { ratio: 0, color: "rgba(56, 189, 248, 0)" },
+        { ratio: 0.25, color: "rgba(34, 197, 94, 0.6)" },
+        { ratio: 0.5, color: "rgba(250, 204, 21, 0.75)" },
+        { ratio: 0.75, color: "rgba(249, 115, 22, 0.85)" },
+        { ratio: 1, color: "rgba(239, 68, 68, 0.95)" }
       ]
     }
   });
