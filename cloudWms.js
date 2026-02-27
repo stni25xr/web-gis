@@ -1,4 +1,8 @@
-const CLOUD_WMS_URL = "https://view.eumetsat.int/geoserver/wms";
+const CLOUD_WMS_BASES = [
+  "https://view.eumetsat.int/geoserver/wms",
+  "https://view.eumetsat.int/geoserver/ows",
+  "https://view.eumetsat.int/geoserver/gwc/service/wms"
+];
 const CLOUD_REFRESH_MS = 5 * 60 * 1000;
 
 let cloudState = {
@@ -7,7 +11,10 @@ let cloudState = {
   layer: null,
   enabled: false,
   timer: null,
-  lastWarn: null
+  lastWarn: null,
+  baseUrl: null,
+  layerName: null,
+  layerTitle: null
 };
 
 function warnOnce(key, err) {
@@ -23,8 +30,8 @@ function setStatus(text, isError = false) {
   el.style.color = isError ? "#ef4444" : "";
 }
 
-function scoreLayer(sublayer) {
-  const text = `${sublayer.title || ""} ${sublayer.name || ""}`.toLowerCase();
+function scoreLayerName(name, title) {
+  const text = `${title || ""} ${name || ""}`.toLowerCase();
   let score = 0;
   if (text.includes("cloud")) score += 6;
   if (text.includes("cloud top")) score += 4;
@@ -39,34 +46,66 @@ function scoreLayer(sublayer) {
   return score;
 }
 
+async function fetchCapabilities(base, version) {
+  const url = `${base}?service=WMS&request=GetCapabilities&version=${version}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`GetCapabilities HTTP ${res.status}`);
+  return res.text();
+}
+
+function findBestLayerFromCapabilities(xmlText) {
+  const doc = new DOMParser().parseFromString(xmlText, "text/xml");
+  const layerNodes = Array.from(doc.getElementsByTagName("Layer"));
+  let best = null;
+  let bestScore = -999;
+  layerNodes.forEach((node) => {
+    const name = node.getElementsByTagName("Name")[0]?.textContent || "";
+    const title = node.getElementsByTagName("Title")[0]?.textContent || "";
+    if (!name) return;
+    const score = scoreLayerName(name, title);
+    if (score > bestScore) {
+      bestScore = score;
+      best = { name, title };
+    }
+  });
+  return best;
+}
+
+async function resolveCloudLayer() {
+  const versions = ["1.3.0", "1.1.1"];
+  for (const base of CLOUD_WMS_BASES) {
+    for (const v of versions) {
+      try {
+        const xml = await fetchCapabilities(base, v);
+        const best = findBestLayerFromCapabilities(xml);
+        if (best && scoreLayerName(best.name, best.title) > 0) {
+          cloudState.baseUrl = base;
+          cloudState.layerName = best.name;
+          cloudState.layerTitle = best.title || best.name;
+          return true;
+        }
+      } catch (err) {
+        warnOnce("Cloud WMS capabilities failed", err);
+      }
+    }
+  }
+  return false;
+}
+
 async function buildLayer() {
   if (!cloudState.WMSLayer || !cloudState.view) return null;
+  const ok = await resolveCloudLayer();
+  if (!ok || !cloudState.baseUrl || !cloudState.layerName) {
+    setStatus("Inga WMS‑molnlagar hittades", true);
+    return null;
+  }
   const layer = new cloudState.WMSLayer({
-    url: CLOUD_WMS_URL,
+    url: cloudState.baseUrl,
     opacity: 0.6,
-    sublayers: []
+    sublayers: [{ name: cloudState.layerName, title: cloudState.layerTitle }]
   });
   try {
     await layer.load();
-    const candidates = layer.allSublayers?.toArray?.() || layer.allSublayers || [];
-    if (!candidates.length) {
-      setStatus("Inga WMS-lager hittades", true);
-      return null;
-    }
-    let best = null;
-    let bestScore = -999;
-    candidates.forEach((s) => {
-      const score = scoreLayer(s);
-      if (score > bestScore) {
-        bestScore = score;
-        best = s;
-      }
-    });
-    if (!best) {
-      setStatus("Hittade inga moln-lager", true);
-      return null;
-    }
-    layer.sublayers = [{ name: best.name, title: best.title }];
     return layer;
   } catch (err) {
     warnOnce("Cloud WMS load failed", err);
