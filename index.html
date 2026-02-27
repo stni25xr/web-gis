@@ -2591,7 +2591,8 @@ Maintain safe distance
       function applyLod(level, skipGoTo = false) {
         const lvl = Number(level);
         if (!Number.isFinite(lvl)) return;
-        const profile = lvl <= 2 ? "low" : lvl === 3 ? "medium" : "high";
+        // Match LOD3+ rendering quality to avoid label distortion on LOD1/LOD2
+        const profile = lvl <= 2 ? "medium" : lvl === 3 ? "medium" : "high";
         if (view && view.qualityProfile !== profile) {
           view.qualityProfile = profile;
         }
