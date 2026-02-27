@@ -2682,8 +2682,9 @@ Maintain safe distance
       }
 
       function applyLod(level, skipGoTo = false) {
-        const lvl = Number(level);
-        if (!Number.isFinite(lvl)) return;
+        const uiLvl = Number(level);
+        if (!Number.isFinite(uiLvl)) return;
+        const lvl = uiLvl + 1;
         const busWidget = document.getElementById("bus15Widget");
         // Match LOD3+ rendering quality to avoid label distortion on LOD1/LOD2
         const profile = lvl <= 2 ? "medium" : lvl === 3 ? "medium" : "high";
@@ -2750,7 +2751,7 @@ Maintain safe distance
           setChecked(swFastighet, true);
         }
         document.querySelectorAll(".lod-btn").forEach((btn) => {
-          btn.classList.toggle("is-active", Number(btn.dataset.lod) === lvl);
+          btn.classList.toggle("is-active", Number(btn.dataset.lod) === uiLvl);
         });
         if (busWidget) {
           busWidget.style.display = (lvl === 2 || lvl === 3) ? "block" : "none";
@@ -2762,8 +2763,8 @@ Maintain safe distance
           applyLod(btn.dataset.lod, false);
         });
       });
-      // Start page in LOD1 without triggering a goTo animation
-      applyLod(1, true);
+      // Start page in LOD0 (previous LOD1) without triggering a goTo animation
+      applyLod(0, true);
       bindGroup(swService, [swForskola, swGrund, swGymn, swVard]);
       bindGroup(swSafety, [swPolice, swFire, swHospital, swShelter]);
 
