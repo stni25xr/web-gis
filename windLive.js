@@ -14,6 +14,7 @@ let windState = {
   FeatureLayer: null,
   layer: null,
   heatLayer: null,
+  glowLayer: null,
   enabled: false,
   inFlight: false,
   timer: null,
@@ -250,6 +251,19 @@ function ensureLayer() {
   windState.view.map.add(windState.layer);
 }
 
+function ensureGlowLayer() {
+  if (windState.glowLayer || !windState.GraphicsLayer || !windState.view) return;
+  windState.glowLayer = new windState.GraphicsLayer({
+    title: "Vind (glow)",
+    elevationInfo: { mode: "relative-to-ground", offset: 7 }
+  });
+  windState.view.map.add(windState.glowLayer);
+  if (windState.layer) {
+    const idx = windState.view.map.layers.indexOf(windState.layer);
+    if (idx > -1) windState.view.map.reorder(windState.glowLayer, idx);
+  }
+}
+
 function ensureHeatLayer() {
   if (windState.heatLayer || !windState.FeatureLayer || !windState.view) return;
   windState.heatLayer = new windState.FeatureLayer({
@@ -301,7 +315,9 @@ async function refreshWind() {
     }
     ensureLayer();
     ensureHeatLayer();
+    ensureGlowLayer();
     windState.layer.removeAll();
+    if (windState.glowLayer) windState.glowLayer.removeAll();
     if (windState.heatLayer?.source) windState.heatLayer.source.removeAll();
 
     const stations = await fetchStations(windState.windSpeedParam);
@@ -374,6 +390,23 @@ async function refreshWind() {
         }
       });
       windState.layer.add(graphic);
+      if (windState.glowLayer) {
+        const glowSize = Math.max(18, Math.min(60, speedVal * 4));
+        windState.glowLayer.add(new windState.Graphic({
+          geometry: {
+            type: "point",
+            longitude: coords.lon,
+            latitude: coords.lat
+          },
+          symbol: {
+            type: "simple-marker",
+            style: "circle",
+            size: glowSize,
+            color: colorForSpeed(speedVal) + "33",
+            outline: { color: colorForSpeed(speedVal) + "66", width: 0.5 }
+          }
+        }));
+      }
       if (windState.heatLayer?.source) {
         windState.heatLayer.source.add(new windState.Graphic({
           geometry: {
@@ -413,6 +446,7 @@ function disableWind() {
     windState.timer = null;
   }
   if (windState.layer) windState.layer.removeAll();
+  if (windState.glowLayer) windState.glowLayer.removeAll();
   if (windState.heatLayer?.source) windState.heatLayer.source.removeAll();
   setStatus("Av");
 }
