@@ -995,7 +995,7 @@ Maintain safe distance
       };
       function tryInitPm25(attempt = 0) {
         if (typeof window.initPm25Live === "function") {
-          window.initPm25Live({ view, GraphicsLayer, Graphic });
+          window.initPm25Live({ view, GraphicsLayer, Graphic, FeatureLayer });
           return;
         }
         if (attempt < 50) {

@@ -10,6 +10,7 @@ let pm25State = {
   view: null,
   GraphicsLayer: null,
   Graphic: null,
+  FeatureLayer: null,
   layer: null,
   enabled: false,
   inFlight: false,
@@ -262,10 +263,39 @@ function colorForValue(value) {
 }
 
 function ensureLayer() {
-  if (pm25State.layer || !pm25State.GraphicsLayer || !pm25State.view) return;
-  pm25State.layer = new pm25State.GraphicsLayer({
+  if (pm25State.layer || !pm25State.FeatureLayer || !pm25State.view) return;
+  pm25State.layer = new pm25State.FeatureLayer({
     title: "PM2.5 (live)",
-    elevationInfo: { mode: "relative-to-ground", offset: 6 }
+    geometryType: "point",
+    spatialReference: { wkid: 4326 },
+    fields: [
+      { name: "ObjectID", type: "oid" },
+      { name: "stationName", type: "string" },
+      { name: "pm25", type: "double" },
+      { name: "timestamp", type: "string" },
+      { name: "source", type: "string" }
+    ],
+    objectIdField: "ObjectID",
+    source: [],
+    elevationInfo: { mode: "on-the-ground" },
+    renderer: {
+      type: "heatmap",
+      field: "pm25",
+      blurRadius: 20,
+      maxPixelIntensity: 60,
+      minPixelIntensity: 0,
+      colorStops: [
+        { ratio: 0, color: "rgba(34, 197, 94, 0)" },
+        { ratio: 0.2, color: "rgba(34, 197, 94, 0.6)" },
+        { ratio: 0.5, color: "rgba(250, 204, 21, 0.7)" },
+        { ratio: 0.75, color: "rgba(249, 115, 22, 0.8)" },
+        { ratio: 1, color: "rgba(239, 68, 68, 0.9)" }
+      ]
+    },
+    popupTemplate: {
+      title: "{stationName}",
+      content: "PM2.5: {pm25} µg/m³<br/>Tid: {timestamp}<br/>Källa: {source}"
+    }
   });
   pm25State.view.map.add(pm25State.layer);
 }
@@ -283,7 +313,7 @@ async function refreshPm25() {
       return;
     }
     ensureLayer();
-    pm25State.layer.removeAll();
+    if (pm25State.layer?.source) pm25State.layer.source.removeAll();
 
     const stations = await fetchStations(phenomenonId);
     if (!stations.length) {
@@ -303,36 +333,30 @@ async function refreshPm25() {
       }
     }));
 
+    let oid = 1;
     latestByStation.filter(Boolean).forEach((item) => {
       const coords = getFeatureCoords(item.feature);
       if (!coords) return;
       const label = getFeatureLabel(item.feature);
       const value = item.latest?.value;
       const ts = item.latest?.timestamp;
+      const numeric = value !== undefined && value !== null && !Number.isNaN(value) ? Number(value) : null;
+      if (numeric === null) return;
       const graphic = new pm25State.Graphic({
         geometry: {
           type: "point",
           longitude: coords.lon,
           latitude: coords.lat
         },
-        symbol: {
-          type: "simple-marker",
-          color: colorForValue(value),
-          size: 10,
-          outline: { color: "#0f172a", width: 0.8 }
-        },
         attributes: {
+          ObjectID: oid++,
           stationName: label,
-          pm25: value !== undefined && value !== null && !Number.isNaN(value) ? value.toFixed(1) : "Saknas",
+          pm25: numeric,
           timestamp: formatTimestamp(ts),
           source: "Naturvårdsverket/SMHI (Datavärd luft)"
-        },
-        popupTemplate: {
-          title: "{stationName}",
-          content: "PM2.5: {pm25} µg/m³<br/>Tid: {timestamp}<br/>Källa: {source}"
         }
       });
-      pm25State.layer.add(graphic);
+      if (pm25State.layer?.source) pm25State.layer.source.add(graphic);
     });
 
     setStatus(`Senast uppdaterad: ${new Date().toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}`);
@@ -359,7 +383,7 @@ function disablePm25() {
     pm25State.timer = null;
   }
   if (pm25State.layer) {
-    pm25State.layer.removeAll();
+    if (pm25State.layer.source) pm25State.layer.source.removeAll();
     pm25State.layer.visible = false;
   }
   setStatus("Av");
@@ -369,6 +393,7 @@ window.initPm25Live = (opts) => {
   pm25State.view = opts?.view || null;
   pm25State.GraphicsLayer = opts?.GraphicsLayer || null;
   pm25State.Graphic = opts?.Graphic || null;
+  pm25State.FeatureLayer = opts?.FeatureLayer || null;
   const toggle = document.getElementById("pm25Toggle");
   if (!toggle) return;
 
