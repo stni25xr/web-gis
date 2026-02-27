@@ -2591,6 +2591,7 @@ Maintain safe distance
       function applyLod(level, skipGoTo = false) {
         const lvl = Number(level);
         if (!Number.isFinite(lvl)) return;
+        const busWidget = document.getElementById("bus15Widget");
         // Match LOD3+ rendering quality to avoid label distortion on LOD1/LOD2
         const profile = lvl <= 2 ? "medium" : lvl === 3 ? "medium" : "high";
         if (view && view.qualityProfile !== profile) {
@@ -2658,6 +2659,9 @@ Maintain safe distance
         document.querySelectorAll(".lod-btn").forEach((btn) => {
           btn.classList.toggle("is-active", Number(btn.dataset.lod) === lvl);
         });
+        if (busWidget) {
+          busWidget.style.display = (lvl === 2 || lvl === 3) ? "block" : "none";
+        }
       }
 
       document.querySelectorAll(".lod-btn").forEach((btn) => {

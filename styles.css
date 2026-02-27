@@ -108,6 +108,29 @@ html, body, body.app {
   zoom: 1;
 }
 
+/* Wider left panel + no inner horizontal scroll */
+#sidebar {
+  width: 440px !important;
+  overflow-x: hidden;
+}
+
+/* Keep tab stable and black */
+.panel-tab {
+  background: #1f232b !important;
+  color: #e2e8f0;
+  transition: none !important;
+  transform: translateY(-50%) !important;
+}
+
+.panel-tab:hover,
+.panel-tab:active,
+.panel-tab:focus {
+  background: #1f232b !important;
+  color: #e2e8f0 !important;
+  transform: translateY(-50%) !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.25);
+}
+
 /* ===== Demo login overlay ===== */
 .login-overlay {
   position: fixed;
