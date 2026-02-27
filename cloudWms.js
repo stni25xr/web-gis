@@ -1,10 +1,11 @@
-const CLOUD_WMS_URL = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi";
+const CLOUD_TILE_BASE = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/";
 const CLOUD_LAYER_NAME = "MODIS_Terra_CorrectedReflectance_TrueColor";
+const CLOUD_MATRIX_SET = "GoogleMapsCompatible_Level9";
 const CLOUD_REFRESH_MS = 5 * 60 * 1000;
 
 let cloudState = {
   view: null,
-  WMSLayer: null,
+  WebTileLayer: null,
   layer: null,
   enabled: false,
   timer: null
@@ -25,11 +26,14 @@ function todayUtcDate() {
   return `${y}-${m}-${day}`;
 }
 
-function ensureLayer() {
-  if (cloudState.layer || !cloudState.WMSLayer || !cloudState.view) return;
-  cloudState.layer = new cloudState.WMSLayer({
-    url: CLOUD_WMS_URL,
-    sublayers: [{ name: CLOUD_LAYER_NAME }],
+function buildUrlTemplate(dateStr) {
+  return `${CLOUD_TILE_BASE}${CLOUD_LAYER_NAME}/default/${dateStr}/${CLOUD_MATRIX_SET}/{level}/{row}/{col}.jpg`;
+}
+
+function ensureLayer(dateStr) {
+  if (cloudState.layer || !cloudState.WebTileLayer || !cloudState.view) return;
+  cloudState.layer = new cloudState.WebTileLayer({
+    urlTemplate: buildUrlTemplate(dateStr),
     opacity: 0.6
   });
   cloudState.view.map.add(cloudState.layer);
@@ -37,17 +41,17 @@ function ensureLayer() {
 
 function refreshLayer() {
   if (!cloudState.layer) return;
-  cloudState.layer.customParameters = {
-    TIME: todayUtcDate()
-  };
-  cloudState.layer.refresh();
+  const dateStr = todayUtcDate();
+  cloudState.layer.urlTemplate = buildUrlTemplate(dateStr);
+  if (typeof cloudState.layer.refresh === "function") cloudState.layer.refresh();
   setStatus(`Senast uppdaterad: ${new Date().toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}`);
 }
 
 function enableClouds() {
   cloudState.enabled = true;
   setStatus("Laddar moln...");
-  ensureLayer();
+  const dateStr = todayUtcDate();
+  ensureLayer(dateStr);
   if (cloudState.layer) cloudState.layer.visible = true;
   refreshLayer();
   if (cloudState.timer) clearInterval(cloudState.timer);
@@ -66,7 +70,7 @@ function disableClouds() {
 
 window.initCloudWms = (opts) => {
   cloudState.view = opts?.view || null;
-  cloudState.WMSLayer = opts?.WMSLayer || null;
+  cloudState.WebTileLayer = opts?.WebTileLayer || null;
   const toggle = document.getElementById("cloudToggle");
   if (!toggle) return;
   toggle.addEventListener("change", () => {

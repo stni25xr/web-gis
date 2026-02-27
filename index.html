@@ -897,13 +897,13 @@ Maintain safe distance
       "esri/layers/SceneLayer",
       "esri/layers/GeoJSONLayer",
       "esri/layers/FeatureLayer",
-      "esri/layers/WMSLayer",
+      "esri/layers/WebTileLayer",
       "esri/geometry/geometryEngine",
       "esri/geometry/support/webMercatorUtils",
       "esri/geometry/Polyline",
       "esri/layers/GraphicsLayer",
       "esri/Graphic"
-    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, WMSLayer, geometryEngine, webMercatorUtils, Polyline, GraphicsLayer, Graphic) {
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, WebTileLayer, geometryEngine, webMercatorUtils, Polyline, GraphicsLayer, Graphic) {
 
       const RESROBOT_KEY = window.RESROBOT_KEY || "";
       const ORS_KEY = window.ORS_KEY || "";
@@ -1016,7 +1016,7 @@ Maintain safe distance
 
       function tryInitCloud(attempt = 0) {
         if (typeof window.initCloudWms === "function") {
-          window.initCloudWms({ view, WMSLayer });
+          window.initCloudWms({ view, WebTileLayer });
           return;
         }
         if (attempt < 50) {
