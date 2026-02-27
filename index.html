@@ -1093,8 +1093,71 @@ Maintain safe distance
         open: false,
         attrs: null,
         factsheet: null,
+        pdfs: [],
+        pdfIndex: 0,
         lastFocus: null
       };
+
+      async function loadPdfManifest() {
+        if (buildingInfoState.pdfs && buildingInfoState.pdfs.length) return buildingInfoState.pdfs;
+        try {
+          const res = await fetch("./data/pdf-manifest.json");
+          if (!res.ok) throw new Error("manifest not found");
+          const data = await res.json();
+          const files = Array.isArray(data?.files) ? data.files : (Array.isArray(data) ? data : []);
+          buildingInfoState.pdfs = files
+            .map((f) => {
+              if (typeof f === "string") return { title: f, file: f };
+              return { title: f.title || f.name || f.file, file: f.file || f.path || f.url };
+            })
+            .filter((f) => f.file);
+        } catch (e) {
+          buildingInfoState.pdfs = [];
+        }
+        return buildingInfoState.pdfs;
+      }
+
+      function openPdfFullSize(item) {
+        if (!item || !item.file) return;
+        const basePath = item.file.startsWith("./") ? "" : "./";
+        const filePath = basePath + item.file;
+        const url = `./pdf-viewer.html?file=${encodeURIComponent(filePath)}&title=${encodeURIComponent(item.title || item.file)}`;
+        window.open(url, "_blank");
+      }
+
+      function renderPdfList() {
+        const listEl = document.getElementById("biPdfList");
+        const frame = document.getElementById("biPdfFrame");
+        const openBtn = document.getElementById("biPdfOpen");
+        if (!listEl || !frame || !openBtn) return;
+        listEl.innerHTML = "";
+        const items = buildingInfoState.pdfs || [];
+        if (!items.length) {
+          listEl.innerHTML = `<div class="bi-empty">No PDF files found.</div>`;
+          frame.src = "";
+          openBtn.disabled = true;
+          return;
+        }
+        items.forEach((item, idx) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = item.title || item.file;
+          btn.classList.toggle("is-active", idx === buildingInfoState.pdfIndex);
+          btn.addEventListener("click", () => {
+            buildingInfoState.pdfIndex = idx;
+            renderPdfList();
+          });
+          listEl.appendChild(btn);
+        });
+        const current = items[buildingInfoState.pdfIndex] || items[0];
+        buildingInfoState.pdfIndex = items.indexOf(current);
+        const filePath = (current.file.startsWith("./") || current.file.startsWith("data/")) ? current.file : `./${current.file}`;
+        frame.src = `${filePath}#view=FitH`;
+        frame.style.cursor = "pointer";
+        frame.addEventListener("click", () => openPdfFullSize(current));
+        openBtn.disabled = false;
+        openBtn.onclick = () => openPdfFullSize(current);
+      }
 
       function buildBuildingFactsheet(attrs) {
         const meta = attrs ? { ...attrs } : null;
@@ -1135,6 +1198,21 @@ Maintain safe distance
             <img src="./assets/demo/floorplan.svg" alt="Floorplan demo" />
             <img src="./assets/demo/facade.svg" alt="Facade demo" />
             <img src="./assets/demo/section.svg" alt="Section demo" />
+          </div>
+
+          <div class="bi-section">
+            <div class="bi-section-content">
+              <div style="font-weight:600;margin-bottom:8px;">Drawings (PDF)</div>
+              <div class="bi-pdf-grid">
+                <div class="bi-pdf-list">
+                  <div id="biPdfList" class="bi-pdf-items"></div>
+                </div>
+                <div class="bi-pdf-preview">
+                  <iframe id="biPdfFrame" title="PDF preview" src="" loading="lazy"></iframe>
+                  <button id="biPdfOpen" type="button" class="bi-btn bi-btn-inline">Open full size</button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <details class="bi-section" open>
@@ -1250,6 +1328,10 @@ Maintain safe distance
         buildingInfoState.attrs = attrs || lastSelectedBuildingAttrs || null;
         buildingInfoState.factsheet = buildBuildingFactsheet(buildingInfoState.attrs);
         renderBuildingModal(buildingInfoState.factsheet);
+        loadPdfManifest().then(() => {
+          buildingInfoState.pdfIndex = 0;
+          renderPdfList();
+        });
         setBuildingInfoButtonsEnabled(!!buildingInfoState.attrs);
         modal.style.display = "flex";
         buildingInfoState.open = true;

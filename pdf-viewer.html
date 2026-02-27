@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PDF Viewer</title>
+  <style>
+    html, body { margin:0; padding:0; height:100%; width:100%; font-family: "Sora", system-ui, sans-serif; background:#0b1220; color:#e2e8f0; }
+    .viewer-root { display:flex; flex-direction:column; height:100%; }
+    .viewer-bar {
+      height:56px; display:flex; align-items:center; gap:12px; padding:0 16px;
+      background:#0f172a; border-bottom:1px solid #1f2937;
+    }
+    .viewer-title { flex:1; font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .btn {
+      border:1px solid #334155; background:#111827; color:#e2e8f0; padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;
+    }
+    .btn.primary { background:#1f6feb; border-color:#1f6feb; color:#fff; }
+    .viewer-frame {
+      flex:1; width:100%; border:0; background:#0b1220;
+    }
+    .viewer-error { padding:24px; color:#fecaca; }
+  </style>
+</head>
+<body>
+  <div class="viewer-root">
+    <div class="viewer-bar">
+      <button id="backBtn" class="btn">← Back</button>
+      <div id="viewerTitle" class="viewer-title">PDF Viewer</div>
+      <button id="downloadBtn" class="btn">Download</button>
+      <button id="newTabBtn" class="btn primary">Open in new tab</button>
+    </div>
+    <iframe id="pdfFrame" class="viewer-frame" title="PDF"></iframe>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const file = params.get("file") || "";
+    const title = params.get("title") || file.split("/").pop() || "PDF";
+
+    const isSafe = file.startsWith("./data/") || file.startsWith("data/") || file.startsWith("./data/") || file.startsWith("data/");
+    const frame = document.getElementById("pdfFrame");
+    const titleEl = document.getElementById("viewerTitle");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const newTabBtn = document.getElementById("newTabBtn");
+
+    titleEl.textContent = title;
+    if (!file || !isSafe) {
+      frame.replaceWith(Object.assign(document.createElement("div"), { className: "viewer-error", textContent: "Invalid or unsafe PDF path." }));
+      downloadBtn.disabled = true;
+      newTabBtn.disabled = true;
+    } else {
+      const src = `${file}#view=FitH`;
+      frame.src = src;
+      downloadBtn.addEventListener("click", () => { window.open(file, "_blank"); });
+      newTabBtn.addEventListener("click", () => { window.open(file, "_blank"); });
+    }
+
+    document.getElementById("backBtn").addEventListener("click", () => {
+      if (history.length > 1) history.back();
+      else window.location.href = "./";
+    });
+  </script>
+</body>
+</html>
