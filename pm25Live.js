@@ -1,4 +1,7 @@
-const PM25_API_BASE = "https://datavardluft.smhi.se/52North/api/";
+const PM25_API_BASES = [
+  "https://datavardluft.smhi.se/52North/api/",
+  "https://datavardluft.smhi.se/52North/api/v1/"
+];
 const PM25_CENTER = { lon: 14.1618, lat: 57.7826 };
 const PM25_RADIUS_KM = 30;
 const PM25_REFRESH_MS = 5 * 60 * 1000;
@@ -12,7 +15,8 @@ let pm25State = {
   inFlight: false,
   timer: null,
   pm25PhenomenonId: null,
-  lastWarn: null
+  lastWarn: null,
+  apiBase: null
 };
 
 function warnOnce(key, err) {
@@ -32,38 +36,59 @@ function normalizeArray(json) {
   if (!json) return [];
   if (Array.isArray(json)) return json;
   if (Array.isArray(json.data)) return json.data;
+  if (json.data && Array.isArray(json.data.items)) return json.data.items;
+  if (json.data && Array.isArray(json.data.member)) return json.data.member;
   if (Array.isArray(json.member)) return json.member;
   if (Array.isArray(json.items)) return json.items;
   if (Array.isArray(json.features)) return json.features;
+  if (Array.isArray(json.results)) return json.results;
+  if (Array.isArray(json.value)) return json.value;
   return [];
 }
 
 function findPm25Phenomenon(items) {
+  const pm25Regex = /pm\s*2[.,_ ]?5|pm25|pm2_5|pm2p5/;
   const isPm25 = (item) => {
-    const label = String(item.label || item.name || item.shortName || item.description || "").toLowerCase();
+    const blob = [
+      item.label,
+      item.name,
+      item.shortName,
+      item.description,
+      item.domainId,
+      item.identifier,
+      item.id,
+      item.code,
+      item.symbol
+    ].filter(Boolean).join(" ").toLowerCase();
     const domainId = String(item.domainId || item.identifier || item.id || "").toLowerCase();
     return domainId.includes("/600")
+      || domainId.includes("pollutant/600")
+      || domainId.includes("600.1")
       || domainId === "600"
-      || domainId.includes("pm2.5")
-      || domainId.includes("pm2,5")
-      || label.includes("pm2.5")
-      || label.includes("pm 2.5")
-      || label.includes("pm2,5")
-      || label.includes("pm 2,5");
+      || pm25Regex.test(domainId)
+      || pm25Regex.test(blob);
   };
   return items.find(isPm25) || null;
 }
 
-async function fetchPhenomenaPage(offset, limit) {
-  const url = `${PM25_API_BASE}phenomena?limit=${limit}&offset=${offset}`;
+async function fetchPhenomenaPage(base, offset, limit) {
+  const url = `${base}phenomena?limit=${limit}&offset=${offset}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Phenomena HTTP ${res.status}`);
   const json = await res.json();
   return normalizeArray(json);
 }
 
-async function searchPhenomena(term) {
-  const url = `${PM25_API_BASE}phenomena?limit=100&searchText=${encodeURIComponent(term)}`;
+async function searchPhenomena(base, term) {
+  const url = `${base}phenomena?limit=100&searchText=${encodeURIComponent(term)}`;
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const json = await res.json();
+  return normalizeArray(json);
+}
+
+async function searchPhenomenaAlt(base, term) {
+  const url = `${base}search?limit=100&q=${encodeURIComponent(term)}`;
   const res = await fetch(url);
   if (!res.ok) return [];
   const json = await res.json();
@@ -72,27 +97,35 @@ async function searchPhenomena(term) {
 
 async function resolvePm25PhenomenonId() {
   if (pm25State.pm25PhenomenonId) return pm25State.pm25PhenomenonId;
-  const searchTerms = ["PM2.5", "PM 2.5", "PM2,5", "PM 2,5"];
-  let items = [];
-  for (const term of searchTerms) {
-    const found = await searchPhenomena(term);
-    items = items.concat(found);
-  }
-  let pm25 = findPm25Phenomenon(items);
-  if (!pm25) {
-    const limit = 200;
-    let offset = 0;
-    for (let i = 0; i < 10; i += 1) {
-      const page = await fetchPhenomenaPage(offset, limit);
-      if (!page.length) break;
-      pm25 = findPm25Phenomenon(page);
-      if (pm25) break;
-      offset += limit;
+  const searchTerms = ["PM2.5", "PM 2.5", "PM2,5", "PM 2,5", "PM25", "PM2_5"];
+  for (const base of PM25_API_BASES) {
+    let items = [];
+    for (const term of searchTerms) {
+      const found = await searchPhenomena(base, term);
+      items = items.concat(found);
+      const foundAlt = await searchPhenomenaAlt(base, term);
+      items = items.concat(foundAlt);
+    }
+    let pm25 = findPm25Phenomenon(items);
+    if (!pm25) {
+      const limit = 200;
+      let offset = 0;
+      for (let i = 0; i < 10; i += 1) {
+        const page = await fetchPhenomenaPage(base, offset, limit);
+        if (!page.length) break;
+        pm25 = findPm25Phenomenon(page);
+        if (pm25) break;
+        offset += limit;
+      }
+    }
+    if (pm25) {
+      pm25State.apiBase = base;
+      const id = pm25.id || pm25.identifier || pm25.domainId || pm25["@id"] || pm25.href;
+      pm25State.pm25PhenomenonId = String(id).split("/").pop();
+      return pm25State.pm25PhenomenonId;
     }
   }
-  if (!pm25) return null;
-  pm25State.pm25PhenomenonId = pm25.id || pm25.identifier || pm25.domainId;
-  return pm25State.pm25PhenomenonId;
+  return null;
 }
 
 function makeNearParam() {
@@ -112,11 +145,20 @@ function makeBboxParam() {
 }
 
 async function fetchStations(phenomenonId) {
-  const nearUrl = `${PM25_API_BASE}stations?phenomenon=${encodeURIComponent(phenomenonId)}&limit=100&near=${makeNearParam()}`;
+  const base = pm25State.apiBase || PM25_API_BASES[0];
+  let nearUrl = `${base}stations?phenomenon=${encodeURIComponent(phenomenonId)}&limit=100&near=${makeNearParam()}`;
   let res = await fetch(nearUrl);
   if (!res.ok) {
-    const bboxUrl = `${PM25_API_BASE}stations?phenomenon=${encodeURIComponent(phenomenonId)}&limit=100&bbox=${makeBboxParam()}`;
+    nearUrl = `${base}stations?phenomena=${encodeURIComponent(phenomenonId)}&limit=100&near=${makeNearParam()}`;
+    res = await fetch(nearUrl);
+  }
+  if (!res.ok) {
+    let bboxUrl = `${base}stations?phenomenon=${encodeURIComponent(phenomenonId)}&limit=100&bbox=${makeBboxParam()}`;
     res = await fetch(bboxUrl);
+    if (!res.ok) {
+      bboxUrl = `${base}stations?phenomena=${encodeURIComponent(phenomenonId)}&limit=100&bbox=${makeBboxParam()}`;
+      res = await fetch(bboxUrl);
+    }
   }
   if (!res.ok) throw new Error(`Stations HTTP ${res.status}`);
   const json = await res.json();
@@ -176,8 +218,13 @@ async function fetchLatestValue(phenomenonId, stationId) {
   const end = new Date();
   const start = new Date(end.getTime() - 3 * 60 * 60 * 1000);
   const timespan = `${start.toISOString()}/${end.toISOString()}`;
-  const url = `${PM25_API_BASE}timeseries?phenomenon=${encodeURIComponent(phenomenonId)}&station=${encodeURIComponent(stationId)}&timespan=${encodeURIComponent(timespan)}&limit=1`;
-  const res = await fetch(url);
+  const base = pm25State.apiBase || PM25_API_BASES[0];
+  let url = `${base}timeseries?phenomenon=${encodeURIComponent(phenomenonId)}&station=${encodeURIComponent(stationId)}&timespan=${encodeURIComponent(timespan)}&limit=1`;
+  let res = await fetch(url);
+  if (!res.ok) {
+    url = `${base}timeseries?phenomena=${encodeURIComponent(phenomenonId)}&station=${encodeURIComponent(stationId)}&timespan=${encodeURIComponent(timespan)}&limit=1`;
+    res = await fetch(url);
+  }
   if (!res.ok) throw new Error(`Timeseries HTTP ${res.status}`);
   let json = await res.json();
   if (json && json.href) {
