@@ -46,6 +46,18 @@ function normalizeArray(json) {
   return [];
 }
 
+function collectObjects(node, out) {
+  if (!node) return;
+  if (Array.isArray(node)) {
+    node.forEach((item) => collectObjects(item, out));
+    return;
+  }
+  if (typeof node === "object") {
+    out.push(node);
+    Object.values(node).forEach((val) => collectObjects(val, out));
+  }
+}
+
 function findParam(items, regex) {
   return items.find((item) => {
     const blob = [
@@ -61,12 +73,67 @@ function findParam(items, regex) {
   }) || null;
 }
 
+function extractParamInfo(json) {
+  const objects = [];
+  collectObjects(json, objects);
+  for (const obj of objects) {
+    const key = obj.key ?? obj.id ?? obj.parameter ?? obj.param;
+    const name = obj.name ?? obj.title ?? obj.summary ?? obj.description;
+    if (key !== undefined && name) {
+      return {
+        key: String(key).trim(),
+        name: String(name),
+        unit: obj.unit ? String(obj.unit) : ""
+      };
+    }
+  }
+  return null;
+}
+
 async function fetchParameters(base) {
   const url = `${base}parameter.json`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Parameters HTTP ${res.status}`);
   const json = await res.json();
-  return normalizeArray(json);
+  const items = normalizeArray(json);
+  if (items.length) return items;
+  const objects = [];
+  collectObjects(json, objects);
+  return objects;
+}
+
+async function fetchParameterMeta(base, id) {
+  const url = `${base}parameter/${encodeURIComponent(id)}.json`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const json = await res.json();
+  const info = extractParamInfo(json);
+  if (!info) return null;
+  return { ...info, id: String(id) };
+}
+
+async function probeWindParams(base) {
+  const candidates = [4, 8, 9, 10, 11, 13, 14, 15, 21, 22, 24, 25, 26, 27];
+  let speed = null;
+  let dir = null;
+  for (const id of candidates) {
+    const info = await fetchParameterMeta(base, id);
+    if (!info) continue;
+    const blob = `${info.name} ${info.unit}`.toLowerCase();
+    if (!speed && /vind|wind/.test(blob) && /(m\/?s|ms|m\/s)/.test(blob)) {
+      speed = info;
+      continue;
+    }
+    if (!dir && /vind|wind/.test(blob) && /(grad|degree|deg|°)/.test(blob)) {
+      dir = info;
+      continue;
+    }
+    if (!dir && /vindriktning|wind\s*direction/.test(blob)) {
+      dir = info;
+      continue;
+    }
+  }
+  return { speed, dir };
 }
 
 async function resolveWindParams() {
@@ -82,6 +149,13 @@ async function resolveWindParams() {
         windState.apiBase = base;
         windState.windSpeedParam = String(speed.key ?? speed.id ?? speed.parameter).trim();
         windState.windDirParam = String(dir.key ?? dir.id ?? dir.parameter).trim();
+        return true;
+      }
+      const probe = await probeWindParams(base);
+      if (probe.speed && probe.dir) {
+        windState.apiBase = base;
+        windState.windSpeedParam = probe.speed.key || probe.speed.id;
+        windState.windDirParam = probe.dir.key || probe.dir.id;
         return true;
       }
     } catch (err) {
