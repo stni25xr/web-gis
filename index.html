@@ -505,6 +505,14 @@
           </label>
         </div>
         <div id="pm25Status" class="pm25-status">Av</div>
+        <div class="switch-row">
+          <span class="switch-label">Moln (live) – SMHI</span>
+          <label class="switch" aria-label="Moln (live) – SMHI">
+            <input id="cloudToggle" type="checkbox" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div id="cloudStatus" class="pm25-status">Av</div>
       </details>
     </div>
   </aside>
@@ -871,6 +879,7 @@ Maintain safe distance
   </script>
 
   <script type="module" src="./pm25Live.js"></script>
+  <script type="module" src="./cloudLive.js"></script>
 
   <!-- ARCGIS (3D) -->
   <script>
@@ -1003,6 +1012,17 @@ Maintain safe distance
         }
       }
       tryInitPm25();
+
+      function tryInitCloud(attempt = 0) {
+        if (typeof window.initCloudLive === "function") {
+          window.initCloudLive({ view, FeatureLayer, Graphic });
+          return;
+        }
+        if (attempt < 50) {
+          setTimeout(() => tryInitCloud(attempt + 1), 100);
+        }
+      }
+      tryInitCloud();
       let incidentEtaTimer = null;
       let policeDriveTimer = null;
       let policeDriveGraphic = null;
