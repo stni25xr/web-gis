@@ -378,6 +378,12 @@ html, body, body.app {
   line-height: 1.15;
 }
 
+.pm25-status {
+  margin: 6px 0 2px 0;
+  font-size: 11px;
+  color: var(--app-text-muted);
+}
+
 #digitalPanel.is-open {
   transform: translateX(0);
 }

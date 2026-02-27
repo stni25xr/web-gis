@@ -495,6 +495,17 @@
           <button class="lod-btn" type="button" data-lod="4">LOD4</button>
         </div>
       </details>
+      <details class="switch-group" open>
+        <summary class="switch-group-title">Luft</summary>
+        <div class="switch-row">
+          <span class="switch-label">PM2.5 (live) – Naturvårdsverket/SMHI</span>
+          <label class="switch" aria-label="PM2.5 (live) – Naturvårdsverket/SMHI">
+            <input id="pm25Toggle" type="checkbox" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div id="pm25Status" class="pm25-status">Av</div>
+      </details>
     </div>
   </aside>
 
@@ -859,6 +870,8 @@ Maintain safe distance
     setInterval(updateElPrice, 300000);
   </script>
 
+  <script type="module" src="./pm25Live.js"></script>
+
   <!-- ARCGIS (3D) -->
   <script>
     // Extra koll om ArcGIS‑scriptet inte laddades
@@ -980,6 +993,16 @@ Maintain safe distance
         lastColorKey: null,
         baseSymbol: null
       };
+      function tryInitPm25(attempt = 0) {
+        if (typeof window.initPm25Live === "function") {
+          window.initPm25Live({ view, GraphicsLayer, Graphic });
+          return;
+        }
+        if (attempt < 50) {
+          setTimeout(() => tryInitPm25(attempt + 1), 100);
+        }
+      }
+      tryInitPm25();
       let incidentEtaTimer = null;
       let policeDriveTimer = null;
       let policeDriveGraphic = null;
