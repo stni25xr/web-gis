@@ -1,5 +1,5 @@
 const CLOUD_WMS_URL = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi";
-const CLOUD_LAYER_NAME = "MODIS_Terra_Cloud_Top_Temp_Day";
+const CLOUD_LAYER_NAME = "MODIS_Terra_CorrectedReflectance_TrueColor";
 const CLOUD_REFRESH_MS = 5 * 60 * 1000;
 
 let cloudState = {
