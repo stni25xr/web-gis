@@ -40,9 +40,12 @@ function normalizeArray(json) {
 
 function findPm25Phenomenon(items) {
   const isPm25 = (item) => {
-    const label = String(item.label || item.name || "").toLowerCase();
+    const label = String(item.label || item.name || item.shortName || item.description || "").toLowerCase();
     const domainId = String(item.domainId || item.identifier || item.id || "").toLowerCase();
     return domainId.includes("/600")
+      || domainId === "600"
+      || domainId.includes("pm2.5")
+      || domainId.includes("pm2,5")
       || label.includes("pm2.5")
       || label.includes("pm 2.5")
       || label.includes("pm2,5")
@@ -51,13 +54,42 @@ function findPm25Phenomenon(items) {
   return items.find(isPm25) || null;
 }
 
-async function resolvePm25PhenomenonId() {
-  if (pm25State.pm25PhenomenonId) return pm25State.pm25PhenomenonId;
-  const res = await fetch(`${PM25_API_BASE}phenomena?limit=100`);
+async function fetchPhenomenaPage(offset, limit) {
+  const url = `${PM25_API_BASE}phenomena?limit=${limit}&offset=${offset}`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`Phenomena HTTP ${res.status}`);
   const json = await res.json();
-  const items = normalizeArray(json);
-  const pm25 = findPm25Phenomenon(items);
+  return normalizeArray(json);
+}
+
+async function searchPhenomena(term) {
+  const url = `${PM25_API_BASE}phenomena?limit=100&searchText=${encodeURIComponent(term)}`;
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const json = await res.json();
+  return normalizeArray(json);
+}
+
+async function resolvePm25PhenomenonId() {
+  if (pm25State.pm25PhenomenonId) return pm25State.pm25PhenomenonId;
+  const searchTerms = ["PM2.5", "PM 2.5", "PM2,5", "PM 2,5"];
+  let items = [];
+  for (const term of searchTerms) {
+    const found = await searchPhenomena(term);
+    items = items.concat(found);
+  }
+  let pm25 = findPm25Phenomenon(items);
+  if (!pm25) {
+    const limit = 200;
+    let offset = 0;
+    for (let i = 0; i < 10; i += 1) {
+      const page = await fetchPhenomenaPage(offset, limit);
+      if (!page.length) break;
+      pm25 = findPm25Phenomenon(page);
+      if (pm25) break;
+      offset += limit;
+    }
+  }
   if (!pm25) return null;
   pm25State.pm25PhenomenonId = pm25.id || pm25.identifier || pm25.domainId;
   return pm25State.pm25PhenomenonId;
