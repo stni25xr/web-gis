@@ -892,6 +892,20 @@ Maintain safe distance
         fillOpacity: 0.25
       };
 
+      function refreshViewSize() {
+        if (!view) return;
+        view.resize();
+        if (typeof view.requestRender === "function") view.requestRender();
+      }
+      window.refreshViewSize = refreshViewSize;
+
+      // ResizeObserver for map container
+      const sceneEl = document.getElementById("sceneView");
+      if (sceneEl && "ResizeObserver" in window) {
+        const ro = new ResizeObserver(() => refreshViewSize());
+        ro.observe(sceneEl);
+      }
+
       // 3D‑byggnader (globalt)
       const buildings = new SceneLayer({
         portalItem: { id: "c444b24b184c4523a5dc96248bfea4e1" },
@@ -4007,7 +4021,9 @@ if (isBus) {
       rightPanel?.classList.toggle("is-open", rightOpen);
       if (leftTab) leftTab.style.display = leftOpen ? "none" : "block";
       if (rightTab) rightTab.style.display = rightOpen ? "none" : "block";
-      if (window.view) {
+      if (window.view && typeof window.refreshViewSize === "function") {
+        window.refreshViewSize();
+      } else if (window.view) {
         window.view.resize();
         if (typeof window.view.requestRender === "function") window.view.requestRender();
       }
@@ -4053,7 +4069,9 @@ if (isBus) {
     window.addEventListener("resize", () => {
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
-        if (window.view) {
+        if (window.view && typeof window.refreshViewSize === "function") {
+          window.refreshViewSize();
+        } else if (window.view) {
           window.view.resize();
           if (typeof window.view.requestRender === "function") window.view.requestRender();
         }
