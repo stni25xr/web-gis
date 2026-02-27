@@ -513,6 +513,14 @@
           </label>
         </div>
         <div id="cloudStatus" class="pm25-status">Av</div>
+        <div class="switch-row">
+          <span class="switch-label">Vind (live) – SMHI</span>
+          <label class="switch" aria-label="Vind (live) – SMHI">
+            <input id="windToggle" type="checkbox" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div id="windStatus" class="pm25-status">Av</div>
       </details>
     </div>
   </aside>
@@ -880,6 +888,7 @@ Maintain safe distance
 
   <script type="module" src="./pm25Live.js"></script>
   <script type="module" src="./cloudWms.js"></script>
+  <script type="module" src="./windLive.js"></script>
 
   <!-- ARCGIS (3D) -->
   <script>
@@ -1024,6 +1033,17 @@ Maintain safe distance
         }
       }
       tryInitCloud();
+
+      function tryInitWind(attempt = 0) {
+        if (typeof window.initWindLive === "function") {
+          window.initWindLive({ view, GraphicsLayer, Graphic });
+          return;
+        }
+        if (attempt < 50) {
+          setTimeout(() => tryInitWind(attempt + 1), 100);
+        }
+      }
+      tryInitWind();
       let incidentEtaTimer = null;
       let policeDriveTimer = null;
       let policeDriveGraphic = null;
