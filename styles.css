@@ -133,16 +133,16 @@ html, body, body.app {
 }
 
 #leftTabDigital {
-  background: var(--app-surface) !important;
-  color: var(--app-text);
-  border: 1px solid var(--app-border);
+  background: #1f232b !important;
+  color: #e2e8f0;
+  border: 1px solid #1f232b;
 }
 
 #leftTabDigital:hover,
 #leftTabDigital:active,
 #leftTabDigital:focus {
-  background: var(--app-surface-soft) !important;
-  color: var(--app-text) !important;
+  background: #1f232b !important;
+  color: #e2e8f0 !important;
 }
 
 /* ===== Demo login overlay ===== */

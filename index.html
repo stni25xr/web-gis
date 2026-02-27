@@ -473,11 +473,11 @@
       <details class="switch-group" open>
         <summary class="switch-group-title">LOD</summary>
         <div class="lod-grid" role="group" aria-label="Level of detail">
+          <button class="lod-btn" type="button" data-lod="0">LOD0</button>
           <button class="lod-btn" type="button" data-lod="1">LOD1</button>
           <button class="lod-btn" type="button" data-lod="2">LOD2</button>
           <button class="lod-btn" type="button" data-lod="3">LOD3</button>
           <button class="lod-btn" type="button" data-lod="4">LOD4</button>
-          <button class="lod-btn" type="button" data-lod="5">LOD5</button>
         </div>
       </details>
     </div>
@@ -4122,9 +4122,10 @@ if (isBus) {
       leftPanel?.classList.toggle("is-open", leftOpen);
       digitalPanel?.classList.toggle("is-open", digitalOpen);
       rightPanel?.classList.toggle("is-open", rightOpen);
-      if (leftTabMain) leftTabMain.style.display = leftOpen ? "none" : "block";
-      if (leftTabDigital) leftTabDigital.style.display = digitalOpen ? "none" : "block";
-      if (rightTab) rightTab.style.display = rightOpen ? "none" : "block";
+      const anyOpen = leftOpen || digitalOpen || rightOpen;
+      if (leftTabMain) leftTabMain.style.display = anyOpen ? "none" : "block";
+      if (leftTabDigital) leftTabDigital.style.display = anyOpen ? "none" : "block";
+      if (rightTab) rightTab.style.display = anyOpen ? "none" : "block";
       if (window.view && typeof window.refreshViewSize === "function") {
         window.refreshViewSize();
       } else if (window.view) {
