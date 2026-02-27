@@ -263,12 +263,13 @@ function ensureHeatLayer() {
     objectIdField: "ObjectID",
     source: [],
     elevationInfo: { mode: "on-the-ground" },
-    opacity: 0.75,
+    opacity: 0.9,
+    blendMode: "screen",
     renderer: {
       type: "heatmap",
       field: "speed",
-      blurRadius: 40,
-      maxPixelIntensity: 8,
+      blurRadius: 55,
+      maxPixelIntensity: 4,
       minPixelIntensity: 0,
       colorStops: [
         { ratio: 0, color: "rgba(56, 189, 248, 0)" },
@@ -280,6 +281,10 @@ function ensureHeatLayer() {
     }
   });
   windState.view.map.add(windState.heatLayer);
+  if (windState.layer) {
+    const idx = windState.view.map.layers.indexOf(windState.layer);
+    if (idx > -1) windState.view.map.reorder(windState.heatLayer, idx);
+  }
 }
 
 async function refreshWind() {
