@@ -11,7 +11,9 @@ let windState = {
   view: null,
   GraphicsLayer: null,
   Graphic: null,
+  FeatureLayer: null,
   layer: null,
+  heatLayer: null,
   enabled: false,
   inFlight: false,
   timer: null,
@@ -248,6 +250,37 @@ function ensureLayer() {
   windState.view.map.add(windState.layer);
 }
 
+function ensureHeatLayer() {
+  if (windState.heatLayer || !windState.FeatureLayer || !windState.view) return;
+  windState.heatLayer = new windState.FeatureLayer({
+    title: "Vind (heatmap)",
+    geometryType: "point",
+    spatialReference: { wkid: 4326 },
+    fields: [
+      { name: "ObjectID", type: "oid" },
+      { name: "speed", type: "double" }
+    ],
+    objectIdField: "ObjectID",
+    source: [],
+    elevationInfo: { mode: "on-the-ground" },
+    renderer: {
+      type: "heatmap",
+      field: "speed",
+      blurRadius: 22,
+      maxPixelIntensity: 20,
+      minPixelIntensity: 0,
+      colorStops: [
+        { ratio: 0, color: "rgba(34, 197, 94, 0)" },
+        { ratio: 0.25, color: "rgba(132, 204, 22, 0.6)" },
+        { ratio: 0.5, color: "rgba(250, 204, 21, 0.7)" },
+        { ratio: 0.75, color: "rgba(249, 115, 22, 0.8)" },
+        { ratio: 1, color: "rgba(239, 68, 68, 0.9)" }
+      ]
+    }
+  });
+  windState.view.map.add(windState.heatLayer);
+}
+
 async function refreshWind() {
   if (!windState.enabled || windState.inFlight) return;
   windState.inFlight = true;
@@ -261,7 +294,9 @@ async function refreshWind() {
       return;
     }
     ensureLayer();
+    ensureHeatLayer();
     windState.layer.removeAll();
+    if (windState.heatLayer?.source) windState.heatLayer.source.removeAll();
 
     const stations = await fetchStations(windState.windSpeedParam);
     let nearby = stations.filter((st) => {
@@ -298,6 +333,7 @@ async function refreshWind() {
       }
     }));
 
+    let oid = 1;
     results.filter(Boolean).forEach((item) => {
       const coords = getStationCoords(item.station);
       if (!coords) return;
@@ -332,6 +368,19 @@ async function refreshWind() {
         }
       });
       windState.layer.add(graphic);
+      if (windState.heatLayer?.source) {
+        windState.heatLayer.source.add(new windState.Graphic({
+          geometry: {
+            type: "point",
+            longitude: coords.lon,
+            latitude: coords.lat
+          },
+          attributes: {
+            ObjectID: oid++,
+            speed: speedVal
+          }
+        }));
+      }
     });
 
     setStatus(`Senast uppdaterad: ${new Date().toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}`);
@@ -358,6 +407,7 @@ function disableWind() {
     windState.timer = null;
   }
   if (windState.layer) windState.layer.removeAll();
+  if (windState.heatLayer?.source) windState.heatLayer.source.removeAll();
   setStatus("Av");
 }
 
@@ -365,6 +415,7 @@ window.initWindLive = (opts) => {
   windState.view = opts?.view || null;
   windState.GraphicsLayer = opts?.GraphicsLayer || null;
   windState.Graphic = opts?.Graphic || null;
+  windState.FeatureLayer = opts?.FeatureLayer || null;
   const toggle = document.getElementById("windToggle");
   if (!toggle) return;
   toggle.addEventListener("change", () => {

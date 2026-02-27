@@ -1036,7 +1036,7 @@ Maintain safe distance
 
       function tryInitWind(attempt = 0) {
         if (typeof window.initWindLive === "function") {
-          window.initWindLive({ view, GraphicsLayer, Graphic });
+          window.initWindLive({ view, GraphicsLayer, Graphic, FeatureLayer });
           return;
         }
         if (attempt < 50) {
