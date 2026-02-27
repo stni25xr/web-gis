@@ -34,7 +34,7 @@ function ensureLayer(dateStr) {
   if (cloudState.layer || !cloudState.WebTileLayer || !cloudState.view) return;
   cloudState.layer = new cloudState.WebTileLayer({
     urlTemplate: buildUrlTemplate(dateStr),
-    opacity: 0.6
+    opacity: 0.8
   });
   cloudState.view.map.add(cloudState.layer);
 }
