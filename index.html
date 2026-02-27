@@ -715,12 +715,13 @@ Maintain safe distance
     <div class="sim-time-label">Simulation time</div>
     <div id="simTimeValue" class="sim-time-value">—</div>
     <input id="simTimeSlider" type="range" class="sim-time-slider" min="0" max="43200" value="0" step="15" />
-    <button id="simPlayPause" type="button" class="sim-btn">Play</button>
+    <button id="simPlay" type="button" class="sim-btn">Spela</button>
+    <button id="simPause" type="button" class="sim-btn">Paus</button>
     <div class="sim-speed">
-      <button class="sim-speed-btn" data-speed="1">1x</button>
-      <button class="sim-speed-btn" data-speed="5">5x</button>
-      <button class="sim-speed-btn" data-speed="10">10x</button>
-      <button class="sim-speed-btn" data-speed="100">100x</button>
+      <button class="sim-speed-btn" data-mode="1x">1x</button>
+      <button class="sim-speed-btn" data-mode="hour">per timme</button>
+      <button class="sim-speed-btn" data-mode="day">per dag</button>
+      <button class="sim-speed-btn" data-mode="week">per vecka</button>
     </div>
   </div>
   <div id="buildingInfoModal" style="display:none;">
@@ -4198,15 +4199,18 @@ if (isBus) {
 
     // Simulation time control
     const simState = {
-      startReal: new Date(),
-      simNow: new Date(),
-      speed: 1,
+      baseReal: new Date(),
+      simNow: null,
+      mode: "1x",
       running: false,
-      timer: null
+      timer: null,
+      lastTickReal: null
     };
+    simState.simNow = new Date(simState.baseReal.getTime());
     const simSlider = document.getElementById("simTimeSlider");
     const simValue = document.getElementById("simTimeValue");
-    const simPlay = document.getElementById("simPlayPause");
+    const simPlay = document.getElementById("simPlay");
+    const simPause = document.getElementById("simPause");
     const simSpeedBtns = document.querySelectorAll(".sim-speed-btn");
 
     function formatSim(dt) {
@@ -4215,71 +4219,109 @@ if (isBus) {
     }
     function dispatchSimEvent() {
       window.dispatchEvent(new CustomEvent("simtime:change", {
-        detail: { simNow: simState.simNow, simSpeed: simState.speed, simRunning: simState.running }
+        detail: { simNow: simState.simNow, simMode: simState.mode, simRunning: simState.running }
       }));
     }
     function updateSimUI() {
       if (simValue) simValue.textContent = formatSim(simState.simNow);
       simSpeedBtns.forEach((btn) => {
-        btn.classList.toggle("is-active", Number(btn.dataset.speed) === simState.speed);
+        btn.classList.toggle("is-active", btn.dataset.mode === simState.mode);
       });
     }
 
     if (simSlider) {
-      const start = simState.startReal.getTime();
-      const end = start + 30 * 24 * 60 * 60 * 1000;
       simSlider.min = "0";
-      simSlider.max = String(Math.floor((end - start) / 60000));
+      simSlider.max = String(30 * 24 * 60);
       simSlider.value = "0";
       simSlider.step = "15";
       simSlider.addEventListener("input", () => {
         const mins = Number(simSlider.value);
-        simState.simNow = new Date(start + mins * 60000);
+        simState.simNow = new Date(simState.baseReal.getTime() + mins * 60000);
         updateSimUI();
         dispatchSimEvent();
       });
     }
 
-    simPlay?.addEventListener("click", () => {
-      simState.running = !simState.running;
-      simPlay.textContent = simState.running ? "Pause" : "Play";
-      if (simState.running && !simState.timer) {
-        let last = Date.now();
-        simState.timer = setInterval(() => {
-          const now = Date.now();
-          const dt = (now - last) / 1000;
-          last = now;
-          simState.simNow = new Date(simState.simNow.getTime() + dt * 1000 * simState.speed);
-          const start = simState.startReal.getTime();
-          const end = start + 30 * 24 * 60 * 60 * 1000;
-          if (simState.simNow.getTime() >= end) {
-            simState.simNow = new Date(end);
-            simState.running = false;
-            simPlay.textContent = "Play";
-            clearInterval(simState.timer);
-            simState.timer = null;
-          }
-          const mins = Math.floor((simState.simNow.getTime() - start) / 60000);
-          if (simSlider) simSlider.value = String(mins);
-          updateSimUI();
-          dispatchSimEvent();
-        }, 200);
-      } else if (!simState.running && simState.timer) {
+    function stopSim() {
+      simState.running = false;
+      if (simState.timer) {
         clearInterval(simState.timer);
         simState.timer = null;
       }
+    }
+
+    function syncSliderToSim() {
+      if (!simSlider) return;
+      const mins = Math.floor((simState.simNow.getTime() - simState.baseReal.getTime()) / 60000);
+      const max = Number(simSlider.max || 0);
+      const clamped = Math.max(0, Math.min(mins, max));
+      simSlider.value = String(clamped);
+      if (clamped !== mins) {
+        simState.simNow = new Date(simState.baseReal.getTime() + clamped * 60000);
+        stopSim();
+      }
+    }
+
+    function tickSim() {
+      const nowReal = Date.now();
+      if (simState.mode === "1x") {
+        const deltaMs = nowReal - (simState.lastTickReal || nowReal);
+        simState.simNow = new Date(simState.simNow.getTime() + deltaMs);
+      } else if (simState.mode === "hour") {
+        simState.simNow = new Date(simState.simNow.getTime() + 60 * 60 * 1000);
+      } else if (simState.mode === "day") {
+        const d = new Date(simState.simNow);
+        d.setDate(d.getDate() + 1);
+        simState.simNow = d;
+      } else if (simState.mode === "week") {
+        const d = new Date(simState.simNow);
+        d.setDate(d.getDate() + 7);
+        simState.simNow = d;
+      }
+      simState.lastTickReal = nowReal;
+      syncSliderToSim();
+      updateSimUI();
+      dispatchSimEvent();
+    }
+
+    function startSim() {
+      stopSim();
+      simState.running = true;
+      simState.lastTickReal = Date.now();
+      simState.timer = setInterval(tickSim, 1000);
+    }
+
+    simPlay?.addEventListener("click", () => {
+      if (!simState.running) {
+        startSim();
+      }
+      updateSimUI();
+      dispatchSimEvent();
+    });
+
+    simPause?.addEventListener("click", () => {
+      stopSim();
+      updateSimUI();
       dispatchSimEvent();
     });
 
     simSpeedBtns.forEach((btn) => {
       btn.addEventListener("click", () => {
-        simState.speed = Number(btn.dataset.speed);
+        simState.mode = btn.dataset.mode || "1x";
+        simState.lastTickReal = Date.now();
         updateSimUI();
         dispatchSimEvent();
       });
     });
 
     updateSimUI();
+    syncSliderToSim();
+    dispatchSimEvent();
+
+    window.stopSimTime = () => {
+      stopSim();
+      dispatchSimEvent();
+    };
   </script>
   <script>
     // Demo-only login gate (client-side)
@@ -4348,8 +4390,10 @@ if (isBus) {
 
       logoutBtn?.addEventListener("click", () => {
         if (loggedIn) {
+          window.stopSimTime?.();
           showLoginOverlay();
         } else {
+          window.stopSimTime?.();
           showLoginOverlay();
         }
       });

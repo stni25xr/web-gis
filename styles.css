@@ -114,10 +114,11 @@ html, body, body.app {
   overflow-x: hidden;
 }
 
-/* Keep tab stable and black */
+/* Keep tab stable */
 .panel-tab {
   background: #1f232b !important;
   color: #e2e8f0;
+  border: 1px solid #1f232b;
   transition: none !important;
   transform: translateY(-50%) !important;
 }
@@ -129,6 +130,19 @@ html, body, body.app {
   color: #e2e8f0 !important;
   transform: translateY(-50%) !important;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.25);
+}
+
+#leftTabDigital {
+  background: var(--app-surface) !important;
+  color: var(--app-text);
+  border: 1px solid var(--app-border);
+}
+
+#leftTabDigital:hover,
+#leftTabDigital:active,
+#leftTabDigital:focus {
+  background: var(--app-surface-soft) !important;
+  color: var(--app-text) !important;
 }
 
 /* ===== Demo login overlay ===== */
@@ -196,7 +210,7 @@ html, body, body.app {
 
 .login-btn {
   margin-top: 6px;
-  border: none;
+  border: 1px solid var(--app-border);
   border-radius: 12px;
   padding: 12px 14px;
   font-size: 15px;
@@ -301,7 +315,7 @@ html, body, body.app {
   height: 140px;
   border: none;
   border-radius: 10px;
-  background: rgba(31, 35, 43, 0.9);
+  background: #1f232b;
   color: #e2e8f0;
   font-size: 18px;
   cursor: pointer;
@@ -327,14 +341,37 @@ html, body, body.app {
   bottom: 0;
   left: 0;
   width: 440px;
-  background: #1f232b;
-  color: #e2e8f0;
-  padding: 20px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  padding: var(--app-spacing-4);
+  border-right: 1px solid var(--app-border);
+  box-shadow: var(--app-shadow-sm);
   box-sizing: border-box;
-  overflow-y: auto;
+  overflow: hidden;
   z-index: 1000;
   transform: translateX(-100%);
   transition: transform 0.25s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+#digitalPanel h2 {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  border-bottom: 1px solid var(--app-border);
+  padding-bottom: var(--app-spacing-2);
+}
+
+#digitalPanel .sidebar-scroll {
+  overflow-x: hidden;
+}
+
+#digitalPanel .sidebar-scroll button {
+  font-size: 12px;
+  padding: 6px 8px;
+  line-height: 1.15;
 }
 
 #digitalPanel.is-open {
@@ -841,8 +878,8 @@ html, body, body.app {
 }
 
 .lod-grid {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 8px 6px 2px;
 }
