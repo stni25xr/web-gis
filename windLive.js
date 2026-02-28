@@ -170,7 +170,7 @@ function advanceParticles() {
 
   resizeCanvas();
   ctx.clearRect(0, 0, windState.canvas.width, windState.canvas.height);
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 1.3;
 
   const dt = 600; // seconds per frame
 
@@ -192,7 +192,7 @@ function advanceParticles() {
     }
     const next = view.toScreen({ latitude: p.lat, longitude: p.lon });
     if (!prev || !next) return;
-    ctx.strokeStyle = "rgba(200, 240, 255, 0.7)";
+    ctx.strokeStyle = "rgba(200, 240, 255, 0.9)";
     ctx.beginPath();
     ctx.moveTo(prev.x, prev.y);
     ctx.lineTo(next.x, next.y);
@@ -219,7 +219,7 @@ async function refreshWind() {
     const responses = Array.isArray(json) ? json : [json];
     windState.field = buildField(points, responses);
     windState.fieldTime = Date.now();
-    initParticles(700);
+    initParticles(900);
     ensureArrowLayer();
     if (windState.arrows) windState.arrows.removeAll();
     setStatus(`Senast uppdaterad: ${new Date().toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}`);

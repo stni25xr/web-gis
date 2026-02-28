@@ -950,6 +950,14 @@ Maintain safe distance
       view.popup.dockOptions = { position: "top-right", breakpoint: false };
       view.popup.highlightEnabled = false;
 
+      function syncLighting() {
+        if (!view?.environment?.lighting) return;
+        view.environment.lighting.date = new Date();
+        view.environment.lighting.directShadowsEnabled = false;
+      }
+      syncLighting();
+      setInterval(syncLighting, 300000);
+
       view.highlightOptions = {
         color: "#7dd3fc",
         haloOpacity: 0.8,
