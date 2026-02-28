@@ -5,8 +5,9 @@ const WIND_STEP_KM = 10;
 const WIND_REFRESH_MS = 5 * 60 * 1000;
 const WIND_LAYER_ID = "windLiveLayer";
 const WIND_PARTICLE_TARGET = 700;
-const WIND_SPEED_FACTOR = 0.45;
-const WIND_SPEED_FACTOR_NEAR = 0.55;
+const WIND_SPEED_FACTOR = 0.06;
+const WIND_SPEED_FACTOR_NEAR = 0.08;
+const WIND_UPDATE_INTERVAL_MS = 40;
 
 let windState = {
   view: null,
@@ -28,7 +29,8 @@ let windState = {
   speedFactor: WIND_SPEED_FACTOR,
   dt: 650,
   jitterMeters: 250,
-  maxAge: 200
+  maxAge: 200,
+  lastUpdate: 0
 };
 
 function setStatus(text, isError = false) {
@@ -198,9 +200,9 @@ function windDetailConfig() {
     rows: isFar ? 6 : isNear ? 11 : 8,
     particles: isFar ? 520 : isNear ? 900 : WIND_PARTICLE_TARGET,
     speedFactor: isNear ? WIND_SPEED_FACTOR_NEAR : WIND_SPEED_FACTOR,
-    dt: isFar ? 620 : 650,
-    jitterMeters: isFar ? 220 : isNear ? 320 : 250,
-    maxAge: isFar ? 230 : isNear ? 190 : 200
+    dt: isFar ? 580 : 620,
+    jitterMeters: isFar ? 140 : isNear ? 220 : 180,
+    maxAge: isFar ? 340 : isNear ? 300 : 320
   };
 }
 
@@ -288,7 +290,11 @@ function advanceParticles() {
 
 function animate() {
   if (!windState.enabled) return;
-  advanceParticles();
+  const now = performance.now();
+  if (now - windState.lastUpdate >= WIND_UPDATE_INTERVAL_MS) {
+    windState.lastUpdate = now;
+    advanceParticles();
+  }
   windState.frameId = requestAnimationFrame(animate);
 }
 
