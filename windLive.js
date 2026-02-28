@@ -5,8 +5,8 @@ const WIND_STEP_KM = 10;
 const WIND_REFRESH_MS = 5 * 60 * 1000;
 const WIND_LAYER_ID = "windLiveLayer";
 const WIND_PARTICLE_TARGET = 700;
-const WIND_SPEED_FACTOR = 0.34;
-const WIND_SPEED_FACTOR_NEAR = 0.42;
+const WIND_SPEED_FACTOR = 0.48;
+const WIND_SPEED_FACTOR_NEAR = 0.6;
 const WIND_UPDATE_INTERVAL_MS = 40;
 const WIND_STATIONARY_DEBOUNCE_MS = 300;
 
@@ -33,7 +33,7 @@ let windState = {
   dt: 0.04,
   jitterMeters: 250,
   maxAge: 200,
-  trailLength: 22,
+  trailLength: 330,
   lastUpdate: 0,
   stationaryTimer: null
 };
@@ -234,7 +234,7 @@ function windDetailConfig() {
     dt: 0.04,
     jitterMeters: isFar ? 110 : isNear ? 160 : 130,
     maxAge: isFar ? 1400 : isNear ? 1200 : 1300,
-    trailLength: isFar ? 20 : isNear ? 24 : 22
+    trailLength: isFar ? 300 : isNear ? 360 : 330
   };
 }
 
