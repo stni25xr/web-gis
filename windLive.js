@@ -157,9 +157,10 @@ function advanceParticles() {
   if (!ctx || !view || !field) return;
 
   resizeCanvas();
-  ctx.fillStyle = "rgba(7, 20, 40, 0.08)";
-  ctx.globalCompositeOperation = "source-over";
+  ctx.globalCompositeOperation = "destination-in";
+  ctx.fillStyle = "rgba(0, 0, 0, 0.92)";
   ctx.fillRect(0, 0, windState.canvas.width, windState.canvas.height);
+  ctx.globalCompositeOperation = "source-over";
   ctx.lineWidth = 1;
 
   const dt = 600; // seconds per frame
@@ -182,7 +183,7 @@ function advanceParticles() {
     }
     const next = view.toScreen({ latitude: p.lat, longitude: p.lon });
     if (!prev || !next) return;
-    ctx.strokeStyle = "rgba(200, 240, 255, 0.6)";
+    ctx.strokeStyle = "rgba(200, 240, 255, 0.35)";
     ctx.beginPath();
     ctx.moveTo(prev.x, prev.y);
     ctx.lineTo(next.x, next.y);
@@ -209,7 +210,7 @@ async function refreshWind() {
     const responses = Array.isArray(json) ? json : [json];
     windState.field = buildField(points, responses);
     windState.fieldTime = Date.now();
-    initParticles(900);
+    initParticles(450);
     setStatus(`Senast uppdaterad: ${new Date().toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}`);
   } catch (err) {
     console.warn("Wind refresh failed", err);
