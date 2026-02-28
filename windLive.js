@@ -33,7 +33,7 @@ let windState = {
   dt: 0.04,
   jitterMeters: 250,
   maxAge: 300,
-  trailLength: 150,
+  trailLength: 1200,
   lastUpdate: 0,
   stationaryTimer: null
 };
@@ -234,7 +234,7 @@ function windDetailConfig() {
     dt: 0.04,
     jitterMeters: 250,
     maxAge: 300,
-    trailLength: 150
+    trailLength: 1200
   };
 }
 
