@@ -4,7 +4,9 @@ const WIND_RADIUS_KM = 30;
 const WIND_STEP_KM = 10;
 const WIND_REFRESH_MS = 5 * 60 * 1000;
 const WIND_LAYER_ID = "windLiveLayer";
-const WIND_PARTICLE_TARGET = 900;
+const WIND_PARTICLE_TARGET = 700;
+const WIND_SPEED_FACTOR = 0.45;
+const WIND_SPEED_FACTOR_NEAR = 0.55;
 
 let windState = {
   view: null,
@@ -22,7 +24,11 @@ let windState = {
   Graphic: null,
   lastEmitterKey: "",
   lastWind: { speed: null, dir: null },
-  fallbackVector: { u: 0, v: 0, speed: 0 }
+  fallbackVector: { u: 0, v: 0, speed: 0 },
+  speedFactor: WIND_SPEED_FACTOR,
+  dt: 650,
+  jitterMeters: 250,
+  maxAge: 200
 };
 
 function setStatus(text, isError = false) {
@@ -182,11 +188,27 @@ function ensureLayer() {
   windState.layer.add(windState.streamGraphic);
 }
 
-function buildEmitterGrid() {
+function windDetailConfig() {
+  const view = windState.view;
+  const scale = view?.scale || 0;
+  const isFar = scale > 40000;
+  const isNear = scale > 0 && scale <= 15000;
+  return {
+    cols: isFar ? 8 : isNear ? 14 : 10,
+    rows: isFar ? 6 : isNear ? 11 : 8,
+    particles: isFar ? 520 : isNear ? 900 : WIND_PARTICLE_TARGET,
+    speedFactor: isNear ? WIND_SPEED_FACTOR_NEAR : WIND_SPEED_FACTOR,
+    dt: isFar ? 620 : 650,
+    jitterMeters: isFar ? 220 : isNear ? 320 : 250,
+    maxAge: isFar ? 230 : isNear ? 190 : 200
+  };
+}
+
+function buildEmitterGrid(config) {
   const view = windState.view;
   if (!view || !view.width || !view.height) return [];
-  const cols = view.width > 1400 ? 16 : view.width > 900 ? 14 : 12;
-  const rows = view.height > 900 ? 12 : 10;
+  const cols = config?.cols || 10;
+  const rows = config?.rows || 8;
   const emitters = [];
   const xStep = view.width / (cols + 1);
   const yStep = view.height / (rows + 1);
@@ -209,7 +231,7 @@ function spawnParticle() {
   const emitters = windState.emitters;
   if (!emitters.length) return { lat: WIND_CENTER.lat, lon: WIND_CENTER.lon, age: Math.random() * 50 };
   const base = emitters[Math.floor(Math.random() * emitters.length)];
-  const jitterMeters = 400;
+  const jitterMeters = windState.jitterMeters || 250;
   const angle = Math.random() * Math.PI * 2;
   const d = Math.random() * jitterMeters;
   const dLat = (Math.cos(angle) * d) / 111000;
@@ -227,7 +249,9 @@ function advanceParticles() {
   if (!view || !field || !windState.streamGraphic) return;
 
   const paths = [];
-  const dt = 550;
+  const dt = windState.dt || 650;
+  const speedFactor = windState.speedFactor || WIND_SPEED_FACTOR;
+  const maxAge = windState.maxAge || 200;
 
   windState.particles.forEach((p) => {
     const vec = field.getVector(p.lat, p.lon) || windState.fallbackVector;
@@ -235,15 +259,15 @@ function advanceParticles() {
       Object.assign(p, spawnParticle());
       return;
     }
-    const dLat = (vec.v * dt) / 111000;
-    const dLon = (vec.u * dt) / (111000 * Math.cos(toRad(p.lat)));
+    const dLat = (vec.v * dt * speedFactor) / 111000;
+    const dLon = (vec.u * dt * speedFactor) / (111000 * Math.cos(toRad(p.lat)));
     const nextLat = p.lat + dLat;
     const nextLon = p.lon + dLon;
     p.lat = nextLat;
     p.lon = nextLon;
     p.age += 1;
 
-    if (p.age > 140) {
+    if (p.age > maxAge) {
       Object.assign(p, spawnParticle());
       return;
     }
@@ -295,8 +319,13 @@ function mockWind() {
 function refreshEmitters() {
   const view = windState.view;
   if (!view || !windState.enabled) return;
-  buildEmitterGrid();
-  initParticles(WIND_PARTICLE_TARGET);
+  const config = windDetailConfig();
+  windState.speedFactor = config.speedFactor;
+  windState.dt = config.dt;
+  windState.jitterMeters = config.jitterMeters;
+  windState.maxAge = config.maxAge;
+  buildEmitterGrid(config);
+  initParticles(config.particles);
 }
 
 async function refreshWind() {
