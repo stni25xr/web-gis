@@ -5,9 +5,9 @@ const WIND_STEP_KM = 10;
 const WIND_REFRESH_MS = 5 * 60 * 1000;
 const WIND_LAYER_ID = "windLiveLayer";
 const WIND_PARTICLE_TARGET = 700;
-const WIND_SPEED_FACTOR = 0.06;
-const WIND_SPEED_FACTOR_NEAR = 0.08;
-const WIND_UPDATE_INTERVAL_MS = 40;
+const WIND_SPEED_FACTOR = 0.04;
+const WIND_SPEED_FACTOR_NEAR = 0.055;
+const WIND_UPDATE_INTERVAL_MS = 100;
 
 let windState = {
   view: null,
@@ -27,7 +27,7 @@ let windState = {
   lastWind: { speed: null, dir: null },
   fallbackVector: { u: 0, v: 0, speed: 0 },
   speedFactor: WIND_SPEED_FACTOR,
-  dt: 650,
+  dt: 0.1,
   jitterMeters: 250,
   maxAge: 200,
   lastUpdate: 0
@@ -200,9 +200,9 @@ function windDetailConfig() {
     rows: isFar ? 6 : isNear ? 11 : 8,
     particles: isFar ? 520 : isNear ? 900 : WIND_PARTICLE_TARGET,
     speedFactor: isNear ? WIND_SPEED_FACTOR_NEAR : WIND_SPEED_FACTOR,
-    dt: isFar ? 580 : 620,
-    jitterMeters: isFar ? 140 : isNear ? 220 : 180,
-    maxAge: isFar ? 340 : isNear ? 300 : 320
+    dt: isFar ? 0.1 : 0.1,
+    jitterMeters: isFar ? 60 : isNear ? 110 : 85,
+    maxAge: isFar ? 800 : isNear ? 620 : 700
   };
 }
 
@@ -251,7 +251,7 @@ function advanceParticles() {
   if (!view || !field || !windState.streamGraphic) return;
 
   const paths = [];
-  const dt = windState.dt || 650;
+  const dt = Math.min(windState.dt || 0.1, 0.1);
   const speedFactor = windState.speedFactor || WIND_SPEED_FACTOR;
   const maxAge = windState.maxAge || 200;
 
@@ -313,6 +313,16 @@ function updateLiveWind(speedVal, dirVal, source) {
   const dirText = directionText(dirVal);
   const timeText = now.toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
   setStatus(`Vind: ${speedVal.toFixed(1)} m/s, ${Math.round(dirVal)}° (från ${dirText}) · ${timeText}`);
+}
+
+function setWindTintVisible(isVisible) {
+  const el = document.getElementById("windBlueTint");
+  if (!el) return;
+  if (isVisible) {
+    el.classList.remove("hidden");
+  } else {
+    el.classList.add("hidden");
+  }
 }
 
 function mockWind() {
@@ -391,6 +401,7 @@ function enableWind() {
     windState.layer.visible = true;
     windState.layer.opacity = 0.85;
   }
+  setWindTintVisible(true);
   refreshEmitters();
   updateLiveWind(windState.lastWind.speed || 0, windState.lastWind.dir || 0, "mock");
   refreshWind();
@@ -410,6 +421,7 @@ function disableWind() {
     windState.frameId = null;
   }
   if (windState.layer) windState.layer.visible = false;
+  setWindTintVisible(false);
   setStatus("Av");
 }
 

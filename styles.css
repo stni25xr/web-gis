@@ -102,6 +102,18 @@
   height: calc(100% - 110px) !important;
 }
 
+.wind-blue-tint {
+  position: fixed;
+  inset: 110px 0 0 0;
+  background: rgba(0, 90, 160, 0.55);
+  pointer-events: none;
+  z-index: 300;
+}
+
+.hidden {
+  display: none !important;
+}
+
 /* Hardening: ensure no scaling on map parents */
 html, body, body.app {
   transform: none !important;
