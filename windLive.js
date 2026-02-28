@@ -5,9 +5,10 @@ const WIND_STEP_KM = 10;
 const WIND_REFRESH_MS = 5 * 60 * 1000;
 const WIND_LAYER_ID = "windLiveLayer";
 const WIND_PARTICLE_TARGET = 700;
-const WIND_SPEED_FACTOR = 0.04;
-const WIND_SPEED_FACTOR_NEAR = 0.055;
+const WIND_SPEED_FACTOR = 0.3;
+const WIND_SPEED_FACTOR_NEAR = 0.38;
 const WIND_UPDATE_INTERVAL_MS = 40;
+const WIND_STATIONARY_DEBOUNCE_MS = 300;
 
 let windState = {
   view: null,
@@ -28,11 +29,12 @@ let windState = {
   lastWind: { speed: null, dir: null },
   fallbackVector: { u: 0, v: 0, speed: 0 },
   speedFactor: WIND_SPEED_FACTOR,
-  dt: 0.05,
+  dt: 0.04,
   jitterMeters: 250,
   maxAge: 200,
   trailLength: 14,
-  lastUpdate: 0
+  lastUpdate: 0,
+  stationaryTimer: null
 };
 
 function setStatus(text, isError = false) {
@@ -211,14 +213,14 @@ function windDetailConfig() {
   const isFar = scale > 40000;
   const isNear = scale > 0 && scale <= 15000;
   return {
-    cols: isFar ? 6 : isNear ? 8 : 7,
-    rows: isFar ? 5 : isNear ? 7 : 6,
-    particles: isFar ? 420 : isNear ? 650 : 520,
+    cols: isFar ? 8 : isNear ? 10 : 9,
+    rows: isFar ? 7 : isNear ? 9 : 8,
+    particles: isFar ? 520 : isNear ? 720 : 640,
     speedFactor: isNear ? WIND_SPEED_FACTOR_NEAR : WIND_SPEED_FACTOR,
-    dt: 0.05,
-    jitterMeters: isFar ? 45 : isNear ? 90 : 60,
-    maxAge: isFar ? 900 : isNear ? 720 : 820,
-    trailLength: isFar ? 12 : isNear ? 16 : 14
+    dt: 0.04,
+    jitterMeters: isFar ? 120 : isNear ? 180 : 140,
+    maxAge: isFar ? 900 : isNear ? 760 : 840,
+    trailLength: isFar ? 14 : isNear ? 18 : 16
   };
 }
 
@@ -232,7 +234,9 @@ function buildEmitterGrid(config) {
   const yStep = view.height / (rows + 1);
   for (let c = 1; c <= cols; c += 1) {
     for (let r = 1; r <= rows; r += 1) {
-      const point = view.toMap({ x: c * xStep, y: r * yStep });
+      const jitterX = (Math.random() * 0.8 - 0.4) * xStep;
+      const jitterY = (Math.random() * 0.8 - 0.4) * yStep;
+      const point = view.toMap({ x: c * xStep + jitterX, y: r * yStep + jitterY });
       if (!point) continue;
       const lat = Number(point.latitude);
       const lon = Number(point.longitude);
@@ -268,7 +272,7 @@ function advanceParticles() {
 
   const paths = [];
   const faintPaths = [];
-  const dt = Math.min(windState.dt || 0.05, 0.05);
+  const dt = Math.min(windState.dt || 0.04, 0.04);
   const speedFactor = windState.speedFactor || WIND_SPEED_FACTOR;
   const maxAge = windState.maxAge || 200;
   const trailLength = windState.trailLength || 14;
@@ -464,7 +468,9 @@ function attachViewWatchers() {
   if (!view) return;
   if (typeof view.watch === "function") {
     view.watch("stationary", (stationary) => {
-      if (stationary) refreshEmitters();
+      if (!stationary) return;
+      if (windState.stationaryTimer) clearTimeout(windState.stationaryTimer);
+      windState.stationaryTimer = setTimeout(() => refreshEmitters(), WIND_STATIONARY_DEBOUNCE_MS);
     });
   }
   if (typeof view.on === "function") {

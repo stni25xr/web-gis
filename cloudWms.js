@@ -35,8 +35,8 @@ function ensureLayer(dateStr) {
   cloudState.layer = new cloudState.WebTileLayer({
     id: "cloudWmsLayer",
     urlTemplate: buildUrlTemplate(dateStr),
-    opacity: 0.7,
-    blendMode: "multiply"
+    opacity: 0.62,
+    blendMode: "screen"
   });
   cloudState.view.map.add(cloudState.layer);
 }
