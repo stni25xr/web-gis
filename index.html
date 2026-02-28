@@ -1051,7 +1051,7 @@ Maintain safe distance
           setTimeout(() => tryInitWind(attempt + 1), 100);
         }
       }
-      tryInitWind();
+      view.when(() => tryInitWind());
       let incidentEtaTimer = null;
       let policeDriveTimer = null;
       let policeDriveGraphic = null;

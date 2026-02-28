@@ -3,6 +3,8 @@ const WIND_CENTER = { lon: 14.1618, lat: 57.7826 };
 const WIND_RADIUS_KM = 30;
 const WIND_STEP_KM = 10;
 const WIND_REFRESH_MS = 5 * 60 * 1000;
+const WIND_LAYER_ID = "windLiveLayer";
+const WIND_PARTICLE_TARGET = 900;
 
 let windState = {
   view: null,
@@ -10,15 +12,17 @@ let windState = {
   inFlight: false,
   timer: null,
   particles: [],
+  emitters: [],
   field: null,
   fieldTime: null,
   frameId: null,
-  canvas: null,
-  ctx: null,
-  lastSize: { w: 0, h: 0 },
-  arrows: null,
+  layer: null,
+  streamGraphic: null,
   GraphicsLayer: null,
-  Graphic: null
+  Graphic: null,
+  lastEmitterKey: "",
+  lastWind: { speed: null, dir: null },
+  fallbackVector: { u: 0, v: 0, speed: 0 }
 };
 
 function setStatus(text, isError = false) {
@@ -40,6 +44,18 @@ function distanceKm(a, b) {
   const lat2 = toRad(b.lat);
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+function directionText(deg) {
+  const normalized = ((deg % 360) + 360) % 360;
+  if (normalized >= 337.5 || normalized < 22.5) return "norr";
+  if (normalized < 67.5) return "nordost";
+  if (normalized < 112.5) return "ost";
+  if (normalized < 157.5) return "sydost";
+  if (normalized < 202.5) return "syd";
+  if (normalized < 247.5) return "sydväst";
+  if (normalized < 292.5) return "väst";
+  return "nordväst";
 }
 
 function buildGridPoints() {
@@ -77,9 +93,20 @@ function pickNearestIndex(times, nowSec) {
   return bestIdx;
 }
 
+function vectorFromSpeedDir(speed, dirDeg) {
+  const angle = toRad((dirDeg + 180) % 360);
+  const u = speed * Math.sin(angle);
+  const v = speed * Math.cos(angle);
+  return { u, v, speed };
+}
+
 function buildField(points, responses) {
   const vectors = new Map();
   const nowSec = Math.floor(Date.now() / 1000);
+  let totalU = 0;
+  let totalV = 0;
+  let totalSpeed = 0;
+  let count = 0;
   responses.forEach((loc) => {
     const lat = Number(loc.latitude);
     const lon = Number(loc.longitude);
@@ -91,71 +118,103 @@ function buildField(points, responses) {
     const speedVal = Number(speeds[idx]);
     const dirVal = Number(dirs[idx]);
     if (!Number.isFinite(speedVal) || !Number.isFinite(dirVal)) return;
-    const angle = toRad((dirVal + 180) % 360);
-    const u = speedVal * Math.sin(angle);
-    const v = speedVal * Math.cos(angle);
-    vectors.set(`${lat.toFixed(4)},${lon.toFixed(4)}`, { u, v, speed: speedVal });
+    const vec = vectorFromSpeedDir(speedVal, dirVal);
+    vectors.set(`${lat.toFixed(4)},${lon.toFixed(4)}`, vec);
+    totalU += vec.u;
+    totalV += vec.v;
+    totalSpeed += vec.speed;
+    count += 1;
   });
 
   const stepLat = WIND_STEP_KM / 111;
   const stepLon = WIND_STEP_KM / (111 * Math.cos(toRad(WIND_CENTER.lat)));
+  const fallback = count ? { u: totalU / count, v: totalV / count, speed: totalSpeed / count } : null;
 
   return {
     points,
     stepLat,
     stepLon,
-    vectors,
+    fallback,
     getVector(lat, lon) {
       const keyLat = Math.round(lat / stepLat) * stepLat;
       const keyLon = Math.round(lon / stepLon) * stepLon;
       const key = `${keyLat.toFixed(4)},${keyLon.toFixed(4)}`;
-      return vectors.get(key) || null;
+      return vectors.get(key) || fallback || null;
     }
   };
 }
 
-function ensureCanvas() {
-  if (windState.canvas) return;
-  const host = document.getElementById("sceneView");
-  if (!host) return;
-  const canvas = document.createElement("canvas");
-  canvas.style.position = "absolute";
-  canvas.style.inset = "0";
-  canvas.style.pointerEvents = "none";
-  canvas.style.zIndex = "850";
-  host.appendChild(canvas);
-  windState.canvas = canvas;
-  windState.ctx = canvas.getContext("2d");
+function buildUniformField(speed, dirDeg) {
+  const vec = vectorFromSpeedDir(speed, dirDeg);
+  return {
+    fallback: vec,
+    getVector() {
+      return vec;
+    }
+  };
 }
 
-function ensureArrowLayer() {
-  if (windState.arrows || !windState.GraphicsLayer || !windState.view) return;
-  windState.arrows = new windState.GraphicsLayer({
-    title: "Vind (pilar)",
-    elevationInfo: { mode: "relative-to-ground", offset: 9 }
+function ensureLayer() {
+  if (windState.layer || !windState.GraphicsLayer || !windState.view) return;
+  windState.layer = new windState.GraphicsLayer({
+    id: WIND_LAYER_ID,
+    title: "Vind (live)",
+    opacity: 0.85,
+    visible: true,
+    blendMode: "screen",
+    elevationInfo: { mode: "relative-to-ground", offset: 6 },
+    listMode: "hide"
   });
-  windState.view.map.add(windState.arrows);
+  windState.view.map.add(windState.layer);
+  windState.view.map.reorder(windState.layer, windState.view.map.layers.length - 1);
+  windState.streamGraphic = new windState.Graphic({
+    geometry: {
+      type: "polyline",
+      paths: [],
+      spatialReference: { wkid: 4326 }
+    },
+    symbol: {
+      type: "simple-line",
+      color: [140, 230, 255, 0.9],
+      width: 2.4
+    }
+  });
+  windState.layer.add(windState.streamGraphic);
 }
 
-function resizeCanvas() {
-  if (!windState.canvas) return;
-  const host = document.getElementById("sceneView");
-  if (!host) return;
-  const w = host.clientWidth;
-  const h = host.clientHeight;
-  if (w !== windState.lastSize.w || h !== windState.lastSize.h) {
-    windState.canvas.width = w;
-    windState.canvas.height = h;
-    windState.lastSize = { w, h };
+function buildEmitterGrid() {
+  const view = windState.view;
+  if (!view || !view.width || !view.height) return [];
+  const cols = view.width > 1400 ? 16 : view.width > 900 ? 14 : 12;
+  const rows = view.height > 900 ? 12 : 10;
+  const emitters = [];
+  const xStep = view.width / (cols + 1);
+  const yStep = view.height / (rows + 1);
+  for (let c = 1; c <= cols; c += 1) {
+    for (let r = 1; r <= rows; r += 1) {
+      const point = view.toMap({ x: c * xStep, y: r * yStep });
+      if (!point) continue;
+      const lat = Number(point.latitude);
+      const lon = Number(point.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+      emitters.push({ lat, lon });
+    }
   }
+  windState.emitters = emitters;
+  windState.lastEmitterKey = `${cols}x${rows}-${view.width}x${view.height}`;
+  return emitters;
 }
 
 function spawnParticle() {
+  const emitters = windState.emitters;
+  if (!emitters.length) return { lat: WIND_CENTER.lat, lon: WIND_CENTER.lon, age: Math.random() * 50 };
+  const base = emitters[Math.floor(Math.random() * emitters.length)];
+  const jitterMeters = 400;
   const angle = Math.random() * Math.PI * 2;
-  const r = Math.sqrt(Math.random()) * WIND_RADIUS_KM;
-  const lat = WIND_CENTER.lat + (r * Math.cos(angle)) / 111;
-  const lon = WIND_CENTER.lon + (r * Math.sin(angle)) / (111 * Math.cos(toRad(WIND_CENTER.lat)));
-  return { lat, lon, age: Math.random() * 100 };
+  const d = Math.random() * jitterMeters;
+  const dLat = (Math.cos(angle) * d) / 111000;
+  const dLon = (Math.sin(angle) * d) / (111000 * Math.cos(toRad(base.lat)));
+  return { lat: base.lat + dLat, lon: base.lon + dLon, age: Math.random() * 80 };
 }
 
 function initParticles(count) {
@@ -163,41 +222,44 @@ function initParticles(count) {
 }
 
 function advanceParticles() {
-  const ctx = windState.ctx;
   const view = windState.view;
   const field = windState.field;
-  if (!ctx || !view || !field) return;
+  if (!view || !field || !windState.streamGraphic) return;
 
-  resizeCanvas();
-  ctx.clearRect(0, 0, windState.canvas.width, windState.canvas.height);
-  ctx.lineWidth = 1.3;
-
-  const dt = 600; // seconds per frame
+  const paths = [];
+  const dt = 550;
 
   windState.particles.forEach((p) => {
-    const vec = field.getVector(p.lat, p.lon);
+    const vec = field.getVector(p.lat, p.lon) || windState.fallbackVector;
     if (!vec) {
       Object.assign(p, spawnParticle());
       return;
     }
-    const prev = view.toScreen({ latitude: p.lat, longitude: p.lon });
     const dLat = (vec.v * dt) / 111000;
     const dLon = (vec.u * dt) / (111000 * Math.cos(toRad(p.lat)));
-    p.lat += dLat;
-    p.lon += dLon;
+    const nextLat = p.lat + dLat;
+    const nextLon = p.lon + dLon;
+    p.lat = nextLat;
+    p.lon = nextLon;
     p.age += 1;
-    if (p.age > 120 || distanceKm(WIND_CENTER, p) > WIND_RADIUS_KM * 1.1) {
+
+    if (p.age > 140) {
       Object.assign(p, spawnParticle());
       return;
     }
-    const next = view.toScreen({ latitude: p.lat, longitude: p.lon });
-    if (!prev || !next) return;
-    ctx.strokeStyle = "rgba(200, 240, 255, 0.9)";
-    ctx.beginPath();
-    ctx.moveTo(prev.x, prev.y);
-    ctx.lineTo(next.x, next.y);
-    ctx.stroke();
+
+    paths.push([
+      [p.lon - dLon, p.lat - dLat],
+      [p.lon, p.lat]
+    ]);
   });
+
+  windState.streamGraphic.geometry = {
+    type: "polyline",
+    paths,
+    spatialReference: { wkid: 4326 }
+  };
+  if (typeof view.requestRender === "function") view.requestRender();
 }
 
 function animate() {
@@ -206,11 +268,42 @@ function animate() {
   windState.frameId = requestAnimationFrame(animate);
 }
 
+function updateLiveWind(speedVal, dirVal, source) {
+  const now = new Date();
+  const updatedAt = now.toISOString();
+  window.liveWind = {
+    speed_mps: speedVal,
+    direction_deg_from: dirVal,
+    updatedAt,
+    source
+  };
+  windState.lastWind = { speed: speedVal, dir: dirVal };
+  windState.fallbackVector = vectorFromSpeedDir(speedVal, dirVal);
+
+  const dirText = directionText(dirVal);
+  const timeText = now.toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
+  setStatus(`Vind: ${speedVal.toFixed(1)} m/s, ${Math.round(dirVal)}° (från ${dirText}) · ${timeText}`);
+}
+
+function mockWind() {
+  const t = Date.now() / 60000;
+  const speed = 2.5 + 1.4 * Math.sin(t / 7);
+  const dir = (230 + 40 * Math.sin(t / 5)) % 360;
+  return { speed, dir };
+}
+
+function refreshEmitters() {
+  const view = windState.view;
+  if (!view || !windState.enabled) return;
+  buildEmitterGrid();
+  initParticles(WIND_PARTICLE_TARGET);
+}
+
 async function refreshWind() {
   if (!windState.enabled || windState.inFlight) return;
   windState.inFlight = true;
   try {
-    ensureCanvas();
+    ensureLayer();
     const points = buildGridPoints();
     const url = buildUrl(points);
     const res = await fetch(url);
@@ -219,43 +312,38 @@ async function refreshWind() {
     const responses = Array.isArray(json) ? json : [json];
     windState.field = buildField(points, responses);
     windState.fieldTime = Date.now();
-    initParticles(900);
-    ensureArrowLayer();
-    if (windState.arrows) windState.arrows.removeAll();
-    setStatus(`Senast uppdaterad: ${new Date().toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}`);
 
+    let sampleSpeed = null;
+    let sampleDir = null;
     const nowSec = Math.floor(Date.now() / 1000);
-    responses.forEach((loc) => {
-      const lat = Number(loc.latitude);
-      const lon = Number(loc.longitude);
+    for (const loc of responses) {
       const times = loc.hourly?.time || [];
       const speeds = loc.hourly?.wind_speed_10m || [];
       const dirs = loc.hourly?.wind_direction_10m || [];
-      if (!times.length || !speeds.length || !dirs.length) return;
+      if (!times.length || !speeds.length || !dirs.length) continue;
       const idx = pickNearestIndex(times, nowSec);
       const speedVal = Number(speeds[idx]);
       const dirVal = Number(dirs[idx]);
-      if (!Number.isFinite(speedVal) || !Number.isFinite(dirVal)) return;
-      const angle = (dirVal + 180) % 360;
-      windState.arrows?.add(new windState.Graphic({
-        geometry: {
-          type: "point",
-          longitude: lon,
-          latitude: lat
-        },
-        symbol: {
-          type: "simple-marker",
-          style: "triangle",
-          size: 9,
-          color: "rgba(255,255,255,0.9)",
-          outline: { color: "rgba(0,0,0,0.6)", width: 0.6 },
-          angle
-        }
-      }));
-    });
+      if (!Number.isFinite(speedVal) || !Number.isFinite(dirVal)) continue;
+      sampleSpeed = speedVal;
+      sampleDir = dirVal;
+      break;
+    }
+
+    if (Number.isFinite(sampleSpeed) && Number.isFinite(sampleDir)) {
+      updateLiveWind(sampleSpeed, sampleDir, "live");
+    } else {
+      const mock = mockWind();
+      windState.field = buildUniformField(mock.speed, mock.dir);
+      updateLiveWind(mock.speed, mock.dir, "mock");
+    }
+
+    refreshEmitters();
   } catch (err) {
     console.warn("Wind refresh failed", err);
-    setStatus("Vinddata otillgänglig just nu", true);
+    const mock = mockWind();
+    windState.field = buildUniformField(mock.speed, mock.dir);
+    updateLiveWind(mock.speed, mock.dir, "mock");
   } finally {
     windState.inFlight = false;
   }
@@ -263,7 +351,13 @@ async function refreshWind() {
 
 function enableWind() {
   windState.enabled = true;
-  setStatus("Laddar vind...");
+  ensureLayer();
+  if (windState.layer) {
+    windState.layer.visible = true;
+    windState.layer.opacity = 0.85;
+  }
+  refreshEmitters();
+  updateLiveWind(windState.lastWind.speed || 0, windState.lastWind.dir || 0, "mock");
   refreshWind();
   if (windState.timer) clearInterval(windState.timer);
   windState.timer = setInterval(refreshWind, WIND_REFRESH_MS);
@@ -280,19 +374,41 @@ function disableWind() {
     cancelAnimationFrame(windState.frameId);
     windState.frameId = null;
   }
-  if (windState.ctx && windState.canvas) {
-    windState.ctx.clearRect(0, 0, windState.canvas.width, windState.canvas.height);
-  }
-  if (windState.arrows) windState.arrows.removeAll();
+  if (windState.layer) windState.layer.visible = false;
   setStatus("Av");
+}
+
+function attachViewWatchers() {
+  const view = windState.view;
+  if (!view) return;
+  if (typeof view.watch === "function") {
+    view.watch("stationary", (stationary) => {
+      if (stationary) refreshEmitters();
+    });
+  }
+  if (typeof view.on === "function") {
+    view.on("resize", () => refreshEmitters());
+  }
 }
 
 window.initWindLive = (opts) => {
   windState.view = opts?.view || null;
   windState.GraphicsLayer = opts?.GraphicsLayer || null;
   windState.Graphic = opts?.Graphic || null;
+  if (!window.liveWind) {
+    window.liveWind = {
+      speed_mps: 0,
+      direction_deg_from: 0,
+      updatedAt: new Date().toISOString(),
+      source: "mock"
+    };
+  }
+
   const toggle = document.getElementById("windToggle");
-  if (!toggle) return;
+  if (!toggle || !windState.view) return;
+
+  attachViewWatchers();
+
   toggle.addEventListener("change", () => {
     if (toggle.checked) {
       enableWind();

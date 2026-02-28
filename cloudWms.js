@@ -33,6 +33,7 @@ function buildUrlTemplate(dateStr) {
 function ensureLayer(dateStr) {
   if (cloudState.layer || !cloudState.WebTileLayer || !cloudState.view) return;
   cloudState.layer = new cloudState.WebTileLayer({
+    id: "cloudWmsLayer",
     urlTemplate: buildUrlTemplate(dateStr),
     opacity: 0.3,
     blendMode: "screen"
@@ -54,6 +55,10 @@ function enableClouds() {
   const dateStr = todayUtcDate();
   ensureLayer(dateStr);
   if (cloudState.layer) cloudState.layer.visible = true;
+  const windLayer = cloudState.view?.map?.findLayerById?.("windLiveLayer");
+  if (windLayer && cloudState.view?.map) {
+    cloudState.view.map.reorder(windLayer, cloudState.view.map.layers.length - 1);
+  }
   refreshLayer();
   if (cloudState.timer) clearInterval(cloudState.timer);
   cloudState.timer = setInterval(refreshLayer, CLOUD_REFRESH_MS);
