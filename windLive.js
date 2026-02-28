@@ -31,9 +31,9 @@ let windState = {
   fallbackVector: { u: 0, v: 0, speed: 0 },
   speedFactor: WIND_SPEED_FACTOR,
   dt: 0.04,
-  jitterMeters: 250,
-  maxAge: 200,
-  trailLength: 330,
+  jitterMeters: 150,
+  maxAge: 300,
+  trailLength: 24,
   lastUpdate: 0,
   stationaryTimer: null
 };
@@ -232,9 +232,9 @@ function windDetailConfig() {
     particles: isFar ? 520 : isNear ? 720 : 640,
     speedFactor: isNear ? WIND_SPEED_FACTOR_NEAR : WIND_SPEED_FACTOR,
     dt: 0.04,
-    jitterMeters: isFar ? 110 : isNear ? 160 : 130,
-    maxAge: isFar ? 1400 : isNear ? 1200 : 1300,
-    trailLength: isFar ? 300 : isNear ? 360 : 330
+    jitterMeters: 150,
+    maxAge: 300,
+    trailLength: 24
   };
 }
 
