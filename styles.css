@@ -390,6 +390,34 @@ html, body, body.app {
   line-height: 1.15;
 }
 
+.export-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+#digitalPanel .export-btn {
+  width: 100%;
+  text-align: left;
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #1f2937;
+  border-radius: 10px;
+  padding: 9px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+#digitalPanel .export-btn:hover {
+  background: #111827;
+}
+
+.export-status {
+  font-size: 11px;
+  color: var(--app-text-muted);
+}
+
 .pm25-status {
   margin: 6px 0 2px 0;
   font-size: 11px;

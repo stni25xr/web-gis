@@ -522,6 +522,13 @@
         </div>
         <div id="windStatus" class="pm25-status">Av</div>
       </details>
+      <details class="switch-group" open>
+        <summary class="switch-group-title">Export</summary>
+        <div class="export-block">
+          <button id="oxnehagaExportBtn" type="button" class="export-btn">Export buildings (Öxnehaga) → Excel</button>
+          <div id="oxnehagaExportStatus" class="export-status">Redo</div>
+        </div>
+      </details>
     </div>
   </aside>
 
@@ -911,9 +918,10 @@ Maintain safe distance
       "esri/geometry/geometryEngine",
       "esri/geometry/support/webMercatorUtils",
       "esri/geometry/Polyline",
+      "esri/geometry/Polygon",
       "esri/layers/GraphicsLayer",
       "esri/Graphic"
-    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, WebTileLayer, geometryEngine, webMercatorUtils, Polyline, GraphicsLayer, Graphic) {
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, WebTileLayer, geometryEngine, webMercatorUtils, Polyline, Polygon, GraphicsLayer, Graphic) {
 
       const RESROBOT_KEY = window.RESROBOT_KEY || "";
       const ORS_KEY = window.ORS_KEY || "";
@@ -1019,6 +1027,112 @@ Maintain safe distance
         popupEnabled: true
       });
       map.add(buildingFootprints);
+
+      // Öxnehaga boundary (demo rectangle, easy to adjust later)
+      const OXNEHAGA_POLYGON_WGS84 = new Polygon({
+        rings: [[
+          [14.173, 57.754],
+          [14.203, 57.754],
+          [14.203, 57.771],
+          [14.173, 57.771],
+          [14.173, 57.754]
+        ]],
+        spatialReference: { wkid: 4326 }
+      });
+
+      function getOxnehagaGeometry() {
+        if (!view || !view.spatialReference) return OXNEHAGA_POLYGON_WGS84;
+        if (view.spatialReference.isWGS84) return OXNEHAGA_POLYGON_WGS84;
+        if (view.spatialReference.isWebMercator) {
+          return webMercatorUtils.geographicToWebMercator(OXNEHAGA_POLYGON_WGS84);
+        }
+        try {
+          return webMercatorUtils.geographicToWebMercator(OXNEHAGA_POLYGON_WGS84);
+        } catch (e) {
+          console.warn("Could not project Öxnehaga polygon, using WGS84.", e);
+          return OXNEHAGA_POLYGON_WGS84;
+        }
+      }
+
+      function toCSV(rows) {
+        const escapeCell = (value) => {
+          if (value === null || value === undefined) return "";
+          const str = String(value);
+          if (/[\";\n\r]/.test(str)) {
+            return `"${str.replace(/\"/g, "\"\"")}"`;
+          }
+          return str;
+        };
+        return rows.map((row) => row.map(escapeCell).join(";")).join("\n");
+      }
+
+      async function exportOxnehagaBuildingsToCSV() {
+        const statusEl = document.getElementById("oxnehagaExportStatus");
+        const btn = document.getElementById("oxnehagaExportBtn");
+        if (statusEl) statusEl.textContent = "Exporting…";
+        if (btn) btn.disabled = true;
+
+        try {
+          await buildingFootprints.load();
+          const fields = buildingFootprints.fields || [];
+          const hasLengthField = fields.some((f) => f.name === "geom_Length");
+          const hasAreaField = fields.some((f) => f.name === "geom_Area");
+          const needsGeometry = !(hasLengthField && hasAreaField);
+          const geom = getOxnehagaGeometry();
+          const result = await buildingFootprints.queryFeatures({
+            geometry: geom,
+            spatialRelationship: "intersects",
+            outFields: ["objektidentitet", "objekttyp", "geom_Length", "geom_Area"],
+            returnGeometry: needsGeometry
+          });
+          const features = result?.features || [];
+          const rows = [["objektidentitet", "objekttyp", "geom_Length", "geom_Area"]];
+          features.forEach((feature) => {
+            const attrs = feature.attributes || {};
+            let lengthValue = attrs.geom_Length;
+            let areaValue = attrs.geom_Area;
+            if (needsGeometry && feature.geometry) {
+              if (!hasLengthField) {
+                lengthValue = geometryEngine.geodesicLength(feature.geometry, "meters");
+              }
+              if (!hasAreaField) {
+                areaValue = geometryEngine.geodesicArea(feature.geometry, "square-meters");
+              }
+            }
+            rows.push([
+              attrs.objektidentitet ?? "",
+              attrs.objekttyp ?? "",
+              lengthValue ?? "",
+              areaValue ?? ""
+            ]);
+          });
+
+          const csvBody = toCSV(rows);
+          const csvWithBom = "\ufeff" + csvBody;
+          const blob = new Blob([csvWithBom], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const now = new Date();
+          const yyyy = now.getFullYear();
+          const mm = String(now.getMonth() + 1).padStart(2, "0");
+          const dd = String(now.getDate()).padStart(2, "0");
+          const filename = `oxnehaga_buildings_${yyyy}-${mm}-${dd}.csv`;
+
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(url);
+
+          if (statusEl) statusEl.textContent = `Exported: ${features.length} buildings`;
+        } catch (err) {
+          console.error("Öxnehaga export failed:", err);
+          if (statusEl) statusEl.textContent = "Export misslyckades. Försök igen.";
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      }
       const SIM_OBJECT_IDS = [
         "e11f4a59-b4e9-4316-8850-3fe72633a93d",
         "5f1faa24-108f-419c-b83a-ed80b80e4501"
@@ -2909,6 +3023,7 @@ Maintain safe distance
       const buildingTypeFilter = document.getElementById("buildingTypeFilter");
       const buildingTypeApply = document.getElementById("buildingTypeApply");
       const buildingTypeClear = document.getElementById("buildingTypeClear");
+      const oxnehagaExportBtn = document.getElementById("oxnehagaExportBtn");
 
       const layerOptions = [
         { id: "buildings", title: "Byggnader", layer: buildings },
@@ -2979,6 +3094,12 @@ Maintain safe distance
       let busDashTimer = null;
       let busDashPhase = 0;
       let busDashTotal = 0;
+
+      if (oxnehagaExportBtn) {
+        oxnehagaExportBtn.addEventListener("click", () => {
+          exportOxnehagaBuildingsToCSV();
+        });
+      }
 
       function clearHighlight() {
         if (lastHighlight && typeof lastHighlight.remove === "function") {
