@@ -1,10 +1,10 @@
 const WIND_API_URL = "https://api.open-meteo.com/v1/ecmwf";
 const WIND_CENTER = { lon: 14.1618, lat: 57.7826 };
-const WIND_RADIUS_KM = 30;
+const WIND_RADIUS_KM = 10;
 const WIND_STEP_KM = 10;
 const WIND_REFRESH_MS = 5 * 60 * 1000;
 const WIND_LAYER_ID = "windLiveLayer";
-const WIND_PARTICLE_TARGET = 700;
+const WIND_PARTICLE_TARGET = 1000;
 const WIND_SPEED_FACTOR = 0.48;
 const WIND_SPEED_FACTOR_NEAR = 0.6;
 const WIND_UPDATE_INTERVAL_MS = 40;
