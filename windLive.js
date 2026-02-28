@@ -1,6 +1,6 @@
 const WIND_API_URL = "https://api.open-meteo.com/v1/ecmwf";
 const WIND_CENTER = { lon: 14.1618, lat: 57.7826 };
-const WIND_RADIUS_KM = 10;
+const WIND_RADIUS_KM = 5;
 const WIND_STEP_KM = 10;
 const WIND_REFRESH_MS = 5 * 60 * 1000;
 const WIND_LAYER_ID = "windLiveLayer";
@@ -31,9 +31,9 @@ let windState = {
   fallbackVector: { u: 0, v: 0, speed: 0 },
   speedFactor: WIND_SPEED_FACTOR,
   dt: 0.04,
-  jitterMeters: 150,
+  jitterMeters: 250,
   maxAge: 300,
-  trailLength: 24,
+  trailLength: 150,
   lastUpdate: 0,
   stationaryTimer: null
 };
@@ -232,9 +232,9 @@ function windDetailConfig() {
     particles: isFar ? 520 : isNear ? 720 : 640,
     speedFactor: isNear ? WIND_SPEED_FACTOR_NEAR : WIND_SPEED_FACTOR,
     dt: 0.04,
-    jitterMeters: 150,
+    jitterMeters: 250,
     maxAge: 300,
-    trailLength: 24
+    trailLength: 150
   };
 }
 
