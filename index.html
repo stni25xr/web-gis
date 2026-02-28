@@ -523,15 +523,6 @@
         <div id="windStatus" class="pm25-status">Av</div>
       </details>
       <details class="switch-group" open>
-        <summary class="switch-group-title">Byggnader (edit)</summary>
-        <div class="editor-block">
-          <div class="editor-note">Rita i 2D, sätt sedan <code>height_m</code> och <code>roof_type</code>.</div>
-          <div id="buildingEditor" class="building-editor"></div>
-          <button id="downloadBuildingGeojson" type="button" class="export-btn">Download updated GeoJSON</button>
-          <div id="buildingGeojsonStatus" class="export-status">Redo</div>
-        </div>
-      </details>
-      <details class="switch-group" open>
         <summary class="switch-group-title">Export</summary>
         <div class="export-block">
           <button id="oxnehagaExportBtn" type="button" class="export-btn">Export buildings (Öxnehaga) → Excel</button>
@@ -929,9 +920,8 @@ Maintain safe distance
       "esri/geometry/Polyline",
       "esri/geometry/Polygon",
       "esri/layers/GraphicsLayer",
-      "esri/Graphic",
-      "esri/widgets/Editor"
-    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, WebTileLayer, geometryEngine, webMercatorUtils, Polyline, Polygon, GraphicsLayer, Graphic, Editor) {
+      "esri/Graphic"
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, WebTileLayer, geometryEngine, webMercatorUtils, Polyline, Polygon, GraphicsLayer, Graphic) {
 
       const RESROBOT_KEY = window.RESROBOT_KEY || "";
       const ORS_KEY = window.ORS_KEY || "";
@@ -1022,162 +1012,21 @@ Maintain safe distance
       });
       map.add(buildings);
 
-      const BUILDING_GEOJSON_URL = "./data/Main_byggnad.geojson";
-      const BUILDING_DEFAULT_HEIGHT = 8;
-      const ROOF_TYPE_VALUES = [
-        { value: "flat", label: "flat" },
-        { value: "gable", label: "gable" },
-        { value: "hip", label: "hip" },
-        { value: "shed", label: "shed" }
-      ];
-      let buildingFootprints = null;
-
-      function makeBuildingSymbol(color) {
-        return {
-          type: "polygon-3d",
-          symbolLayers: [{
-            type: "extrude",
-            size: BUILDING_DEFAULT_HEIGHT,
-            material: { color },
-            edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
-          }]
-        };
-      }
-
-      const buildingRenderer = {
-        type: "unique-value",
-        field: "roof_type",
-        defaultSymbol: makeBuildingSymbol([148, 163, 184, 0.7]),
-        uniqueValueInfos: [
-          { value: "flat", symbol: makeBuildingSymbol([148, 163, 184, 0.7]) },
-          { value: "gable", symbol: makeBuildingSymbol([59, 130, 246, 0.7]) },
-          { value: "hip", symbol: makeBuildingSymbol([16, 185, 129, 0.7]) },
-          { value: "shed", symbol: makeBuildingSymbol([249, 115, 22, 0.7]) }
-        ],
-        visualVariables: [{
-          type: "size",
-          valueExpression: "IIF(IsEmpty($feature.height_m), 8, $feature.height_m)",
-          valueUnit: "meters"
-        }]
-      };
-
-      function inferFieldType(value) {
-        if (typeof value === "number") return Number.isInteger(value) ? "integer" : "double";
-        if (typeof value === "boolean") return "integer";
-        return "string";
-      }
-
-      function buildFieldsFromGeoJSON(features) {
-        const fieldMap = new Map();
-        const registerField = (name, value, typeOverride) => {
-          if (!name || name === "OBJECTID") return;
-          if (fieldMap.has(name)) {
-            const current = fieldMap.get(name);
-            if (current === "string") return;
-            const next = typeOverride || inferFieldType(value);
-            if (current === "double" && next === "string") fieldMap.set(name, "string");
-            if (current === "integer" && next === "double") fieldMap.set(name, "double");
-            if (current === "integer" && next === "string") fieldMap.set(name, "string");
-            return;
+      const buildingFootprints = new GeoJSONLayer({
+        url: "./data/Main_byggnad.geojson",
+        outFields: ["*"],
+        visible: true,
+        renderer: {
+          type: "simple",
+          symbol: {
+            type: "simple-fill",
+            color: [0, 0, 0, 0],
+            outline: { color: [0, 0, 0, 0], width: 0 }
           }
-          fieldMap.set(name, typeOverride || inferFieldType(value));
-        };
-
-        (features || []).forEach((f) => {
-          const props = f?.properties || {};
-          Object.keys(props).forEach((key) => registerField(key, props[key]));
-        });
-
-        registerField("height_m", BUILDING_DEFAULT_HEIGHT, "double");
-        registerField("roof_type", "flat", "string");
-
-        const fields = [{
-          name: "OBJECTID",
-          alias: "OBJECTID",
-          type: "oid"
-        }];
-
-        fieldMap.forEach((type, name) => {
-          const field = { name, alias: name, type };
-          if (name === "height_m") field.defaultValue = BUILDING_DEFAULT_HEIGHT;
-          if (name === "roof_type") {
-            field.defaultValue = "flat";
-            field.domain = {
-              type: "coded-value",
-              name: "roof_type",
-              codedValues: ROOF_TYPE_VALUES.map((item) => ({ name: item.label, code: item.value }))
-            };
-          }
-          fields.push(field);
-        });
-        return fields;
-      }
-
-      function geojsonGeometryToPolygon(geometry, targetSR) {
-        if (!geometry || !geometry.type) return null;
-        const type = geometry.type;
-        let rings = null;
-        if (type === "Polygon") {
-          rings = geometry.coordinates || [];
-        } else if (type === "MultiPolygon") {
-          rings = [];
-          (geometry.coordinates || []).forEach((poly) => {
-            (poly || []).forEach((ring) => rings.push(ring));
-          });
-        } else {
-          return null;
-        }
-        const poly = new Polygon({
-          rings,
-          spatialReference: { wkid: 4326 }
-        });
-        return projectToTargetSR(poly, targetSR);
-      }
-
-      function buildGraphicsFromGeoJSON(geojson, targetSR) {
-        const features = geojson?.features || [];
-        const graphics = [];
-        features.forEach((f, idx) => {
-          const geom = geojsonGeometryToPolygon(f.geometry, targetSR);
-          if (!geom) return;
-          const attrs = { OBJECTID: idx + 1, ...(f.properties || {}) };
-          if (attrs.height_m === null || attrs.height_m === undefined || attrs.height_m === "") {
-            attrs.height_m = BUILDING_DEFAULT_HEIGHT;
-          }
-          if (!attrs.roof_type) attrs.roof_type = "flat";
-          graphics.push(new Graphic({ geometry: geom, attributes: attrs }));
-        });
-        return graphics;
-      }
-
-      async function initBuildingFootprints() {
-        try {
-          const response = await fetch(BUILDING_GEOJSON_URL);
-          const geojson = await response.json();
-          const targetSR = view.spatialReference;
-          const fields = buildFieldsFromGeoJSON(geojson?.features || []);
-          const graphics = buildGraphicsFromGeoJSON(geojson, targetSR);
-          buildingFootprints = new FeatureLayer({
-            source: graphics,
-            fields,
-            objectIdField: "OBJECTID",
-            geometryType: "polygon",
-            spatialReference: targetSR,
-            outFields: ["*"],
-            renderer: buildingRenderer,
-            popupEnabled: true,
-            editingEnabled: true,
-            elevationInfo: { mode: "relative-to-ground", offset: 0 }
-          });
-          map.add(buildingFootprints);
-          await buildingFootprints.when();
-          setupBuildingFootprints();
-          setupBuildingEditor();
-          updateLayerOptions();
-        } catch (e) {
-          console.error("Could not load Main_byggnad.geojson for editing:", e);
-        }
-      }
+        },
+        popupEnabled: true
+      });
+      map.add(buildingFootprints);
 
       // Öxnehaga boundary (demo rectangle, easy to adjust later)
       const OXNEHAGA_POLYGON_WGS84 = new Polygon({
@@ -1248,9 +1097,6 @@ Maintain safe distance
         if (btn) btn.disabled = true;
 
         try {
-          if (!buildingFootprints) {
-            throw new Error("Building layer not ready");
-          }
           await buildingFootprints.load();
           const fields = buildingFootprints.fields || [];
           const hasLengthField = fields.some((f) => f.name === "geom_Length");
@@ -1315,86 +1161,6 @@ Maintain safe distance
           if (statusEl) statusEl.textContent = "Export misslyckades. Försök igen.";
         } finally {
           if (btn) btn.disabled = false;
-        }
-      }
-
-      function setupBuildingEditor() {
-        const editorEl = document.getElementById("buildingEditor");
-        if (!editorEl || !buildingFootprints) return;
-        const formTemplate = {
-          title: "Byggnad",
-          elements: [
-            { type: "field", fieldName: "objektidentitet", label: "objektidentitet" },
-            { type: "field", fieldName: "objekttyp", label: "objekttyp" },
-            { type: "field", fieldName: "andamal1", label: "andamal1" },
-            { type: "field", fieldName: "height_m", label: "height_m (m)" },
-            { type: "field", fieldName: "roof_type", label: "roof_type" }
-          ]
-        };
-        const editor = new Editor({
-          view,
-          container: editorEl,
-          layerInfos: [{ layer: buildingFootprints, formTemplate }]
-        });
-        window.buildingEditor = editor;
-      }
-
-      function polygonToGeoJSON(geometry) {
-        if (!geometry) return null;
-        let geom = geometry;
-        if (geom.spatialReference?.isWebMercator) {
-          geom = webMercatorUtils.webMercatorToGeographic(geom);
-        }
-        const rings = geom.rings || [];
-        return {
-          type: "Polygon",
-          coordinates: rings.map((ring) => ring.map((pt) => [pt[0], pt[1]]))
-        };
-      }
-
-      function buildGeoJSONFromLayer() {
-        if (!buildingFootprints?.source) return null;
-        const features = buildingFootprints.source.toArray();
-        return {
-          type: "FeatureCollection",
-          features: features.map((graphic) => {
-            const attrs = { ...(graphic.attributes || {}) };
-            delete attrs.OBJECTID;
-            return {
-              type: "Feature",
-              geometry: polygonToGeoJSON(graphic.geometry),
-              properties: attrs
-            };
-          })
-        };
-      }
-
-      function downloadBuildingGeoJSON() {
-        if (!buildingFootprints) return;
-        if (buildingGeojsonStatus) buildingGeojsonStatus.textContent = "Exporting…";
-        try {
-          const geojson = buildGeoJSONFromLayer();
-          if (!geojson) throw new Error("No GeoJSON data");
-          const now = new Date();
-          const yyyy = now.getFullYear();
-          const mm = String(now.getMonth() + 1).padStart(2, "0");
-          const dd = String(now.getDate()).padStart(2, "0");
-          const hh = String(now.getHours()).padStart(2, "0");
-          const min = String(now.getMinutes()).padStart(2, "0");
-          const filename = `Main_byggnad_${yyyy}-${mm}-${dd}_${hh}-${min}.geojson`;
-          const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/geo+json;charset=utf-8" });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          URL.revokeObjectURL(url);
-          if (buildingGeojsonStatus) buildingGeojsonStatus.textContent = `Exported: ${geojson.features.length} buildings`;
-        } catch (e) {
-          console.error("GeoJSON export failed:", e);
-          if (buildingGeojsonStatus) buildingGeojsonStatus.textContent = "Export misslyckades. Försök igen.";
         }
       }
       const SIM_OBJECT_IDS = [
@@ -1480,10 +1246,7 @@ Maintain safe distance
       }
 
       function getBuildingExtrudeSize(objectId) {
-        if (FIXED_HEIGHT_IDS.has(objectId)) return 18;
-        const graphic = buildingGraphicsById.get(objectId);
-        const h = graphic?.attributes?.height_m;
-        return Number.isFinite(h) ? h : 6;
+        return FIXED_HEIGHT_IDS.has(objectId) ? 18 : 6;
       }
 
       function setBuildingGraphicColor(graphic, color) {
@@ -2561,8 +2324,7 @@ Maintain safe distance
         setTimeout(() => retryApplyMapColors(triesLeft - 1), 500);
       }
 
-      function setupBuildingFootprints() {
-        if (!buildingFootprints) return;
+      buildingFootprints.when(() => {
         const allFields = (buildingFootprints.fields || [])
           .filter((f) => f && f.name)
           .map((f) => ({ fieldName: f.name, label: f.alias || f.name }));
@@ -2701,7 +2463,7 @@ Maintain safe distance
             });
           }
         }).catch((e) => console.warn("objekttyp filter load error", e));
-      }
+      });
 
       // Oxnehaga (din GeoJSON)
       const ox = new GeoJSONLayer({
@@ -3292,24 +3054,19 @@ Maintain safe distance
       const buildingTypeApply = document.getElementById("buildingTypeApply");
       const buildingTypeClear = document.getElementById("buildingTypeClear");
       const oxnehagaExportBtn = document.getElementById("oxnehagaExportBtn");
-      const downloadBuildingGeojsonBtn = document.getElementById("downloadBuildingGeojson");
-      const buildingGeojsonStatus = document.getElementById("buildingGeojsonStatus");
 
-      const layerOptions = [];
-
-      function updateLayerOptions() {
-        layerOptions.length = 0;
-        layerOptions.push({ id: "buildings", title: "Byggnader", layer: buildingFootprints || buildings });
-        layerOptions.push({ id: "ox", title: "Oxnehaga", layer: ox });
-        layerOptions.push({ id: "fastighet", title: "Fastighetspunkter", layer: fastighet });
-        layerOptions.push({ id: "bus", title: "Busshållplatser", layer: bus });
-        layerOptions.push({ id: "mark", title: "Kommunal mark", layer: mark });
-        layerOptions.push({ id: "water", title: "Vatten", layer: water });
-        layerOptions.push({ id: "forskola", title: "Förskolor", layer: forskola });
-        layerOptions.push({ id: "grund", title: "Grundskolor", layer: grund });
-        layerOptions.push({ id: "gymn", title: "Gymnasieskolor", layer: gymn });
-        layerOptions.push({ id: "vard", title: "Vårdcentral", layer: vard });
-      }
+      const layerOptions = [
+        { id: "buildings", title: "Byggnader", layer: buildings },
+        { id: "ox", title: "Oxnehaga", layer: ox },
+        { id: "fastighet", title: "Fastighetspunkter", layer: fastighet },
+        { id: "bus", title: "Busshållplatser", layer: bus },
+        { id: "mark", title: "Kommunal mark", layer: mark },
+        { id: "water", title: "Vatten", layer: water },
+        { id: "forskola", title: "Förskolor", layer: forskola },
+        { id: "grund", title: "Grundskolor", layer: grund },
+        { id: "gymn", title: "Gymnasieskolor", layer: gymn },
+        { id: "vard", title: "Vårdcentral", layer: vard }
+      ];
 
       function isFieldUsable(f) {
         if (!f) return false;
@@ -3327,20 +3084,6 @@ Maintain safe distance
           el.textContent = opt.title;
           uniqueLayer.appendChild(el);
         });
-      }
-
-      function initUniquePanel() {
-        updateLayerOptions();
-        fillLayerSelect();
-        const firstLayer = getLayerById(uniqueLayer.value);
-        if (firstLayer) {
-          firstLayer.when(() => fillFieldSelect(firstLayer));
-        }
-        uniqueLayer.addEventListener("change", () => {
-          const layer = getLayerById(uniqueLayer.value);
-          if (layer) layer.when(() => fillFieldSelect(layer));
-        });
-        loadUnique.addEventListener("click", loadUniqueValues);
       }
 
       function fillFieldSelect(layer) {
@@ -3385,11 +3128,6 @@ Maintain safe distance
       if (oxnehagaExportBtn) {
         oxnehagaExportBtn.addEventListener("click", () => {
           exportOxnehagaBuildingsToCSV();
-        });
-      }
-      if (downloadBuildingGeojsonBtn) {
-        downloadBuildingGeojsonBtn.addEventListener("click", () => {
-          downloadBuildingGeoJSON();
         });
       }
 
@@ -4082,18 +3820,6 @@ Maintain safe distance
           try {
             const corridorWidth = 25;
             const corridor = geometryEngine.geodesicBuffer(route, corridorWidth, "meters");
-            if (!buildingFootprints) {
-              const corridorGraphic = new Graphic({
-                geometry: corridor,
-                symbol: {
-                  type: "simple-fill",
-                  color: [125, 211, 252, 0.18],
-                  outline: { color: [125, 211, 252, 0.7], width: 1 }
-                }
-              });
-              corridorLayer.add(corridorGraphic);
-              return summary || null;
-            }
             await buildingFootprints.load();
             const bRes = await buildingFootprints.queryFeatures({
               geometry: corridor,
@@ -4378,7 +4104,6 @@ if (isBus) {
 
       if (buildingTypeApply && buildingTypeFilter) {
         buildingTypeApply.addEventListener("click", () => {
-          if (!buildingFootprints) return;
           const v = (buildingTypeFilter.value || "").trim();
           if (!v) {
             buildingFootprints.definitionExpression = null;
@@ -4390,7 +4115,6 @@ if (isBus) {
       }
       if (buildingTypeClear && buildingTypeFilter) {
         buildingTypeClear.addEventListener("click", () => {
-          if (!buildingFootprints) return;
           buildingTypeFilter.value = "";
           buildingFootprints.definitionExpression = null;
         });
@@ -4569,9 +4293,17 @@ if (isBus) {
         }
       }
 
-      initBuildingFootprints().finally(() => {
-        initUniquePanel();
+      // init unique panel
+      fillLayerSelect();
+      const firstLayer = getLayerById(uniqueLayer.value);
+      if (firstLayer) {
+        firstLayer.when(() => fillFieldSelect(firstLayer));
+      }
+      uniqueLayer.addEventListener("change", () => {
+        const layer = getLayerById(uniqueLayer.value);
+        if (layer) layer.when(() => fillFieldSelect(layer));
       });
+      loadUnique.addEventListener("click", loadUniqueValues);
     });
   </script>
 
