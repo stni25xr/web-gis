@@ -1040,8 +1040,35 @@ Maintain safe distance
         spatialReference: { wkid: 4326 }
       });
 
-      function getOxnehagaGeometry(targetSpatialReference) {
+      function projectToTargetSR(geom, target) {
+        if (!geom || !target || !geom.spatialReference) return geom;
+        const gsr = geom.spatialReference;
+        if (gsr.isWGS84 && target.isWGS84) return geom;
+        if (gsr.isWebMercator && target.isWebMercator) return geom;
+        if (gsr.isWGS84 && target.isWebMercator) {
+          return webMercatorUtils.geographicToWebMercator(geom);
+        }
+        if (gsr.isWebMercator && target.isWGS84) {
+          return webMercatorUtils.webMercatorToGeographic(geom);
+        }
+        return geom;
+      }
+
+      async function getOxnehagaGeometry(targetSpatialReference) {
         const target = targetSpatialReference || view?.spatialReference;
+        try {
+          if (typeof ox?.queryFeatures === "function") {
+            const oxRes = await ox.queryFeatures({
+              where: "1=1",
+              outFields: ["*"],
+              returnGeometry: true
+            });
+            const geom = oxRes?.features?.[0]?.geometry;
+            if (geom) return projectToTargetSR(geom, target);
+          }
+        } catch (e) {
+          console.warn("Could not load Öxnehaga layer geometry. Falling back to demo polygon.", e);
+        }
         if (!target) return OXNEHAGA_POLYGON_WGS84;
         if (target.isWGS84 || target.wkid === 4326) return OXNEHAGA_POLYGON_WGS84;
         if (target.isWebMercator || target.wkid === 3857 || target.wkid === 102100) {
@@ -1076,15 +1103,16 @@ Maintain safe distance
           const hasAreaField = fields.some((f) => f.name === "geom_Area");
           const needsGeometry = !(hasLengthField && hasAreaField);
           const targetSR = buildingFootprints.spatialReference || view?.spatialReference;
-          const geom = getOxnehagaGeometry(targetSR);
+          const geom = await getOxnehagaGeometry(targetSR);
           const result = await buildingFootprints.queryFeatures({
-            geometry: geom,
-            spatialRelationship: "intersects",
             where: "1=1",
             outFields: ["objektidentitet", "objekttyp", "geom_Length", "geom_Area"],
-            returnGeometry: needsGeometry
+            returnGeometry: true
           });
-          const features = result?.features || [];
+          const allFeatures = result?.features || [];
+          const features = geom
+            ? allFeatures.filter((feature) => feature.geometry && geometryEngine.intersects(feature.geometry, geom))
+            : allFeatures;
           const rows = [["objektidentitet", "objekttyp", "geom_Length", "geom_Area"]];
           features.forEach((feature) => {
             const attrs = feature.attributes || {};
@@ -1124,7 +1152,9 @@ Maintain safe distance
           link.remove();
           URL.revokeObjectURL(url);
 
-          if (statusEl) statusEl.textContent = `Exported: ${features.length} buildings`;
+          if (statusEl) {
+            statusEl.textContent = `Exported: ${features.length} buildings (filtered from ${allFeatures.length})`;
+          }
         } catch (err) {
           console.error("Öxnehaga export failed:", err);
           if (statusEl) statusEl.textContent = "Export misslyckades. Försök igen.";
