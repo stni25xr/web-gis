@@ -1040,18 +1040,15 @@ Maintain safe distance
         spatialReference: { wkid: 4326 }
       });
 
-      function getOxnehagaGeometry() {
-        if (!view || !view.spatialReference) return OXNEHAGA_POLYGON_WGS84;
-        if (view.spatialReference.isWGS84) return OXNEHAGA_POLYGON_WGS84;
-        if (view.spatialReference.isWebMercator) {
+      function getOxnehagaGeometry(targetSpatialReference) {
+        const target = targetSpatialReference || view?.spatialReference;
+        if (!target) return OXNEHAGA_POLYGON_WGS84;
+        if (target.isWGS84 || target.wkid === 4326) return OXNEHAGA_POLYGON_WGS84;
+        if (target.isWebMercator || target.wkid === 3857 || target.wkid === 102100) {
           return webMercatorUtils.geographicToWebMercator(OXNEHAGA_POLYGON_WGS84);
         }
-        try {
-          return webMercatorUtils.geographicToWebMercator(OXNEHAGA_POLYGON_WGS84);
-        } catch (e) {
-          console.warn("Could not project Öxnehaga polygon, using WGS84.", e);
-          return OXNEHAGA_POLYGON_WGS84;
-        }
+        console.warn("Unknown spatial reference for Öxnehaga polygon. Using WGS84.");
+        return OXNEHAGA_POLYGON_WGS84;
       }
 
       function toCSV(rows) {
@@ -1078,10 +1075,12 @@ Maintain safe distance
           const hasLengthField = fields.some((f) => f.name === "geom_Length");
           const hasAreaField = fields.some((f) => f.name === "geom_Area");
           const needsGeometry = !(hasLengthField && hasAreaField);
-          const geom = getOxnehagaGeometry();
+          const targetSR = buildingFootprints.spatialReference || view?.spatialReference;
+          const geom = getOxnehagaGeometry(targetSR);
           const result = await buildingFootprints.queryFeatures({
             geometry: geom,
             spatialRelationship: "intersects",
+            where: "1=1",
             outFields: ["objektidentitet", "objekttyp", "geom_Length", "geom_Area"],
             returnGeometry: needsGeometry
           });
