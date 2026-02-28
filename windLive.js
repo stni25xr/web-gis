@@ -1,20 +1,21 @@
 const WIND_API_URL = "https://api.open-meteo.com/v1/ecmwf";
 const WIND_CENTER = { lon: 14.1618, lat: 57.7826 };
 const WIND_RADIUS_KM = 30;
-const WIND_STEP_KM = 12;
+const WIND_STEP_KM = 10;
 const WIND_REFRESH_MS = 5 * 60 * 1000;
 
 let windState = {
   view: null,
-  GraphicsLayer: null,
-  Graphic: null,
-  FeatureLayer: null,
-  layer: null,
-  heatLayer: null,
-  glowLayer: null,
   enabled: false,
   inFlight: false,
-  timer: null
+  timer: null,
+  particles: [],
+  field: null,
+  fieldTime: null,
+  frameId: null,
+  canvas: null,
+  ctx: null,
+  lastSize: { w: 0, h: 0 }
 };
 
 function setStatus(text, isError = false) {
@@ -54,72 +55,10 @@ function buildGridPoints() {
   return points;
 }
 
-function colorForSpeed(speed) {
-  if (!Number.isFinite(speed)) return "#94a3b8";
-  if (speed < 2) return "#22c55e";
-  if (speed < 5) return "#84cc16";
-  if (speed < 8) return "#facc15";
-  if (speed < 12) return "#f97316";
-  return "#ef4444";
-}
-
-function ensureLayer() {
-  if (windState.layer || !windState.GraphicsLayer || !windState.view) return;
-  windState.layer = new windState.GraphicsLayer({
-    title: "Vind (live)",
-    elevationInfo: { mode: "relative-to-ground", offset: 8 }
-  });
-  windState.view.map.add(windState.layer);
-}
-
-function ensureGlowLayer() {
-  if (windState.glowLayer || !windState.GraphicsLayer || !windState.view) return;
-  windState.glowLayer = new windState.GraphicsLayer({
-    title: "Vind (glow)",
-    elevationInfo: { mode: "relative-to-ground", offset: 7 }
-  });
-  windState.view.map.add(windState.glowLayer);
-  if (windState.layer) {
-    const idx = windState.view.map.layers.indexOf(windState.layer);
-    if (idx > -1) windState.view.map.reorder(windState.glowLayer, idx);
-  }
-}
-
-function ensureHeatLayer() {
-  if (windState.heatLayer || !windState.FeatureLayer || !windState.view) return;
-  windState.heatLayer = new windState.FeatureLayer({
-    title: "Vind (heatmap)",
-    geometryType: "point",
-    spatialReference: { wkid: 4326 },
-    fields: [
-      { name: "ObjectID", type: "oid" },
-      { name: "speed", type: "double" }
-    ],
-    objectIdField: "ObjectID",
-    source: [],
-    elevationInfo: { mode: "on-the-ground" },
-    opacity: 0.9,
-    blendMode: "screen",
-    renderer: {
-      type: "heatmap",
-      field: "speed",
-      blurRadius: 55,
-      maxPixelIntensity: 4,
-      minPixelIntensity: 0,
-      colorStops: [
-        { ratio: 0, color: "rgba(56, 189, 248, 0)" },
-        { ratio: 0.25, color: "rgba(34, 197, 94, 0.6)" },
-        { ratio: 0.5, color: "rgba(250, 204, 21, 0.75)" },
-        { ratio: 0.75, color: "rgba(249, 115, 22, 0.85)" },
-        { ratio: 1, color: "rgba(239, 68, 68, 0.95)" }
-      ]
-    }
-  });
-  windState.view.map.add(windState.heatLayer);
-  if (windState.layer) {
-    const idx = windState.view.map.layers.indexOf(windState.layer);
-    if (idx > -1) windState.view.map.reorder(windState.heatLayer, idx);
-  }
+function buildUrl(points) {
+  const lats = points.map((p) => p.lat.toFixed(4)).join(",");
+  const lons = points.map((p) => p.lon.toFixed(4)).join(",");
+  return `${WIND_API_URL}?latitude=${encodeURIComponent(lats)}&longitude=${encodeURIComponent(lons)}&hourly=wind_speed_10m,wind_direction_10m&timeformat=unixtime&timezone=UTC&forecast_days=1`;
 }
 
 function pickNearestIndex(times, nowSec) {
@@ -135,111 +74,142 @@ function pickNearestIndex(times, nowSec) {
   return bestIdx;
 }
 
-async function fetchWindGrid(points) {
-  const lats = points.map((p) => p.lat.toFixed(4)).join(",");
-  const lons = points.map((p) => p.lon.toFixed(4)).join(",");
-  const url = `${WIND_API_URL}?latitude=${encodeURIComponent(lats)}&longitude=${encodeURIComponent(lons)}&hourly=wind_speed_10m,wind_direction_10m&timeformat=unixtime&timezone=UTC&forecast_days=1`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Wind HTTP ${res.status}`);
-  const json = await res.json();
-  return Array.isArray(json) ? json : [json];
+function buildField(points, responses) {
+  const vectors = new Map();
+  const nowSec = Math.floor(Date.now() / 1000);
+  responses.forEach((loc) => {
+    const lat = Number(loc.latitude);
+    const lon = Number(loc.longitude);
+    const times = loc.hourly?.time || [];
+    const speeds = loc.hourly?.wind_speed_10m || [];
+    const dirs = loc.hourly?.wind_direction_10m || [];
+    if (!times.length || !speeds.length || !dirs.length) return;
+    const idx = pickNearestIndex(times, nowSec);
+    const speedVal = Number(speeds[idx]);
+    const dirVal = Number(dirs[idx]);
+    if (!Number.isFinite(speedVal) || !Number.isFinite(dirVal)) return;
+    const angle = toRad((dirVal + 180) % 360);
+    const u = speedVal * Math.sin(angle);
+    const v = speedVal * Math.cos(angle);
+    vectors.set(`${lat.toFixed(4)},${lon.toFixed(4)}`, { u, v, speed: speedVal });
+  });
+
+  const stepLat = WIND_STEP_KM / 111;
+  const stepLon = WIND_STEP_KM / (111 * Math.cos(toRad(WIND_CENTER.lat)));
+
+  return {
+    points,
+    stepLat,
+    stepLon,
+    vectors,
+    getVector(lat, lon) {
+      const keyLat = Math.round(lat / stepLat) * stepLat;
+      const keyLon = Math.round(lon / stepLon) * stepLon;
+      const key = `${keyLat.toFixed(4)},${keyLon.toFixed(4)}`;
+      return vectors.get(key) || null;
+    }
+  };
+}
+
+function ensureCanvas() {
+  if (windState.canvas) return;
+  const host = document.getElementById("sceneView");
+  if (!host) return;
+  const canvas = document.createElement("canvas");
+  canvas.style.position = "absolute";
+  canvas.style.inset = "0";
+  canvas.style.pointerEvents = "none";
+  canvas.style.zIndex = "800";
+  host.appendChild(canvas);
+  windState.canvas = canvas;
+  windState.ctx = canvas.getContext("2d");
+}
+
+function resizeCanvas() {
+  if (!windState.canvas) return;
+  const host = document.getElementById("sceneView");
+  if (!host) return;
+  const w = host.clientWidth;
+  const h = host.clientHeight;
+  if (w !== windState.lastSize.w || h !== windState.lastSize.h) {
+    windState.canvas.width = w;
+    windState.canvas.height = h;
+    windState.lastSize = { w, h };
+  }
+}
+
+function spawnParticle() {
+  const angle = Math.random() * Math.PI * 2;
+  const r = Math.sqrt(Math.random()) * WIND_RADIUS_KM;
+  const lat = WIND_CENTER.lat + (r * Math.cos(angle)) / 111;
+  const lon = WIND_CENTER.lon + (r * Math.sin(angle)) / (111 * Math.cos(toRad(WIND_CENTER.lat)));
+  return { lat, lon, age: Math.random() * 100 };
+}
+
+function initParticles(count) {
+  windState.particles = Array.from({ length: count }, () => spawnParticle());
+}
+
+function advanceParticles() {
+  const ctx = windState.ctx;
+  const view = windState.view;
+  const field = windState.field;
+  if (!ctx || !view || !field) return;
+
+  resizeCanvas();
+  ctx.fillStyle = "rgba(7, 20, 40, 0.08)";
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillRect(0, 0, windState.canvas.width, windState.canvas.height);
+  ctx.lineWidth = 1;
+
+  const dt = 600; // seconds per frame
+
+  windState.particles.forEach((p) => {
+    const vec = field.getVector(p.lat, p.lon);
+    if (!vec) {
+      Object.assign(p, spawnParticle());
+      return;
+    }
+    const prev = view.toScreen({ latitude: p.lat, longitude: p.lon });
+    const dLat = (vec.v * dt) / 111000;
+    const dLon = (vec.u * dt) / (111000 * Math.cos(toRad(p.lat)));
+    p.lat += dLat;
+    p.lon += dLon;
+    p.age += 1;
+    if (p.age > 120 || distanceKm(WIND_CENTER, p) > WIND_RADIUS_KM * 1.1) {
+      Object.assign(p, spawnParticle());
+      return;
+    }
+    const next = view.toScreen({ latitude: p.lat, longitude: p.lon });
+    if (!prev || !next) return;
+    ctx.strokeStyle = "rgba(200, 240, 255, 0.6)";
+    ctx.beginPath();
+    ctx.moveTo(prev.x, prev.y);
+    ctx.lineTo(next.x, next.y);
+    ctx.stroke();
+  });
+}
+
+function animate() {
+  if (!windState.enabled) return;
+  advanceParticles();
+  windState.frameId = requestAnimationFrame(animate);
 }
 
 async function refreshWind() {
   if (!windState.enabled || windState.inFlight) return;
   windState.inFlight = true;
   try {
-    ensureLayer();
-    ensureGlowLayer();
-    ensureHeatLayer();
-    windState.layer.removeAll();
-    if (windState.glowLayer) windState.glowLayer.removeAll();
-    if (windState.heatLayer?.source) windState.heatLayer.source.removeAll();
-
+    ensureCanvas();
     const points = buildGridPoints();
-    const responses = await fetchWindGrid(points);
-    if (!responses.length) {
-      setStatus("Inga vinddata hittades", true);
-      return;
-    }
-
-    const nowSec = Math.floor(Date.now() / 1000);
-    let oid = 1;
-
-    responses.forEach((loc) => {
-      const lat = Number(loc.latitude);
-      const lon = Number(loc.longitude);
-      const times = loc.hourly?.time || [];
-      const speeds = loc.hourly?.wind_speed_10m || [];
-      const dirs = loc.hourly?.wind_direction_10m || [];
-      if (!times.length || !speeds.length || !dirs.length) return;
-      const idx = pickNearestIndex(times, nowSec);
-      const speedVal = Number(speeds[idx]);
-      const dirVal = Number(dirs[idx]);
-      if (!Number.isFinite(speedVal) || !Number.isFinite(dirVal)) return;
-      const angle = (dirVal + 180) % 360;
-
-      const arrow = new windState.Graphic({
-        geometry: {
-          type: "point",
-          longitude: lon,
-          latitude: lat
-        },
-        symbol: {
-          type: "simple-marker",
-          style: "triangle",
-          size: 10,
-          color: colorForSpeed(speedVal),
-          outline: { color: "#0f172a", width: 0.6 },
-          angle
-        },
-        attributes: {
-          stationName: "Vindpunkt",
-          speed: speedVal.toFixed(1),
-          direction: Math.round(dirVal),
-          timestamp: new Date(times[idx] * 1000).toLocaleString("sv-SE", { hour12: false }),
-          source: "Open-Meteo (ECMWF)"
-        },
-        popupTemplate: {
-          title: "Vindpunkt",
-          content: "Vind: {speed} m/s<br/>Riktning: {direction}°<br/>Tid: {timestamp}<br/>Källa: {source}"
-        }
-      });
-      windState.layer.add(arrow);
-
-      if (windState.glowLayer) {
-        const glowSize = Math.max(16, Math.min(50, speedVal * 4));
-        windState.glowLayer.add(new windState.Graphic({
-          geometry: {
-            type: "point",
-            longitude: lon,
-            latitude: lat
-          },
-          symbol: {
-            type: "simple-marker",
-            style: "circle",
-            size: glowSize,
-            color: colorForSpeed(speedVal) + "33",
-            outline: { color: colorForSpeed(speedVal) + "66", width: 0.4 }
-          }
-        }));
-      }
-
-      if (windState.heatLayer?.source) {
-        windState.heatLayer.source.add(new windState.Graphic({
-          geometry: {
-            type: "point",
-            longitude: lon,
-            latitude: lat
-          },
-          attributes: {
-            ObjectID: oid++,
-            speed: speedVal
-          }
-        }));
-      }
-    });
-
+    const url = buildUrl(points);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Wind HTTP ${res.status}`);
+    const json = await res.json();
+    const responses = Array.isArray(json) ? json : [json];
+    windState.field = buildField(points, responses);
+    windState.fieldTime = Date.now();
+    initParticles(900);
     setStatus(`Senast uppdaterad: ${new Date().toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}`);
   } catch (err) {
     console.warn("Wind refresh failed", err);
@@ -255,6 +225,7 @@ function enableWind() {
   refreshWind();
   if (windState.timer) clearInterval(windState.timer);
   windState.timer = setInterval(refreshWind, WIND_REFRESH_MS);
+  if (!windState.frameId) animate();
 }
 
 function disableWind() {
@@ -263,17 +234,18 @@ function disableWind() {
     clearInterval(windState.timer);
     windState.timer = null;
   }
-  if (windState.layer) windState.layer.removeAll();
-  if (windState.glowLayer) windState.glowLayer.removeAll();
-  if (windState.heatLayer?.source) windState.heatLayer.source.removeAll();
+  if (windState.frameId) {
+    cancelAnimationFrame(windState.frameId);
+    windState.frameId = null;
+  }
+  if (windState.ctx && windState.canvas) {
+    windState.ctx.clearRect(0, 0, windState.canvas.width, windState.canvas.height);
+  }
   setStatus("Av");
 }
 
 window.initWindLive = (opts) => {
   windState.view = opts?.view || null;
-  windState.GraphicsLayer = opts?.GraphicsLayer || null;
-  windState.Graphic = opts?.Graphic || null;
-  windState.FeatureLayer = opts?.FeatureLayer || null;
   const toggle = document.getElementById("windToggle");
   if (!toggle) return;
   toggle.addEventListener("change", () => {
