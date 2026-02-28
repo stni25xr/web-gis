@@ -5,8 +5,8 @@ const WIND_STEP_KM = 10;
 const WIND_REFRESH_MS = 5 * 60 * 1000;
 const WIND_LAYER_ID = "windLiveLayer";
 const WIND_PARTICLE_TARGET = 700;
-const WIND_SPEED_FACTOR = 0.3;
-const WIND_SPEED_FACTOR_NEAR = 0.38;
+const WIND_SPEED_FACTOR = 0.34;
+const WIND_SPEED_FACTOR_NEAR = 0.42;
 const WIND_UPDATE_INTERVAL_MS = 40;
 const WIND_STATIONARY_DEBOUNCE_MS = 300;
 
@@ -23,6 +23,7 @@ let windState = {
   layer: null,
   streamGraphic: null,
   streamGraphicFaint: null,
+  streamGraphicMid: null,
   GraphicsLayer: null,
   Graphic: null,
   lastEmitterKey: "",
@@ -32,7 +33,7 @@ let windState = {
   dt: 0.04,
   jitterMeters: 250,
   maxAge: 200,
-  trailLength: 14,
+  trailLength: 22,
   lastUpdate: 0,
   stationaryTimer: null
 };
@@ -199,11 +200,24 @@ function ensureLayer() {
     },
     symbol: {
       type: "simple-line",
-      color: [140, 230, 255, 0.35],
-      width: 2.0
+      color: [140, 230, 255, 0.25],
+      width: 1.8
+    }
+  });
+  windState.streamGraphicMid = new windState.Graphic({
+    geometry: {
+      type: "polyline",
+      paths: [],
+      spatialReference: { wkid: 4326 }
+    },
+    symbol: {
+      type: "simple-line",
+      color: [140, 230, 255, 0.55],
+      width: 2.1
     }
   });
   windState.layer.add(windState.streamGraphic);
+  windState.layer.add(windState.streamGraphicMid);
   windState.layer.add(windState.streamGraphicFaint);
 }
 
@@ -218,9 +232,9 @@ function windDetailConfig() {
     particles: isFar ? 520 : isNear ? 720 : 640,
     speedFactor: isNear ? WIND_SPEED_FACTOR_NEAR : WIND_SPEED_FACTOR,
     dt: 0.04,
-    jitterMeters: isFar ? 120 : isNear ? 180 : 140,
-    maxAge: isFar ? 900 : isNear ? 760 : 840,
-    trailLength: isFar ? 14 : isNear ? 18 : 16
+    jitterMeters: isFar ? 110 : isNear ? 160 : 130,
+    maxAge: isFar ? 1400 : isNear ? 1200 : 1300,
+    trailLength: isFar ? 20 : isNear ? 24 : 22
   };
 }
 
@@ -272,6 +286,7 @@ function advanceParticles() {
 
   const paths = [];
   const faintPaths = [];
+  const midPaths = [];
   const dt = Math.min(windState.dt || 0.04, 0.04);
   const speedFactor = windState.speedFactor || WIND_SPEED_FACTOR;
   const maxAge = windState.maxAge || 200;
@@ -302,10 +317,12 @@ function advanceParticles() {
     }
 
     if (p.trail.length >= 2) {
-      const split = Math.max(1, Math.floor(p.trail.length * 0.5));
-      const faint = p.trail.slice(0, split + 1);
-      const strong = p.trail.slice(split);
+      const third = Math.max(1, Math.floor(p.trail.length / 3));
+      const faint = p.trail.slice(0, third + 1);
+      const mid = p.trail.slice(third, third * 2 + 1);
+      const strong = p.trail.slice(third * 2);
       if (faint.length >= 2) faintPaths.push(faint);
+      if (mid.length >= 2) midPaths.push(mid);
       if (strong.length >= 2) paths.push(strong);
     }
   });
@@ -315,6 +332,13 @@ function advanceParticles() {
     paths,
     spatialReference: { wkid: 4326 }
   };
+  if (windState.streamGraphicMid) {
+    windState.streamGraphicMid.geometry = {
+      type: "polyline",
+      paths: midPaths,
+      spatialReference: { wkid: 4326 }
+    };
+  }
   if (windState.streamGraphicFaint) {
     windState.streamGraphicFaint.geometry = {
       type: "polyline",
