@@ -4,7 +4,7 @@ const WIND_RADIUS_KM = 5;
 const WIND_STEP_KM = 10;
 const WIND_REFRESH_MS = 5 * 60 * 1000;
 const WIND_LAYER_ID = "windLiveLayer";
-const WIND_PARTICLE_TARGET = 1000;
+const WIND_PARTICLE_TARGET = 900;
 const WIND_SPEED_FACTOR = 0.48;
 const WIND_SPEED_FACTOR_NEAR = 0.6;
 const WIND_UPDATE_INTERVAL_MS = 40;
@@ -31,9 +31,9 @@ let windState = {
   fallbackVector: { u: 0, v: 0, speed: 0 },
   speedFactor: WIND_SPEED_FACTOR,
   dt: 0.04,
-  jitterMeters: 250,
-  maxAge: 300,
-  trailLength: 1200,
+  jitterMeters: 180,
+  maxAge: 600,
+  trailLength: 180,
   lastUpdate: 0,
   stationaryTimer: null
 };
@@ -188,8 +188,8 @@ function ensureLayer() {
     },
     symbol: {
       type: "simple-line",
-      color: [140, 230, 255, 0.9],
-      width: 2.4
+      color: [180, 240, 255, 0.95],
+      width: 1.8
     }
   });
   windState.streamGraphicFaint = new windState.Graphic({
@@ -200,8 +200,8 @@ function ensureLayer() {
     },
     symbol: {
       type: "simple-line",
-      color: [140, 230, 255, 0.25],
-      width: 1.8
+      color: [180, 240, 255, 0.2],
+      width: 1.2
     }
   });
   windState.streamGraphicMid = new windState.Graphic({
@@ -212,8 +212,8 @@ function ensureLayer() {
     },
     symbol: {
       type: "simple-line",
-      color: [140, 230, 255, 0.55],
-      width: 2.1
+      color: [180, 240, 255, 0.6],
+      width: 1.5
     }
   });
   windState.layer.add(windState.streamGraphic);
@@ -229,12 +229,12 @@ function windDetailConfig() {
   return {
     cols: isFar ? 8 : isNear ? 10 : 9,
     rows: isFar ? 7 : isNear ? 9 : 8,
-    particles: isFar ? 520 : isNear ? 720 : 640,
+    particles: isFar ? 480 : isNear ? 700 : 620,
     speedFactor: isNear ? WIND_SPEED_FACTOR_NEAR : WIND_SPEED_FACTOR,
     dt: 0.04,
-    jitterMeters: 250,
-    maxAge: 300,
-    trailLength: 1200
+    jitterMeters: 180,
+    maxAge: 600,
+    trailLength: 180
   };
 }
 
