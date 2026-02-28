@@ -1106,14 +1106,14 @@ Maintain safe distance
           const geom = await getOxnehagaGeometry(targetSR);
           const result = await buildingFootprints.queryFeatures({
             where: "1=1",
-            outFields: ["objektidentitet", "objekttyp", "geom_Length", "geom_Area"],
+            outFields: ["objektidentitet", "objekttyp", "andamal1", "geom_Length", "geom_Area"],
             returnGeometry: true
           });
           const allFeatures = result?.features || [];
           const features = geom
             ? allFeatures.filter((feature) => feature.geometry && geometryEngine.intersects(feature.geometry, geom))
             : allFeatures;
-          const rows = [["objektidentitet", "objekttyp", "geom_Length", "geom_Area"]];
+          const rows = [["objektidentitet", "objekttyp", "andamal1", "geom_Length", "geom_Area"]];
           features.forEach((feature) => {
             const attrs = feature.attributes || {};
             let lengthValue = attrs.geom_Length;
@@ -1129,6 +1129,7 @@ Maintain safe distance
             rows.push([
               attrs.objektidentitet ?? "",
               attrs.objekttyp ?? "",
+              attrs.andamal1 ?? "",
               lengthValue ?? "",
               areaValue ?? ""
             ]);
