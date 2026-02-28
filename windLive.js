@@ -7,7 +7,7 @@ const WIND_LAYER_ID = "windLiveLayer";
 const WIND_PARTICLE_TARGET = 700;
 const WIND_SPEED_FACTOR = 0.04;
 const WIND_SPEED_FACTOR_NEAR = 0.055;
-const WIND_UPDATE_INTERVAL_MS = 100;
+const WIND_UPDATE_INTERVAL_MS = 40;
 
 let windState = {
   view: null,
@@ -21,15 +21,17 @@ let windState = {
   frameId: null,
   layer: null,
   streamGraphic: null,
+  streamGraphicFaint: null,
   GraphicsLayer: null,
   Graphic: null,
   lastEmitterKey: "",
   lastWind: { speed: null, dir: null },
   fallbackVector: { u: 0, v: 0, speed: 0 },
   speedFactor: WIND_SPEED_FACTOR,
-  dt: 0.1,
+  dt: 0.05,
   jitterMeters: 250,
   maxAge: 200,
+  trailLength: 14,
   lastUpdate: 0
 };
 
@@ -187,7 +189,20 @@ function ensureLayer() {
       width: 2.4
     }
   });
+  windState.streamGraphicFaint = new windState.Graphic({
+    geometry: {
+      type: "polyline",
+      paths: [],
+      spatialReference: { wkid: 4326 }
+    },
+    symbol: {
+      type: "simple-line",
+      color: [140, 230, 255, 0.35],
+      width: 2.0
+    }
+  });
   windState.layer.add(windState.streamGraphic);
+  windState.layer.add(windState.streamGraphicFaint);
 }
 
 function windDetailConfig() {
@@ -196,13 +211,14 @@ function windDetailConfig() {
   const isFar = scale > 40000;
   const isNear = scale > 0 && scale <= 15000;
   return {
-    cols: isFar ? 8 : isNear ? 14 : 10,
-    rows: isFar ? 6 : isNear ? 11 : 8,
-    particles: isFar ? 520 : isNear ? 900 : WIND_PARTICLE_TARGET,
+    cols: isFar ? 6 : isNear ? 8 : 7,
+    rows: isFar ? 5 : isNear ? 7 : 6,
+    particles: isFar ? 420 : isNear ? 650 : 520,
     speedFactor: isNear ? WIND_SPEED_FACTOR_NEAR : WIND_SPEED_FACTOR,
-    dt: isFar ? 0.1 : 0.1,
-    jitterMeters: isFar ? 60 : isNear ? 110 : 85,
-    maxAge: isFar ? 800 : isNear ? 620 : 700
+    dt: 0.05,
+    jitterMeters: isFar ? 45 : isNear ? 90 : 60,
+    maxAge: isFar ? 900 : isNear ? 720 : 820,
+    trailLength: isFar ? 12 : isNear ? 16 : 14
   };
 }
 
@@ -238,7 +254,7 @@ function spawnParticle() {
   const d = Math.random() * jitterMeters;
   const dLat = (Math.cos(angle) * d) / 111000;
   const dLon = (Math.sin(angle) * d) / (111000 * Math.cos(toRad(base.lat)));
-  return { lat: base.lat + dLat, lon: base.lon + dLon, age: Math.random() * 80 };
+  return { lat: base.lat + dLat, lon: base.lon + dLon, age: Math.random() * 80, trail: [] };
 }
 
 function initParticles(count) {
@@ -251,9 +267,11 @@ function advanceParticles() {
   if (!view || !field || !windState.streamGraphic) return;
 
   const paths = [];
-  const dt = Math.min(windState.dt || 0.1, 0.1);
+  const faintPaths = [];
+  const dt = Math.min(windState.dt || 0.05, 0.05);
   const speedFactor = windState.speedFactor || WIND_SPEED_FACTOR;
   const maxAge = windState.maxAge || 200;
+  const trailLength = windState.trailLength || 14;
 
   windState.particles.forEach((p) => {
     const vec = field.getVector(p.lat, p.lon) || windState.fallbackVector;
@@ -268,16 +286,24 @@ function advanceParticles() {
     p.lat = nextLat;
     p.lon = nextLon;
     p.age += 1;
+    if (!Array.isArray(p.trail)) p.trail = [];
+    p.trail.push([p.lon, p.lat]);
+    if (p.trail.length > trailLength) {
+      p.trail.splice(0, p.trail.length - trailLength);
+    }
 
     if (p.age > maxAge) {
       Object.assign(p, spawnParticle());
       return;
     }
 
-    paths.push([
-      [p.lon - dLon, p.lat - dLat],
-      [p.lon, p.lat]
-    ]);
+    if (p.trail.length >= 2) {
+      const split = Math.max(1, Math.floor(p.trail.length * 0.5));
+      const faint = p.trail.slice(0, split + 1);
+      const strong = p.trail.slice(split);
+      if (faint.length >= 2) faintPaths.push(faint);
+      if (strong.length >= 2) paths.push(strong);
+    }
   });
 
   windState.streamGraphic.geometry = {
@@ -285,6 +311,13 @@ function advanceParticles() {
     paths,
     spatialReference: { wkid: 4326 }
   };
+  if (windState.streamGraphicFaint) {
+    windState.streamGraphicFaint.geometry = {
+      type: "polyline",
+      paths: faintPaths,
+      spatialReference: { wkid: 4326 }
+    };
+  }
   if (typeof view.requestRender === "function") view.requestRender();
 }
 
@@ -340,6 +373,7 @@ function refreshEmitters() {
   windState.dt = config.dt;
   windState.jitterMeters = config.jitterMeters;
   windState.maxAge = config.maxAge;
+  windState.trailLength = config.trailLength;
   buildEmitterGrid(config);
   initParticles(config.particles);
 }

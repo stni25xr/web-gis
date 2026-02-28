@@ -36,7 +36,7 @@ function ensureLayer(dateStr) {
     id: "cloudWmsLayer",
     urlTemplate: buildUrlTemplate(dateStr),
     opacity: 0.7,
-    blendMode: "screen"
+    blendMode: "multiply"
   });
   cloudState.view.map.add(cloudState.layer);
 }
