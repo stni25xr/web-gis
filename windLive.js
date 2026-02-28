@@ -15,7 +15,10 @@ let windState = {
   frameId: null,
   canvas: null,
   ctx: null,
-  lastSize: { w: 0, h: 0 }
+  lastSize: { w: 0, h: 0 },
+  arrows: null,
+  GraphicsLayer: null,
+  Graphic: null
 };
 
 function setStatus(text, isError = false) {
@@ -119,10 +122,19 @@ function ensureCanvas() {
   canvas.style.position = "absolute";
   canvas.style.inset = "0";
   canvas.style.pointerEvents = "none";
-  canvas.style.zIndex = "800";
+  canvas.style.zIndex = "850";
   host.appendChild(canvas);
   windState.canvas = canvas;
   windState.ctx = canvas.getContext("2d");
+}
+
+function ensureArrowLayer() {
+  if (windState.arrows || !windState.GraphicsLayer || !windState.view) return;
+  windState.arrows = new windState.GraphicsLayer({
+    title: "Vind (pilar)",
+    elevationInfo: { mode: "relative-to-ground", offset: 9 }
+  });
+  windState.view.map.add(windState.arrows);
 }
 
 function resizeCanvas() {
@@ -157,10 +169,7 @@ function advanceParticles() {
   if (!ctx || !view || !field) return;
 
   resizeCanvas();
-  ctx.globalCompositeOperation = "destination-in";
-  ctx.fillStyle = "rgba(0, 0, 0, 0.92)";
-  ctx.fillRect(0, 0, windState.canvas.width, windState.canvas.height);
-  ctx.globalCompositeOperation = "source-over";
+  ctx.clearRect(0, 0, windState.canvas.width, windState.canvas.height);
   ctx.lineWidth = 1;
 
   const dt = 600; // seconds per frame
@@ -183,7 +192,7 @@ function advanceParticles() {
     }
     const next = view.toScreen({ latitude: p.lat, longitude: p.lon });
     if (!prev || !next) return;
-    ctx.strokeStyle = "rgba(200, 240, 255, 0.35)";
+    ctx.strokeStyle = "rgba(200, 240, 255, 0.7)";
     ctx.beginPath();
     ctx.moveTo(prev.x, prev.y);
     ctx.lineTo(next.x, next.y);
@@ -210,8 +219,40 @@ async function refreshWind() {
     const responses = Array.isArray(json) ? json : [json];
     windState.field = buildField(points, responses);
     windState.fieldTime = Date.now();
-    initParticles(450);
+    initParticles(700);
+    ensureArrowLayer();
+    if (windState.arrows) windState.arrows.removeAll();
     setStatus(`Senast uppdaterad: ${new Date().toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}`);
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    responses.forEach((loc) => {
+      const lat = Number(loc.latitude);
+      const lon = Number(loc.longitude);
+      const times = loc.hourly?.time || [];
+      const speeds = loc.hourly?.wind_speed_10m || [];
+      const dirs = loc.hourly?.wind_direction_10m || [];
+      if (!times.length || !speeds.length || !dirs.length) return;
+      const idx = pickNearestIndex(times, nowSec);
+      const speedVal = Number(speeds[idx]);
+      const dirVal = Number(dirs[idx]);
+      if (!Number.isFinite(speedVal) || !Number.isFinite(dirVal)) return;
+      const angle = (dirVal + 180) % 360;
+      windState.arrows?.add(new windState.Graphic({
+        geometry: {
+          type: "point",
+          longitude: lon,
+          latitude: lat
+        },
+        symbol: {
+          type: "simple-marker",
+          style: "triangle",
+          size: 9,
+          color: "rgba(255,255,255,0.9)",
+          outline: { color: "rgba(0,0,0,0.6)", width: 0.6 },
+          angle
+        }
+      }));
+    });
   } catch (err) {
     console.warn("Wind refresh failed", err);
     setStatus("Vinddata otillgänglig just nu", true);
@@ -242,11 +283,14 @@ function disableWind() {
   if (windState.ctx && windState.canvas) {
     windState.ctx.clearRect(0, 0, windState.canvas.width, windState.canvas.height);
   }
+  if (windState.arrows) windState.arrows.removeAll();
   setStatus("Av");
 }
 
 window.initWindLive = (opts) => {
   windState.view = opts?.view || null;
+  windState.GraphicsLayer = opts?.GraphicsLayer || null;
+  windState.Graphic = opts?.Graphic || null;
   const toggle = document.getElementById("windToggle");
   if (!toggle) return;
   toggle.addEventListener("change", () => {
