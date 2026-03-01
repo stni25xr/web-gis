@@ -337,40 +337,6 @@
       </div>
     </details>
 
-    <details class="switch-group" open>
-      <summary class="switch-group-title">Takverktyg</summary>
-      <div class="roof-tool">
-        <div class="roof-info">Ta skärmdump från Google Maps och jämför i appen</div>
-        <div class="roof-row">
-          <label for="roofObjektId" class="roof-label">objektidentitet</label>
-          <input id="roofObjektId" class="roof-input" type="text" placeholder="Klistra in objektidentitet" />
-          <button id="roofFetchBtn" class="roof-btn" type="button">Hämta byggnad</button>
-        </div>
-        <div id="roofFetchError" class="roof-error" role="alert" aria-live="polite"></div>
-        <div id="roofSelectedSummary" class="roof-summary">Ingen byggnad vald.</div>
-        <div class="roof-row">
-          <label for="roofSolarElevation" class="roof-label">Solhöjd (°)</label>
-          <input id="roofSolarElevation" class="roof-input" type="number" min="0" max="90" step="0.1" value="30" />
-        </div>
-        <div class="roof-row">
-          <label for="roofType" class="roof-label">Taktyp</label>
-          <select id="roofType" class="roof-input">
-            <option value="Sadeltak" selected>Sadeltak</option>
-            <option value="Pulpettak">Pulpettak</option>
-            <option value="Valmat tak">Valmat tak</option>
-            <option value="Platt tak">Platt tak</option>
-          </select>
-        </div>
-        <div class="roof-actions">
-          <button id="roofShadowBtn" class="roof-btn" type="button">Mät skugga</button>
-          <button id="roofComputeBtn" class="roof-btn" type="button">Beräkna takvinkel</button>
-        </div>
-        <div id="roofResult" class="roof-result"></div>
-        <button id="roofExportBtn" class="roof-btn roof-export" type="button">Exportera takdata (Öxnehaga)</button>
-        <div id="roofExportStatus" class="roof-status"></div>
-      </div>
-    </details>
-
     <details class="switch-group">
       <summary class="switch-group-title">Service</summary>
       <div class="switch-row">
@@ -931,7 +897,6 @@ Maintain safe distance
   <script type="module" src="./pm25Live.js"></script>
   <script type="module" src="./cloudWms.js"></script>
   <script type="module" src="./windLive.js"></script>
-  <script type="module" src="./roofEstimator.js"></script>
 
   <!-- ARCGIS (3D) -->
   <script>
@@ -2522,21 +2487,6 @@ Maintain safe distance
         visible: true
       });
       map.add(ox);
-
-      Promise.all([buildingFootprints.when(), ox.when()]).then(() => {
-        if (typeof window.initRoofEstimator === "function") {
-          window.initRoofEstimator({
-            view,
-            buildingLayer: buildingFootprints,
-            oxLayer: ox,
-            GraphicsLayer,
-            Graphic,
-            geometryEngine,
-            webMercatorUtils,
-            Polyline
-          });
-        }
-      }).catch((e) => console.warn("Roof estimator init failed", e));
 
       const fastighet = new GeoJSONLayer({
         url: "./data/Fastighet_punkter.geojson",
