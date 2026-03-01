@@ -418,6 +418,99 @@ html, body, body.app {
   color: var(--app-text-muted);
 }
 
+.roof-tool {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.roof-info {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #334155;
+}
+
+.roof-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.roof-label {
+  font-size: 12px;
+  color: #475569;
+}
+
+.roof-input {
+  width: 100%;
+  border: 1px solid #cbd5f5;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  background: #fff;
+  color: #0f172a;
+  box-sizing: border-box;
+}
+
+.roof-btn {
+  border: 1px solid #1f2937;
+  background: #0f172a;
+  color: #f8fafc;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.roof-btn:hover {
+  background: #111827;
+}
+
+.roof-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.roof-export {
+  margin-top: 4px;
+}
+
+.roof-error {
+  font-size: 12px;
+  color: #dc2626;
+  min-height: 16px;
+}
+
+.roof-summary {
+  font-size: 12px;
+  color: #0f172a;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+
+.roof-result {
+  font-size: 12px;
+  color: #0f172a;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 8px;
+  border-radius: 8px;
+  min-height: 24px;
+}
+
+.roof-status {
+  font-size: 11px;
+  color: var(--app-text-muted);
+}
+
 .pm25-status {
   margin: 6px 0 2px 0;
   font-size: 11px;
