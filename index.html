@@ -1019,10 +1019,20 @@ Maintain safe distance
         renderer: {
           type: "simple",
           symbol: {
-            type: "simple-fill",
-            color: [0, 0, 0, 0],
-            outline: { color: [0, 0, 0, 0], width: 0 }
-          }
+            type: "polygon-3d",
+            symbolLayers: [{
+              type: "extrude",
+              size: 5,
+              material: { color: [148, 163, 184, 0.6] },
+              edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
+            }]
+          },
+          visualVariables: [{
+            type: "size",
+            field: "b_Hight_m",
+            valueUnit: "meters",
+            valueExpression: "IIF(IsEmpty($feature.b_Hight_m), 5, $feature.b_Hight_m)"
+          }]
         },
         popupEnabled: true
       });
