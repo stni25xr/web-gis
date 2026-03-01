@@ -966,22 +966,18 @@ Maintain safe distance
           year: "numeric",
           month: "2-digit",
           day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
           hourCycle: "h23"
         }).formatToParts(new Date());
         const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));
         const year = Number(lookup.year);
         const month = Number(lookup.month) - 1;
         const day = Number(lookup.day);
-        const hour = Number(lookup.hour);
-        const minute = Number(lookup.minute);
-        const second = Number(lookup.second);
-        view.environment.lighting.date = new Date(Date.UTC(year, month, day, hour, minute, second));
+        // Always set to midday for daylight
+        view.environment.lighting.date = new Date(Date.UTC(year, month, day, 12, 0, 0));
         view.environment.lighting.directShadowsEnabled = false;
       }
       syncLighting();
+      // Keep daylight fixed (no time-based darkening)
       setInterval(syncLighting, 300000);
 
       view.highlightOptions = {
