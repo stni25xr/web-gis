@@ -3680,8 +3680,23 @@ Maintain safe distance
         if (meters < 900) return [245, 158, 11];
         return [239, 68, 68];
       }
+      function distanceGradientRgb(meters) {
+        const lerp = (a, b, t) => Math.round(a + (b - a) * t);
+        const green = [34, 197, 94];
+        const orange = [245, 158, 11];
+        const red = [239, 68, 68];
+        if (meters <= 500) {
+          const t = Math.max(0, Math.min(meters / 500, 1));
+          return [lerp(green[0], orange[0], t), lerp(green[1], orange[1], t), lerp(green[2], orange[2], t)];
+        }
+        if (meters <= 900) {
+          const t = Math.max(0, Math.min((meters - 500) / 400, 1));
+          return [lerp(orange[0], red[0], t), lerp(orange[1], red[1], t), lerp(orange[2], red[2], t)];
+        }
+        return red;
+      }
       function distanceColorRgba(meters, alpha) {
-        const [r, g, b] = distanceColorRgb(meters);
+        const [r, g, b] = distanceGradientRgb(meters);
         return [r, g, b, alpha];
       }
       function formatDistanceColored(meters) {
@@ -3854,7 +3869,6 @@ Maintain safe distance
             symbol: { type: "simple-line", color: safetyColor || "#1d4ed8", width: 3 }
           }));
           updateSeniorSafetyRouteButtons();
-          updateSeniorSafetyRouteButtons();
           const meters = geometryEngine.geodesicLength(route, "meters");
           const duration = meters / (50 * 1000 / 3600); // 50 km/h fallback
           return { distance: meters, duration };
@@ -3950,8 +3964,9 @@ Maintain safe distance
           const eLon = end.longitude ?? end.x;
           const eLat = end.latitude ?? end.y;
 
+          const straightCoords = [[sLon, sLat], [eLon, eLat]];
           const straight = new Polyline({
-            paths: [[[sLon, sLat], [eLon, eLat]]],
+            paths: [straightCoords],
             spatialReference: { wkid: 4326 }
           });
           const straightMeters = geometryEngine.geodesicLength(straight, "meters");
@@ -3959,6 +3974,49 @@ Maintain safe distance
             status("Rutt är längre än 6 km (ORS‑gräns för gång)");
             return null;
           }
+
+          const renderGradientRoute = async (coords, totalMeters) => {
+            routeLayer.removeAll();
+            corridorLayer.removeAll();
+            const route = new Polyline({
+              paths: [coords],
+              spatialReference: { wkid: 4326 }
+            });
+            lastRouteGeometry = route;
+            let cumulative = 0;
+            for (let i = 1; i < coords.length; i++) {
+              const a = coords[i - 1];
+              const b = coords[i];
+              const segMeters = distanceMeters({ longitude: a[0], latitude: a[1] }, { longitude: b[0], latitude: b[1] });
+              if (!segMeters || !isFinite(segMeters)) continue;
+              const midMeters = cumulative + segMeters / 2;
+              const [r, g, bCol] = distanceGradientRgb(midMeters);
+              const segLine = new Polyline({
+                paths: [[[a[0], a[1]], [b[0], b[1]]]],
+                spatialReference: { wkid: 4326 }
+              });
+              routeLayer.add(new Graphic({
+                geometry: segLine,
+                symbol: { type: "simple-line", color: [r, g, bCol], width: 3 }
+              }));
+              try {
+                const corridorWidth = 25;
+                const segBuffer = geometryEngine.geodesicBuffer(segLine, corridorWidth, "meters");
+                corridorLayer.add(new Graphic({
+                  geometry: segBuffer,
+                  symbol: {
+                    type: "simple-fill",
+                    color: [r, g, bCol, 0.18],
+                    outline: { color: [r, g, bCol, 0.7], width: 1 }
+                  }
+                }));
+              } catch (e) {
+                // ignore segment buffer errors
+              }
+              cumulative += segMeters;
+            }
+            updateSeniorRouteButtons();
+          };
 
           const url = "https://api.openrouteservice.org/v2/directions/foot-walking/geojson";
           const res = await fetch(url, {
@@ -3978,54 +4036,7 @@ Maintain safe distance
             return null;
           }
 
-          routeLayer.removeAll();
-          corridorLayer.removeAll();
-          const route = new Polyline({
-            paths: [coords],
-            spatialReference: { wkid: 4326 }
-          });
-          lastRouteGeometry = route;
-          const distMeters = summary?.distance ?? straightMeters;
-          const lineColor = distanceColor(distMeters);
-          const graphic = new Graphic({
-            geometry: route,
-            symbol: { type: "simple-line", color: lineColor, width: 3 }
-          });
-          routeLayer.add(graphic);
-          updateSeniorRouteButtons();
-
-          // Build corridor and clip with buildings
-          try {
-            const corridorWidth = 25;
-            const corridor = geometryEngine.geodesicBuffer(route, corridorWidth, "meters");
-            await buildingFootprints.load();
-            const bRes = await buildingFootprints.queryFeatures({
-              geometry: corridor,
-              spatialRelationship: "intersects",
-              returnGeometry: true,
-              outFields: ["*"]
-            });
-            const bGeoms = (bRes.features || []).map((f) => f.geometry).filter(Boolean);
-            let corridorClipped = corridor;
-            if (bGeoms.length) {
-              const union = geometryEngine.union(bGeoms);
-              const diff = geometryEngine.difference(corridor, union);
-              if (diff) corridorClipped = diff;
-            }
-            const fillColor = distanceColorRgba(distMeters, 0.18);
-            const outlineColor = distanceColorRgba(distMeters, 0.7);
-            const corridorGraphic = new Graphic({
-              geometry: corridorClipped,
-              symbol: {
-                type: "simple-fill",
-                color: fillColor,
-                outline: { color: outlineColor, width: 1 }
-              }
-            });
-            corridorLayer.add(corridorGraphic);
-          } catch (e) {
-            console.warn("Corridor error:", e);
-          }
+          await renderGradientRoute(coords, summary?.distance ?? straightMeters);
 
           return summary || null;
         } finally {
