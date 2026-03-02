@@ -4098,7 +4098,7 @@ Maintain safe distance
           GraphicsLayer,
           Graphic,
           onStateChange: ({ running, paused }) => {
-            if (walkControls) walkControls.style.display = running ? "flex" : "none";
+            if (walkControls) walkControls.style.display = "flex";
             if (walkStart) walkStart.style.display = running ? "none" : "inline-flex";
             if (walkPause) walkPause.style.display = running && !paused ? "inline-flex" : "none";
             if (walkResume) walkResume.style.display = running && paused ? "inline-flex" : "none";
@@ -4127,6 +4127,7 @@ Maintain safe distance
         if (!lastWalkRoute) return;
         ensureWalkthrough();
         walkthrough?.start(lastWalkRoute, currentWalkSpeed);
+        if (walkControls) walkControls.style.display = "flex";
       });
       walkPause?.addEventListener("click", () => walkthrough?.pause());
       walkResume?.addEventListener("click", () => walkthrough?.resume());
