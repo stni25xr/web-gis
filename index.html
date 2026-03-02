@@ -3541,6 +3541,15 @@ Maintain safe distance
         const minutes = meters / 83.333; // ~5 km/h
         return Math.max(1, Math.round(minutes)) + " min";
       }
+      function distanceColor(meters) {
+        if (meters < 500) return "#22c55e";
+        if (meters < 900) return "#f59e0b";
+        return "#ef4444";
+      }
+      function formatDistanceColored(meters) {
+        const color = distanceColor(meters);
+        return `<span style="color:${color};font-weight:600;">${formatDistance(meters)}</span>`;
+      }
 
       function toGeographic(pt) {
         if (!pt) return null;
@@ -3645,7 +3654,7 @@ Maintain safe distance
               entries.push({ name, d });
             }
             entries.sort((a, b) => a.d - b.d);
-            const list = entries.map((e) => `<div>${e.name} • ${formatDistance(e.d)}</div>`).join("");
+            const list = entries.map((e) => `<div>${e.name} • ${formatDistanceColored(e.d)}</div>`).join("");
             lines.push(`<div style="margin:6px 0;"><b>${g.label}:</b>${list || " Inga data"}</div>`);
           }
           svcHint.textContent = "";
@@ -3671,13 +3680,13 @@ Maintain safe distance
         if (d == null) return;
         svcHint.textContent = "";
         const header = `<div><b>${labelForService(selected.key)}</b> – ${selected.name}</div>`;
-        svcList.innerHTML = `${header}<div>${formatDistance(d)} • ca ${formatWalkTime(d)} till fots</div>`;
+        svcList.innerHTML = `${header}<div>${formatDistanceColored(d)} • ca ${formatWalkTime(d)} till fots</div>`;
 
         const summary = await drawWalkingRouteToFeature(selected.feature, (msg) => {
           svcList.innerHTML = `${header}<div>${msg}</div>`;
         });
         if (summary?.distance != null && summary?.duration != null) {
-          const dist = formatDistance(summary.distance);
+          const dist = formatDistanceColored(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
           svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>`;
         }
