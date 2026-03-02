@@ -3212,7 +3212,7 @@ Maintain safe distance
         setBtn(safeMeasureBtn, null, !isSeniorMode);
         setBtn(safeResetBtn, null, !isSeniorMode);
         setBtn(safeRouteBtn, isSeniorMode ? "Visa vägen" : "Visa körväg", true);
-        setBtn(safeClearRouteBtn, isSeniorMode ? "Ta bort vägen" : "Avbryt", !isSeniorMode);
+        setBtn(safeClearRouteBtn, isSeniorMode ? "Ta bort vägen" : "Avbryt", isSeniorMode ? true : !isSeniorMode);
 
         seniorDetails.forEach((detail) => {
           if (!detail.dataset.originalOpen) {
@@ -3261,8 +3261,7 @@ Maintain safe distance
 
       function updateSeniorSafetyRouteButtons() {
         if (!isSeniorMode) return;
-        const hasRoute = safetyRouteLayer?.graphics?.length > 0;
-        if (safeClearRouteBtn) safeClearRouteBtn.style.display = hasRoute ? "inline-flex" : "none";
+        if (safeClearRouteBtn) safeClearRouteBtn.style.display = "inline-flex";
       }
 
       seniorDetails.forEach((detail) => {
