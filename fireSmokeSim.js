@@ -18,6 +18,7 @@
       this.view = opts.view;
       this.buildingLayer = opts.buildingLayer;
       this.geometryEngine = opts.geometryEngine;
+      this.webMercatorUtils = opts.webMercatorUtils;
       this.GraphicsLayer = opts.GraphicsLayer;
       this.Graphic = opts.Graphic;
       this.FeatureLayer = opts.FeatureLayer;
@@ -87,20 +88,51 @@
       try {
         await this.buildingLayer.load();
         const safeId = String(objektidentitet).replace(/'/g, "''");
-        const result = await this.buildingLayer.queryFeatures({
-          where: `objektidentitet = '${safeId}'`,
-          outFields: ["objektidentitet", "objekttyp", "andamal1", "b_Hight_m", "geom_Area", "geom_Length"],
-          returnGeometry: true,
-          outSpatialReference: this.view?.spatialReference
-        });
-        const feature = result?.features?.[0] || null;
+        let feature = null;
+        try {
+          const result = await this.buildingLayer.queryFeatures({
+            where: `objektidentitet = '${safeId}'`,
+            outFields: ["objektidentitet", "objekttyp", "andamal1", "b_Hight_m", "geom_Area", "geom_Length"],
+            returnGeometry: true
+          });
+          feature = result?.features?.[0] || null;
+        } catch (queryErr) {
+          console.warn("Fire smoke query failed, fallback to manual search.", queryErr);
+        }
+        if (!feature) {
+          const fallback = await this.buildingLayer.queryFeatures({
+            where: "1=1",
+            outFields: ["*"],
+            returnGeometry: true
+          });
+          feature = (fallback?.features || []).find((f) => String(f.attributes?.objektidentitet) === String(objektidentitet)) || null;
+        }
         if (!feature || !feature.geometry) {
           this.showError("Byggnaden hittades inte.");
           return false;
         }
+        let geom = feature.geometry;
+        const viewSR = this.view?.spatialReference;
+        if (geom?.spatialReference && viewSR && geom.spatialReference.wkid !== viewSR.wkid) {
+          if (geom.spatialReference.isWGS84 && viewSR.isWebMercator && this.webMercatorUtils) {
+            geom = this.webMercatorUtils.geographicToWebMercator(geom);
+          } else if (geom.spatialReference.isWebMercator && viewSR.isWGS84 && this.webMercatorUtils) {
+            geom = this.webMercatorUtils.webMercatorToGeographic(geom);
+          }
+        }
         this.fireFeature = feature;
-        this.fireGeometry = feature.geometry;
-        this.fireSourcePoint = this.geometryEngine.centroid(this.fireGeometry);
+        this.fireGeometry = geom;
+        try {
+          this.fireSourcePoint = this.geometryEngine.centroid(this.fireGeometry);
+        } catch (centroidErr) {
+          const ext = this.fireGeometry?.extent;
+          this.fireSourcePoint = ext?.center || null;
+          console.warn("Centroid failed, using extent center.", centroidErr);
+        }
+        if (!this.fireSourcePoint) {
+          this.showError("Kunde inte beräkna centrum för byggnaden.");
+          return false;
+        }
 
         this.ensureLayers();
         this.highlightFireBuilding(feature);
@@ -112,7 +144,8 @@
         return true;
       } catch (err) {
         console.warn("Fire smoke init failed", err);
-        this.showError("Kunde inte läsa byggnad." );
+        const msg = err && err.message ? err.message : "Okänt fel";
+        this.showError(`Kunde inte läsa byggnad. (${msg})`);
         return false;
       }
     }

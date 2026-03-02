@@ -1101,7 +1101,7 @@ Maintain safe distance
 
       const FIRE_OBJECT_ID = "a0924a6e-bc86-424e-8f17-17dec38ed863";
       const fireSim = typeof window.FireSmokeSim === "function"
-        ? new window.FireSmokeSim({ view, buildingLayer: buildingFootprints, geometryEngine, GraphicsLayer, Graphic, FeatureLayer })
+        ? new window.FireSmokeSim({ view, buildingLayer: buildingFootprints, geometryEngine, webMercatorUtils, GraphicsLayer, Graphic, FeatureLayer })
         : null;
       if (fireSim) fireSim.setUI(fireUi);
 
@@ -4212,7 +4212,7 @@ Maintain safe distance
                 "Flera boende uppger lukt och rökgång i våningsplan 2–4.",
                 "Möjlig brand i lägenhet, utrymning pågår.",
                 "Prioritet: Hög (nivå 1)."
-              ].join(\"\\n\")
+              ].join("\n")
             });
           }
           if (SIM_OBJECT_IDS.includes(id)) {
@@ -4226,7 +4226,7 @@ Maintain safe distance
             `;
           }
         }
-if (isBus) {
+        if (isBus) {
           loadDeparturesForStop(found.graphic.geometry, found.graphic.attributes?.Hplnamn || "");
         } else {
           clearDepartures();
