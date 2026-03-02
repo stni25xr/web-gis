@@ -3724,7 +3724,7 @@ Maintain safe distance
         return `${paths.length}:${first[0].toFixed(6)},${first[1].toFixed(6)}:${last[0].toFixed(6)},${last[1].toFixed(6)}`;
       }
       function formatElevationInfo(stats) {
-        if (!stats) return "";
+        if (!stats) return "Höjd: –";
         const up = Math.round(stats.up || 0);
         const down = Math.round(stats.down || 0);
         return `Höjd: ↑ ${up} m / ↓ ${down} m`;
@@ -3905,13 +3905,13 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistanceColored(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          const elevLine = summary?.elevation ? `<div class="elevation-info">${formatElevationInfo(summary.elevation)}</div>` : "";
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div>`;
           svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>${elevLine}`;
         } else {
           // Fallback: still attempt elevation from last route if available
           if (lastRouteGeometry) {
             const elevation = await getElevationStats(lastRouteGeometry);
-            const elevLine = elevation ? `<div class="elevation-info">${formatElevationInfo(elevation)}</div>` : "";
+            const elevLine = `<div class="elevation-info">${formatElevationInfo(elevation)}</div>`;
             svcList.innerHTML = `${header}<div>${formatDistanceColored(d)} • ca ${formatWalkTime(d)} till fots</div>${elevLine}`;
           }
         }
@@ -4010,7 +4010,7 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistance(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          const elevLine = summary?.elevation ? `<div class="elevation-info">${formatElevationInfo(summary.elevation)}</div>` : "";
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div>`;
           safeList.innerHTML = `${header}<div>${dist} • ca ${mins} min (bil)</div>${elevLine}`;
         }
       }
@@ -4438,7 +4438,7 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistanceColored(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          const elevLine = summary?.elevation ? `<div class="elevation-info">${formatElevationInfo(summary.elevation)}</div>` : "";
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div>`;
           nearMeta.innerHTML = `${dist} • ca ${mins} min (gångväg)${elevLine}`;
         }
         updateSeniorRouteButtons();
@@ -4527,7 +4527,8 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistanceColored(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>`;
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div>`;
+          svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>${elevLine}`;
         }
         updateSeniorRouteButtons();
       });
