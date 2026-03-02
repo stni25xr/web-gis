@@ -331,13 +331,13 @@ button.ghost:hover {
 }
 
 .elevation-info {
-  font-size: 14px;
+  font-size: inherit;
   margin-top: 4px;
   opacity: 0.85;
 }
 
 .panel--senior .elevation-info {
-  font-size: 18px;
+  font-size: inherit;
 }
 
 
