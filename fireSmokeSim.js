@@ -9,7 +9,7 @@
     diffusionBase: 0.15,
     decayRate: 0.02,
     sourcePeak: 1.0,
-    sourceThreshold: 0.12,
+    sourceThreshold: 0.08,
     areaThreshold: 0.25
   };
 
@@ -204,20 +204,22 @@
           ],
           geometryType: "point",
           spatialReference: this.view.spatialReference,
-          opacity: 0.68,
+          opacity: 0.75,
           elevationInfo: { mode: "on-the-ground" },
           renderer: {
             type: "heatmap",
             field: "weight",
             colorStops: [
               { ratio: 0.0, color: [0, 0, 0, 0] },
-              { ratio: 0.15, color: [140, 140, 140, 0.25] },
-              { ratio: 0.4, color: [100, 100, 100, 0.55] },
-              { ratio: 0.7, color: [70, 70, 70, 0.75] },
-              { ratio: 1.0, color: [40, 40, 40, 0.9] }
+              { ratio: 0.15, color: [150, 150, 150, 0.3] },
+              { ratio: 0.4, color: [110, 110, 110, 0.6] },
+              { ratio: 0.7, color: [80, 80, 80, 0.8] },
+              { ratio: 1.0, color: [50, 50, 50, 0.95] }
             ],
             minDensity: 0,
-            maxDensity: 0.55
+            maxDensity: 0.45,
+            radius: 18,
+            blurRadius: 22
           }
         });
         this.view.map.add(this.smokeLayer);
