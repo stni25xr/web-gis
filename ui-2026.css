@@ -301,6 +301,12 @@ button.ghost:hover {
   font-size: 14px;
 }
 
+.walkthrough-hint {
+  font-size: 12px;
+  color: rgba(248, 250, 252, 0.85);
+  min-height: 16px;
+}
+
 .walkthrough-buttons {
   display: flex;
   flex-wrap: wrap;

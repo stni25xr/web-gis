@@ -688,8 +688,9 @@
 
   <div id="walkthroughControls" class="walkthrough-controls" style="display:none;">
     <div class="walkthrough-title">Förstapersons‑promenad</div>
+    <div id="walkthroughHint" class="walkthrough-hint"></div>
     <div class="walkthrough-buttons">
-      <button id="walkStart" type="button">Gå i förstaperson</button>
+      <button id="walkStart" type="button">Gå i förstaperson vy</button>
       <button id="walkPause" type="button" class="secondary">Paus</button>
       <button id="walkResume" type="button" class="secondary">Fortsätt</button>
       <button id="walkCancel" type="button" class="secondary">Avbryt</button>
@@ -4124,6 +4125,9 @@ Maintain safe distance
             paths: [coords],
             spatialReference: { wkid: 4326 }
           };
+          if (walkthrough) {
+            await walkthrough.setRoute(lastWalkRoute);
+          }
           if (walkControls) walkControls.style.display = "flex";
           const merged = summary ? { ...summary } : {};
           if (elevation) merged.elevation = elevation;
@@ -4154,6 +4158,7 @@ Maintain safe distance
       const walkResume = document.getElementById("walkResume");
       const walkCancel = document.getElementById("walkCancel");
       const walkSpeedBtns = document.querySelectorAll(".walk-speed-btn");
+      const walkHint = document.getElementById("walkthroughHint");
 
       function ensureWalkthrough() {
         if (walkthrough || typeof window.RouteWalkthrough !== "function") return;
@@ -4169,6 +4174,9 @@ Maintain safe distance
             if (walkPause) walkPause.style.display = running && !paused ? "inline-flex" : "none";
             if (walkResume) walkResume.style.display = running && paused ? "inline-flex" : "none";
             if (walkCancel) walkCancel.style.display = running ? "inline-flex" : "none";
+          },
+          onHint: (msg) => {
+            if (walkHint) walkHint.textContent = msg || "";
           }
         });
       }
@@ -4190,9 +4198,15 @@ Maintain safe distance
       setWalkSpeedUI(1);
 
       walkStart?.addEventListener("click", () => {
-        if (!lastWalkRoute) return;
+        if (walkHint) walkHint.textContent = "";
+        if (!lastWalkRoute) {
+          if (walkHint) walkHint.textContent = "Välj en gångväg först";
+          console.warn("walkthrough start: no route");
+          return;
+        }
         ensureWalkthrough();
-        walkthrough?.start(lastWalkRoute, currentWalkSpeed);
+        walkthrough?.setRoute(lastWalkRoute);
+        walkthrough?.start(currentWalkSpeed);
         if (walkControls) walkControls.style.display = "flex";
       });
       walkPause?.addEventListener("click", () => walkthrough?.pause());

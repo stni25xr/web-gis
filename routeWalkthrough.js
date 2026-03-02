@@ -6,6 +6,8 @@
     heightAboveGround: 1.5,
     frameMs: 40
   };
+  const TILT_ANGLE = 89.9;
+  const ELEVATION_SAMPLE_STEP = 10;
 
   function haversineMeters(a, b) {
     const R = 6371000;
@@ -39,6 +41,7 @@
       this.GraphicsLayer = opts.GraphicsLayer;
       this.Graphic = opts.Graphic;
       this.onStateChange = opts.onStateChange || null;
+      this.onHint = opts.onHint || null;
 
       this.speedMultiplier = 1;
       this.baseWalkSpeedMps = DEFAULTS.baseWalkSpeedMps;
@@ -46,11 +49,13 @@
       this.heightAboveGround = DEFAULTS.heightAboveGround;
       this.frameMs = DEFAULTS.frameMs;
 
+      this.routePolyline = null;
       this.points = [];
       this.distances = [];
       this.totalDistance = 0;
       this.lastIndex = 0;
-      this.elevations = null;
+      this.elevationSamples = null;
+      this.elevationDistances = null;
 
       this.running = false;
       this.paused = false;
@@ -61,6 +66,8 @@
 
       this.rafId = null;
       this.lastViewpoint = null;
+      this.lastTickLogMs = 0;
+      this.lastHint = "";
 
       this.walkerLayer = new this.GraphicsLayer({
         elevationInfo: { mode: "relative-to-ground", offset: this.heightAboveGround }
@@ -69,19 +76,38 @@
       this.walkerGraphic = null;
     }
 
+    setRoute(routePolyline) {
+      this.routePolyline = routePolyline || null;
+      if (!this.routePolyline) return;
+      this._prepareRoute(this.routePolyline);
+      this._prefetchElevations();
+    }
+
     setSpeed(multiplier) {
       const v = Number(multiplier);
       if (![1, 2, 4].includes(v)) return;
       this.speedMultiplier = v;
     }
 
-    async start(routePolyline, speedMultiplier = 1) {
-      if (!routePolyline) return;
+    async start(speedMultiplier = 1) {
+      if (!this.routePolyline) {
+        console.warn("walkthrough start: no route");
+        this._hint("Ingen gångväg att följa");
+        return;
+      }
       if (this.running) this.cancel(false);
       this.setSpeed(speedMultiplier);
 
       this.lastViewpoint = this.view?.viewpoint ? this.view.viewpoint.clone() : null;
-      await this._prepareRoute(routePolyline);
+      if (!this.points.length) {
+        this._prepareRoute(this.routePolyline);
+        this._prefetchElevations();
+      }
+      if (!this.points.length || this.totalDistance <= 0) {
+        console.warn("walkthrough start: empty route");
+        this._hint("Ingen gångväg att följa");
+        return;
+      }
 
       this.running = true;
       this.paused = false;
@@ -90,8 +116,15 @@
       this.pauseStartMs = 0;
       this.lastFrameMs = 0;
       this.lastIndex = 0;
+      this.lastTickLogMs = 0;
+
+      console.log("walkthrough start", {
+        totalDistance: Math.round(this.totalDistance),
+        pointsCount: this.points.length
+      });
 
       this._emit();
+      this._jumpToStart();
       this._tick();
     }
 
@@ -119,6 +152,7 @@
       this.running = false;
       this.paused = false;
       this._clearWalker();
+      this._hint("");
       if (restoreView && this.lastViewpoint && this.view) {
         this.view.goTo(this.lastViewpoint, { animate: false });
       }
@@ -133,8 +167,8 @@
       this.walkerLayer = null;
     }
 
-    async _prepareRoute(routePolyline) {
-      const dense = this.geometryEngine.densify(routePolyline, 1, "meters");
+    _prepareRoute(routePolyline) {
+      const dense = this.geometryEngine.densify(routePolyline, 2, "meters");
       let paths = dense?.paths || routePolyline?.paths || [];
       if (!paths.length) return;
       const raw = paths[0];
@@ -160,22 +194,39 @@
       }
       this.totalDistance = total;
 
-      this.elevations = null;
-      if (this.view?.type === "3d" && this.view.ground?.queryElevation) {
-        try {
-          const geoLine = {
-            type: "polyline",
-            paths: [geoPoints.map((p) => [p.longitude, p.latitude])],
-            spatialReference: { wkid: 4326 }
-          };
-          const elevated = await this.view.ground.queryElevation(geoLine);
-          const epaths = elevated?.paths || [];
-          if (epaths.length) {
-            this.elevations = epaths[0].map((p) => p[2] || 0);
+      this.elevationSamples = null;
+      this.elevationDistances = null;
+    }
+
+    async _prefetchElevations() {
+      if (this.view?.type !== "3d" || !this.view.ground?.queryElevation) return;
+      if (!this.totalDistance) return;
+      try {
+        const samples = [];
+        const distances = [];
+        for (let d = 0; d <= this.totalDistance; d += ELEVATION_SAMPLE_STEP) {
+          const pt = this._getPointAtDistance(d);
+          if (pt) {
+            samples.push([pt.longitude, pt.latitude]);
+            distances.push(d);
           }
-        } catch (e) {
-          this.elevations = null;
         }
+        if (!samples.length) return;
+        const multipoint = {
+          type: "multipoint",
+          points: samples,
+          spatialReference: { wkid: 4326 }
+        };
+        const elevated = await this.view.ground.queryElevation(multipoint);
+        const epoints = elevated?.geometry?.points || [];
+        const zValues = epoints.map((p) => (Number.isFinite(p[2]) ? p[2] : 0));
+        if (zValues.length) {
+          this.elevationSamples = zValues;
+          this.elevationDistances = distances;
+        }
+      } catch (e) {
+        this.elevationSamples = null;
+        this.elevationDistances = null;
       }
     }
 
@@ -207,7 +258,13 @@
 
       this._updateWalker(pos, lookPos, idx);
 
+      if (!this.lastTickLogMs || now - this.lastTickLogMs >= 1000) {
+        this.lastTickLogMs = now;
+        console.log("walkthrough tick", Math.round(traveled));
+      }
+
       if (traveled >= this.totalDistance - 0.01) {
+        console.log("walkthrough arrived");
         this.cancel(false);
         return;
       }
@@ -233,20 +290,45 @@
       return { longitude: lon, latitude: lat };
     }
 
+    _getPointAtDistance(targetMeters) {
+      if (!this.distances.length) return null;
+      const clamped = Math.max(0, Math.min(targetMeters, this.totalDistance));
+      let i = 0;
+      while (i < this.distances.length - 2 && this.distances[i + 1] < clamped) i += 1;
+      return this._interpolate(i, clamped);
+    }
+
+    _getElevationAtDistance(targetMeters) {
+      if (!this.elevationSamples || !this.elevationDistances) return 0;
+      const dists = this.elevationDistances;
+      if (!dists.length) return 0;
+      if (targetMeters <= dists[0]) return this.elevationSamples[0] || 0;
+      if (targetMeters >= dists[dists.length - 1]) return this.elevationSamples[dists.length - 1] || 0;
+      let i = 0;
+      while (i < dists.length - 2 && dists[i + 1] < targetMeters) i += 1;
+      const d0 = dists[i];
+      const d1 = dists[i + 1];
+      const z0 = this.elevationSamples[i] || 0;
+      const z1 = this.elevationSamples[i + 1] || 0;
+      const t = d1 > d0 ? (targetMeters - d0) / (d1 - d0) : 0;
+      return z0 + (z1 - z0) * t;
+    }
+
     _updateWalker(pos, lookPos, idx) {
       if (!pos || !this.view) return;
       const heading = lookPos ? bearingDeg(pos, lookPos) : 0;
-      const groundZ = this.elevations && this.elevations[idx] != null ? this.elevations[idx] : 0;
+      const groundZ = this._getElevationAtDistance(this.distances[idx] || 0);
       const z = groundZ + this.heightAboveGround;
 
       if (this.view.type === "3d") {
         this.view.camera = {
           position: { longitude: pos.longitude, latitude: pos.latitude, z },
           heading,
-          tilt: 85
+          tilt: TILT_ANGLE
         };
       } else {
-        this.view.center = [pos.longitude, pos.latitude];
+        this.view.goTo({ center: [pos.longitude, pos.latitude] }, { animate: false });
+        this._hint("Förstaperson kräver 3D");
       }
 
       if (!this.walkerGraphic) {
@@ -263,6 +345,34 @@
     _clearWalker() {
       if (this.walkerLayer) this.walkerLayer.removeAll();
       this.walkerGraphic = null;
+    }
+
+    _jumpToStart() {
+      if (!this.view || !this.points.length) return;
+      const start = this.points[0];
+      const next = this.points[1] || start;
+      const heading = bearingDeg(start, next);
+      const groundZ = this._getElevationAtDistance(0);
+      const z = groundZ + this.heightAboveGround;
+      if (this.view.type === "3d") {
+        this.view.camera = {
+          position: { longitude: start.longitude, latitude: start.latitude, z },
+          heading,
+          tilt: TILT_ANGLE
+        };
+      } else {
+        this.view.goTo({ center: [start.longitude, start.latitude] }, { animate: false });
+        this._hint("Förstaperson kräver 3D");
+      }
+    }
+
+    _hint(message) {
+      if (!message) message = "";
+      if (message === this.lastHint) return;
+      this.lastHint = message;
+      if (typeof this.onHint === "function") {
+        this.onHint(message);
+      }
     }
   }
 
