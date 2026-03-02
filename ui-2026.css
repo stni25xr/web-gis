@@ -279,51 +279,6 @@ button.ghost:hover {
   font-size: 18px;
 }
 
-.walkthrough-controls {
-  position: fixed;
-  bottom: 88px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(15, 23, 42, 0.92);
-  color: #f8fafc;
-  padding: 12px 16px;
-  border-radius: 14px;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
-  z-index: 30;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 320px;
-}
-
-.walkthrough-title {
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.walkthrough-hint {
-  font-size: 12px;
-  color: rgba(248, 250, 252, 0.85);
-  min-height: 16px;
-}
-
-.walkthrough-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.walkthrough-buttons button {
-  min-height: 44px;
-}
-
-.walkthrough-speed {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-}
-
 .walkthrough-speed button {
   min-height: 36px;
   padding: 6px 10px;
