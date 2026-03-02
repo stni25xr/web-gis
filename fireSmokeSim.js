@@ -204,20 +204,20 @@
           ],
           geometryType: "point",
           spatialReference: this.view.spatialReference,
-          opacity: 0.55,
+          opacity: 0.68,
           elevationInfo: { mode: "on-the-ground" },
           renderer: {
             type: "heatmap",
             field: "weight",
             colorStops: [
               { ratio: 0.0, color: [0, 0, 0, 0] },
-              { ratio: 0.2, color: [120, 120, 120, 0.2] },
-              { ratio: 0.5, color: [90, 90, 90, 0.45] },
-              { ratio: 0.75, color: [60, 60, 60, 0.65] },
-              { ratio: 1.0, color: [30, 30, 30, 0.85] }
+              { ratio: 0.15, color: [140, 140, 140, 0.25] },
+              { ratio: 0.4, color: [100, 100, 100, 0.55] },
+              { ratio: 0.7, color: [70, 70, 70, 0.75] },
+              { ratio: 1.0, color: [40, 40, 40, 0.9] }
             ],
             minDensity: 0,
-            maxDensity: 0.8
+            maxDensity: 0.55
           }
         });
         this.view.map.add(this.smokeLayer);
