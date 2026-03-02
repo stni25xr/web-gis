@@ -330,6 +330,16 @@ button.ghost:hover {
   border-color: #2563eb;
 }
 
+.elevation-info {
+  font-size: 14px;
+  margin-top: 4px;
+  opacity: 0.85;
+}
+
+.panel--senior .elevation-info {
+  font-size: 18px;
+}
+
 
 @media (max-width: 900px) {
   #sidebar { width: 210px; }

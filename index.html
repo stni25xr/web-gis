@@ -3716,6 +3716,53 @@ Maintain safe distance
         const [r, g, b] = distanceGradientRgb(meters);
         return [r, g, b, alpha];
       }
+      function makeRouteKey(routePolyline) {
+        const paths = routePolyline?.paths?.[0];
+        if (!paths || !paths.length) return "";
+        const first = paths[0];
+        const last = paths[paths.length - 1];
+        return `${paths.length}:${first[0].toFixed(6)},${first[1].toFixed(6)}:${last[0].toFixed(6)},${last[1].toFixed(6)}`;
+      }
+      function formatElevationInfo(stats) {
+        if (!stats) return "";
+        const up = Math.round(stats.up || 0);
+        const down = Math.round(stats.down || 0);
+        return `Höjd: ↑ ${up} m / ↓ ${down} m`;
+      }
+      const elevationCache = new Map();
+      async function getElevationStats(routePolyline) {
+        if (!view?.ground?.queryElevation || !routePolyline) return null;
+        const key = makeRouteKey(routePolyline);
+        if (key && elevationCache.has(key)) return elevationCache.get(key);
+        try {
+          const dense = geometryEngine.densify(routePolyline, 10, "meters");
+          const points = dense?.paths?.[0];
+          if (!points || points.length < 2) return null;
+          const multipoint = {
+            type: "multipoint",
+            points,
+            spatialReference: dense.spatialReference || routePolyline.spatialReference
+          };
+          const elevationResult = await view.ground.queryElevation(multipoint);
+          const zValues = (elevationResult?.geometry?.points || [])
+            .map((p) => p[2])
+            .filter((z) => Number.isFinite(z));
+          if (zValues.length < 2) return null;
+          let totalUp = 0;
+          let totalDown = 0;
+          for (let i = 1; i < zValues.length; i++) {
+            const delta = zValues[i] - zValues[i - 1];
+            if (delta > 0) totalUp += delta;
+            else totalDown += Math.abs(delta);
+          }
+          const stats = { up: totalUp, down: totalDown, diff: zValues[zValues.length - 1] - zValues[0] };
+          if (key) elevationCache.set(key, stats);
+          return stats;
+        } catch (e) {
+          console.warn("Elevation calc failed:", e);
+          return null;
+        }
+      }
       function formatDistanceColored(meters) {
         const color = distanceColor(meters);
         return `<span style="color:${color};font-weight:600;">${formatDistance(meters)}</span>`;
@@ -3858,7 +3905,8 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistanceColored(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>`;
+          const elevLine = summary?.elevation ? `<div class="elevation-info">${formatElevationInfo(summary.elevation)}</div>` : "";
+          svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>${elevLine}`;
         }
       }
 
@@ -3878,7 +3926,7 @@ Maintain safe distance
         const eLon = end.longitude ?? end.x;
         const eLat = end.latitude ?? end.y;
 
-        const drawStraight = () => {
+        const drawStraight = async () => {
           const route = new Polyline({ paths: [[[sLon, sLat], [eLon, eLat]]], spatialReference: { wkid: 4326 } });
           safetyRouteLayer.removeAll();
           safetyRouteLayer.add(new Graphic({
@@ -3888,12 +3936,13 @@ Maintain safe distance
           updateSeniorSafetyRouteButtons();
           const meters = geometryEngine.geodesicLength(route, "meters");
           const duration = meters / (50 * 1000 / 3600); // 50 km/h fallback
-          return { distance: meters, duration };
+          const elevation = await getElevationStats(route);
+          return { distance: meters, duration, elevation };
         };
 
         if (!ORS_KEY) {
           status("ORS saknas – visar rak linje");
-          return drawStraight();
+          return await drawStraight();
         }
 
         const url = "https://api.openrouteservice.org/v2/directions/driving-car/geojson";
@@ -3909,7 +3958,7 @@ Maintain safe distance
           const summary = feat?.properties?.summary;
           if (!coords || coords.length < 2) {
             status("Ingen rutt hittades – visar rak linje");
-            return drawStraight();
+            return await drawStraight();
           }
           lastSafetyRouteCoords = coords;
           lastSafetyRouteSummary = summary || null;
@@ -3919,10 +3968,11 @@ Maintain safe distance
             geometry: route,
             symbol: { type: "simple-line", color: safetyColor || "#1d4ed8", width: 3 }
           }));
-          return summary || null;
+          const elevation = await getElevationStats(route);
+          return { ...(summary || {}), elevation };
         } catch (e) {
           status("Ruttfel – visar rak linje");
-          return drawStraight();
+          return await drawStraight();
         }
       }
 
@@ -3953,7 +4003,8 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistance(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          safeList.innerHTML = `${header}<div>${dist} • ca ${mins} min (bil)</div>`;
+          const elevLine = summary?.elevation ? `<div class="elevation-info">${formatElevationInfo(summary.elevation)}</div>` : "";
+          safeList.innerHTML = `${header}<div>${dist} • ca ${mins} min (bil)</div>${elevLine}`;
         }
       }
 
@@ -4033,6 +4084,8 @@ Maintain safe distance
               cumulative += segMeters;
             }
             updateSeniorRouteButtons();
+            const elevation = await getElevationStats(route);
+            return elevation;
           };
 
           const url = "https://api.openrouteservice.org/v2/directions/foot-walking/geojson";
@@ -4053,15 +4106,16 @@ Maintain safe distance
             return null;
           }
 
-          await renderGradientRoute(coords, summary?.distance ?? straightMeters);
+          const elevation = await renderGradientRoute(coords, summary?.distance ?? straightMeters);
           lastWalkRoute = {
             type: "polyline",
             paths: [coords],
             spatialReference: { wkid: 4326 }
           };
           if (walkControls) walkControls.style.display = "flex";
-
-          return summary || null;
+          const merged = summary ? { ...summary } : {};
+          if (elevation) merged.elevation = elevation;
+          return merged || null;
         } finally {
           routeBusy = false;
         }
@@ -4377,7 +4431,8 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistanceColored(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          nearMeta.innerHTML = `${dist} • ca ${mins} min (gångväg)`;
+          const elevLine = summary?.elevation ? `<div class="elevation-info">${formatElevationInfo(summary.elevation)}</div>` : "";
+          nearMeta.innerHTML = `${dist} • ca ${mins} min (gångväg)${elevLine}`;
         }
         updateSeniorRouteButtons();
       });
