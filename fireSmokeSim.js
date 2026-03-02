@@ -86,9 +86,13 @@
         return false;
       }
       try {
+        if (this.view && typeof this.view.when === "function") {
+          await this.view.when();
+        }
         await this.buildingLayer.load();
         const safeId = String(objektidentitet).replace(/'/g, "''");
         let feature = null;
+        let lastError = null;
         try {
           const result = await this.buildingLayer.queryFeatures({
             where: `objektidentitet = '${safeId}'`,
@@ -97,18 +101,50 @@
           });
           feature = result?.features?.[0] || null;
         } catch (queryErr) {
+          lastError = queryErr;
           console.warn("Fire smoke query failed, fallback to manual search.", queryErr);
         }
+        if (!feature && this.view && typeof this.view.whenLayerView === "function") {
+          try {
+            const layerView = await this.view.whenLayerView(this.buildingLayer);
+            if (layerView?.queryFeatures) {
+              const result = await layerView.queryFeatures({
+                where: `objektidentitet = '${safeId}'`,
+                outFields: ["*"],
+                returnGeometry: true
+              });
+              feature = result?.features?.[0] || null;
+            }
+          } catch (queryErr) {
+            lastError = queryErr;
+          }
+        }
         if (!feature) {
-          const fallback = await this.buildingLayer.queryFeatures({
-            where: "1=1",
-            outFields: ["*"],
-            returnGeometry: true
-          });
-          feature = (fallback?.features || []).find((f) => String(f.attributes?.objektidentitet) === String(objektidentitet)) || null;
+          try {
+            const fallback = await this.buildingLayer.queryFeatures({
+              where: "1=1",
+              outFields: ["*"],
+              returnGeometry: true
+            });
+            feature = (fallback?.features || []).find((f) => String(f.attributes?.objektidentitet) === String(objektidentitet)) || null;
+          } catch (queryErr) {
+            lastError = queryErr;
+          }
+        }
+        if (!feature) {
+          const src = this.buildingLayer.source;
+          const list = src?.toArray ? src.toArray() : (Array.isArray(src) ? src : []);
+          if (list && list.length) {
+            feature = list.find((f) => String(f.attributes?.objektidentitet) === String(objektidentitet)) || null;
+          }
         }
         if (!feature || !feature.geometry) {
-          this.showError("Byggnaden hittades inte.");
+          if (lastError) {
+            const msg = lastError && lastError.message ? lastError.message : String(lastError);
+            this.showError(`Kunde inte läsa byggnad. (${msg})`);
+          } else {
+            this.showError("Byggnaden hittades inte.");
+          }
           return false;
         }
         let geom = feature.geometry;
