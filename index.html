@@ -802,7 +802,7 @@ Maintain safe distance
         <div id="incidentRouteStatus" class="incident-status"></div>
       </div>
       <div class="incident-actions">
-        <button id="incidentRoute" type="button">Visa polisväg</button>
+        <button id="incidentRoute" type="button">Visa räddningstjänstväg</button>
         <button id="incidentRouteClear" type="button">Avbryt</button>
         <button id="incidentAcknowledge" type="button">Bekräfta</button>
       </div>
@@ -2318,6 +2318,22 @@ Maintain safe distance
         return center || null;
       }
 
+      function getFireTargetPoint() {
+        if (typeof fireSim !== "undefined" && fireSim?.fireSourcePoint) {
+          return fireSim.fireSourcePoint;
+        }
+        if (typeof fireSim !== "undefined" && fireSim?.fireGeometry) {
+          const geom = fireSim.fireGeometry;
+          let center = null;
+          if (geometryEngine && typeof geometryEngine.centroid === "function") {
+            try { center = geometryEngine.centroid(geom); } catch (e) { /* ignore */ }
+          }
+          if (!center && geom?.extent) center = geom.extent.center;
+          return center || null;
+        }
+        return null;
+      }
+
       window.showPoliceRouteToAlarm = async function () {
         setIncidentStatus("");
         const targetPoint = getAlarmTargetPoint();
@@ -2359,10 +2375,59 @@ Maintain safe distance
           setIncidentStatus(msg);
         });
         if (summary?.duration != null) {
-          setIncidentEta(summary.duration);
+          setIncidentEta(summary.duration, "Polis");
           if (lastSafetyRouteCoords) startPoliceDriveAnimation(lastSafetyRouteCoords, summary.duration);
         } else {
-          setIncidentEta(420);
+          setIncidentEta(420, "Polis");
+          if (lastSafetyRouteCoords) startPoliceDriveAnimation(lastSafetyRouteCoords, 420);
+        }
+      };
+
+      window.showFireRouteToIncident = async function () {
+        setIncidentStatus("");
+        const targetPoint = getFireTargetPoint();
+        if (!targetPoint) {
+          setIncidentStatus("Kunde inte läsa målpunkt");
+          return;
+        }
+        await buildSafetyIndex();
+        const fireItems = safetyIndex.filter((s) => s.key === "fire");
+        if (!fireItems.length) {
+          setIncidentStatus("Ingen räddningstjänst hittades");
+          return;
+        }
+        const targetWgs = toGeographic(targetPoint);
+        if (!targetWgs) {
+          setIncidentStatus("Okänt koordinatsystem");
+          return;
+        }
+        let nearest = null;
+        let best = Infinity;
+        fireItems.forEach((p) => {
+          const pWgs = toGeographic(p.feature.geometry);
+          const d = pWgs ? distanceMeters(targetWgs, pWgs) : null;
+          if (d != null && d < best) {
+            best = d;
+            nearest = p;
+          }
+        });
+        if (!nearest) {
+          setIncidentStatus("Kunde inte beräkna närmaste räddningstjänst");
+          return;
+        }
+        lastSafeMeasurePoint = toGeographic(nearest.feature.geometry);
+        if (!lastSafeMeasurePoint) {
+          setIncidentStatus("Kunde inte läsa räddningstjänstens position");
+          return;
+        }
+        const summary = await drawDrivingRouteToFeature({ geometry: targetPoint }, "#ef4444", (msg) => {
+          setIncidentStatus(msg);
+        });
+        if (summary?.duration != null) {
+          setIncidentEta(summary.duration, "Räddningstjänst");
+          if (lastSafetyRouteCoords) startPoliceDriveAnimation(lastSafetyRouteCoords, summary.duration);
+        } else {
+          setIncidentEta(420, "Räddningstjänst");
           if (lastSafetyRouteCoords) startPoliceDriveAnimation(lastSafetyRouteCoords, 420);
         }
       };
@@ -4506,7 +4571,11 @@ Maintain safe distance
       window.hideIncidentModal();
     });
     document.getElementById("incidentRoute")?.addEventListener("click", () => {
-      window.showPoliceRouteToAlarm();
+      if (typeof window.showFireRouteToIncident === "function") {
+        window.showFireRouteToIncident();
+      } else {
+        window.showPoliceRouteToAlarm();
+      }
     });
     document.getElementById("incidentRouteClear")?.addEventListener("click", () => {
       window.clearPoliceRoute();
