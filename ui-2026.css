@@ -245,6 +245,40 @@ button.ghost:hover {
   color: var(--app-text-muted);
 }
 
+.panel--senior {
+  font-size: 18px;
+  line-height: 1.6;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.panel--senior h2,
+.panel--senior h3 {
+  font-size: 22px;
+}
+
+.panel--senior button {
+  font-size: 18px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  min-height: 48px;
+}
+
+.panel--senior .panel-section {
+  margin-bottom: 24px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.panel--senior .panel-body {
+  margin-top: 8px;
+}
+
+.panel--senior .panel-title {
+  font-size: 18px;
+}
+
 
 @media (max-width: 900px) {
   #sidebar { width: 210px; }

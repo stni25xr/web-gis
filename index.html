@@ -537,7 +537,16 @@
     <h2>Information <button id="rightPanelClose" class="panel-close" type="button" aria-label="Stäng information">✕</button></h2>
 
     <div class="panel-section">
-      <details>
+      <div class="panel-body" style="margin-top:0;">
+        <label style="display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer;">
+          <input id="seniorModeToggle" type="checkbox" style="width:18px;height:18px;" />
+          <span>Seniorläge (enklare vy)</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <details data-section="selected">
         <summary class="panel-title">Valt objekt</summary>
         <div class="panel-body">
           <div id="attrHint">Klicka på ett objekt i kartan</div>
@@ -555,7 +564,7 @@
     </div>
 
     <div class="panel-section">
-      <details>
+      <details data-section="bus" open>
         <summary class="panel-title">Närmsta busshållplats</summary>
         <div class="panel-body">
           <div id="nearHint">Klicka på kartan för att mäta</div>
@@ -574,7 +583,7 @@
     </div>
 
     <div class="panel-section">
-      <details>
+      <details data-section="service">
         <summary class="panel-title">Avstånd till service</summary>
         <div class="panel-body">
           <div id="svcHint">Klicka på kartan för att räkna avstånd</div>
@@ -595,7 +604,7 @@
     </div>
 
     <div class="panel-section">
-      <details>
+      <details data-section="safety">
         <summary class="panel-title">Trygghet (bil)</summary>
         <div class="panel-body">
           <div id="safeHint">Välj trygghetstjänst och klicka Mät avstånd</div>
@@ -616,7 +625,7 @@
     </div>
 
     <div class="panel-section">
-      <details>
+      <details data-section="departures">
         <summary class="panel-title">Avgångar (busshållplats)</summary>
         <div class="panel-body">
           <div id="depHint">Klicka på en busshållplats</div>
@@ -3151,6 +3160,127 @@ Maintain safe distance
       let busDashPhase = 0;
       let busDashTotal = 0;
 
+      let isSeniorMode = false;
+      let seniorPrevStates = null;
+      let lastServiceClickPoint = null;
+      let lastSafetyClickPoint = null;
+
+      const seniorToggle = document.getElementById("seniorModeToggle");
+      const seniorDetails = Array.from(document.querySelectorAll("#info-panel details[data-section]"));
+
+      function setSeniorMode(on) {
+        isSeniorMode = !!on;
+        const panel = document.getElementById("info-panel");
+        if (panel) panel.classList.toggle("panel--senior", isSeniorMode);
+
+        const titles = {
+          bus: "🚌 Närmsta busshållplats",
+          service: "🏫🏥 Service nära dig",
+          safety: "🚗 Trygg resa med bil",
+          departures: "🚌 Avgångar (busshållplats)"
+        };
+        seniorDetails.forEach((detail) => {
+          const key = detail.getAttribute("data-section");
+          const summary = detail.querySelector(".panel-title");
+          if (!summary) return;
+          if (!summary.dataset.originalText) {
+            summary.dataset.originalText = summary.textContent || "";
+          }
+          if (isSeniorMode && titles[key]) {
+            summary.textContent = titles[key];
+          } else {
+            summary.textContent = summary.dataset.originalText || summary.textContent;
+          }
+        });
+
+        const setBtn = (btn, text, show) => {
+          if (!btn) return;
+          if (text) btn.textContent = text;
+          btn.style.display = show ? "inline-flex" : "none";
+        };
+
+        setBtn(nearMeasureBtn, null, !isSeniorMode);
+        setBtn(nearResetBtn, null, !isSeniorMode);
+        setBtn(nearRouteBtn, isSeniorMode ? "Visa vägen" : "Visa gångväg", true);
+        setBtn(nearClearRouteBtn, isSeniorMode ? "Ta bort vägen" : "Rensa rutt", !isSeniorMode);
+
+        setBtn(svcMeasureBtn, null, !isSeniorMode);
+        setBtn(svcResetBtn, null, !isSeniorMode);
+        setBtn(svcRouteBtn, isSeniorMode ? "Visa vägen" : "Visa gångväg", true);
+        setBtn(svcClearRouteBtn, isSeniorMode ? "Ta bort vägen" : "Rensa rutt", !isSeniorMode);
+
+        setBtn(safeMeasureBtn, null, !isSeniorMode);
+        setBtn(safeResetBtn, null, !isSeniorMode);
+        setBtn(safeRouteBtn, isSeniorMode ? "Visa vägen" : "Visa körväg", true);
+        setBtn(safeClearRouteBtn, isSeniorMode ? "Ta bort vägen" : "Avbryt", !isSeniorMode);
+
+        seniorDetails.forEach((detail) => {
+          if (!detail.dataset.originalOpen) {
+            detail.dataset.originalOpen = detail.open ? "1" : "0";
+          }
+        });
+
+        if (isSeniorMode) {
+          seniorPrevStates = {
+            measureEnabled,
+            svcMeasureEnabled,
+            safeMeasureEnabled
+          };
+          measureEnabled = true;
+          svcMeasureEnabled = true;
+          safeMeasureEnabled = true;
+          nearHint.textContent = "Klicka på kartan för att se avstånd";
+          svcHint.textContent = "Klicka på kartan för att se avstånd";
+          safeHint.textContent = "Klicka på kartan för att se avstånd";
+          seniorDetails.forEach((detail, idx) => {
+            detail.open = idx === 0;
+          });
+        } else {
+          if (seniorPrevStates) {
+            measureEnabled = seniorPrevStates.measureEnabled;
+            svcMeasureEnabled = seniorPrevStates.svcMeasureEnabled;
+            safeMeasureEnabled = seniorPrevStates.safeMeasureEnabled;
+          }
+          nearHint.textContent = "Klicka på kartan för att mäta";
+          svcHint.textContent = "Klicka på kartan för att räkna avstånd";
+          safeHint.textContent = "Välj trygghetstjänst och klicka Mät avstånd";
+          seniorDetails.forEach((detail) => {
+            detail.open = detail.dataset.originalOpen === "1";
+          });
+        }
+        updateSeniorRouteButtons();
+        updateSeniorSafetyRouteButtons();
+      }
+
+      function updateSeniorRouteButtons() {
+        if (!isSeniorMode) return;
+        const hasRoute = routeLayer?.graphics?.length > 0;
+        if (nearClearRouteBtn) nearClearRouteBtn.style.display = hasRoute ? "inline-flex" : "none";
+        if (svcClearRouteBtn) svcClearRouteBtn.style.display = hasRoute ? "inline-flex" : "none";
+      }
+
+      function updateSeniorSafetyRouteButtons() {
+        if (!isSeniorMode) return;
+        const hasRoute = safetyRouteLayer?.graphics?.length > 0;
+        if (safeClearRouteBtn) safeClearRouteBtn.style.display = hasRoute ? "inline-flex" : "none";
+      }
+
+      seniorDetails.forEach((detail) => {
+        detail.addEventListener("toggle", () => {
+          if (!isSeniorMode || !detail.open) return;
+          seniorDetails.forEach((d) => {
+            if (d !== detail) d.open = false;
+          });
+        });
+      });
+
+      if (seniorToggle) {
+        seniorToggle.checked = false;
+        seniorToggle.addEventListener("change", () => {
+          setSeniorMode(seniorToggle.checked);
+        });
+      }
+
       if (oxnehagaExportBtn) {
         oxnehagaExportBtn.addEventListener("click", () => {
           exportOxnehagaBuildingsToCSV();
@@ -3724,6 +3854,8 @@ Maintain safe distance
             geometry: route,
             symbol: { type: "simple-line", color: safetyColor || "#1d4ed8", width: 3 }
           }));
+          updateSeniorSafetyRouteButtons();
+          updateSeniorSafetyRouteButtons();
           const meters = geometryEngine.geodesicLength(route, "meters");
           const duration = meters / (50 * 1000 / 3600); // 50 km/h fallback
           return { distance: meters, duration };
@@ -3861,6 +3993,7 @@ Maintain safe distance
             symbol: { type: "simple-line", color: lineColor, width: 3 }
           });
           routeLayer.add(graphic);
+          updateSeniorRouteButtons();
 
           // Build corridor and clip with buildings
           try {
@@ -3905,9 +4038,11 @@ Maintain safe distance
         routeLayer.removeAll();
         corridorLayer.removeAll();
         lastRouteGeometry = null;
+        updateSeniorRouteButtons();
       }
       function clearSafetyRoute() {
         safetyRouteLayer.removeAll();
+        updateSeniorSafetyRouteButtons();
       }
 
       function resetNearest() {
@@ -4076,6 +4211,10 @@ Maintain safe distance
         if (safeMeasureEnabled && event.mapPoint) {
           updateSelectedSafetyDistance(event.mapPoint);
         }
+        if (isSeniorMode && event.mapPoint) {
+          lastServiceClickPoint = event.mapPoint;
+          lastSafetyClickPoint = event.mapPoint;
+        }
       view.hitTest(event).then((hit) => {
         const found = hit.results.find((r) => r.graphic);
         if (!found) return;
@@ -4147,9 +4286,11 @@ Maintain safe distance
       });
       nearRouteBtn.addEventListener("click", () => {
         drawWalkingRouteToFeature(lastNearestFeature, (msg) => { nearMeta.textContent = msg; });
+        updateSeniorRouteButtons();
       });
       nearClearRouteBtn.addEventListener("click", () => {
         clearRoute();
+        updateSeniorRouteButtons();
       });
 
       if (buildingTypeApply && buildingTypeFilter) {
@@ -4178,6 +4319,10 @@ Maintain safe distance
         if (!svcSelect.value) {
           svcHint.textContent = "Klicka på kartan för att räkna avstånd";
           svcList.innerHTML = "";
+          return;
+        }
+        if (isSeniorMode && lastServiceClickPoint) {
+          updateSelectedServiceDistance(lastServiceClickPoint);
         }
       });
       svcSelect.addEventListener("focus", () => { fillServiceSelect(); });
@@ -4190,6 +4335,10 @@ Maintain safe distance
         if (!safeSelect.value) {
           safeHint.textContent = "Välj trygghet och klicka Mät avstånd";
           safeList.innerHTML = "";
+          return;
+        }
+        if (isSeniorMode && lastSafetyClickPoint) {
+          updateSelectedSafetyDistance(lastSafetyClickPoint);
         }
       });
 
@@ -4219,9 +4368,11 @@ Maintain safe distance
         }
         lastMeasurePoint = lastSvcMeasurePoint;
         drawWalkingRouteToFeature(selected.feature, (msg) => { svcList.innerHTML = `<div>${msg}</div>`; });
+        updateSeniorRouteButtons();
       });
       svcClearRouteBtn.addEventListener("click", () => {
         clearRoute();
+        updateSeniorRouteButtons();
       });
 
       safeMeasureBtn.addEventListener("click", () => {
@@ -4255,9 +4406,11 @@ Maintain safe distance
         }
         const driveColor = selected.key === "fire" ? "#ef4444" : "#1d4ed8";
         drawDrivingRouteToFeature(selected.feature, driveColor, (msg) => { safeList.innerHTML = `<div>${msg}</div>`; });
+        updateSeniorSafetyRouteButtons();
       });
       safeClearRouteBtn.addEventListener("click", () => {
         clearSafetyRoute();
+        updateSeniorSafetyRouteButtons();
       });
 
       function formatWhereValue(field, value, layer) {
