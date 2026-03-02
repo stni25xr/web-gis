@@ -4067,9 +4067,11 @@ Maintain safe distance
           updateNearestStop(event.mapPoint);
         }
         if (svcMeasureEnabled && event.mapPoint) {
-          updateSelectedServiceDistance(event.mapPoint);
-        } else if (event.mapPoint && !svcSelect.value) {
-          updateServiceDistances(event.mapPoint);
+          if (svcSelect.value) {
+            updateSelectedServiceDistance(event.mapPoint);
+          } else {
+            updateServiceDistances(event.mapPoint);
+          }
         }
         if (safeMeasureEnabled && event.mapPoint) {
           updateSelectedSafetyDistance(event.mapPoint);
@@ -4174,7 +4176,7 @@ Maintain safe distance
       view.when().then(() => { fillServiceSelect(); });
       svcSelect.addEventListener("change", () => {
         if (!svcSelect.value) {
-          svcHint.textContent = "Välj en service och klicka Mät avstånd";
+          svcHint.textContent = "Klicka på kartan för att räkna avstånd";
           svcList.innerHTML = "";
         }
       });
@@ -4192,22 +4194,17 @@ Maintain safe distance
       });
 
       svcMeasureBtn.addEventListener("click", () => {
-        if (!svcSelect.value) {
-          svcHint.textContent = "Välj en service i listan";
-          return;
-        }
-        svcMeasureEnabled = !svcMeasureEnabled;
-        svcMeasureBtn.textContent = svcMeasureEnabled ? "Mätning: PÅ" : "Mät avstånd";
-        if (svcMeasureEnabled) {
-          svcHint.textContent = "Klicka på kartan för att mäta";
-        }
+        svcMeasureEnabled = true;
+        svcMeasureBtn.textContent = "Mätning: PÅ";
+        svcHint.textContent = "Klicka på kartan för att räkna avstånd";
       });
       svcResetBtn.addEventListener("click", () => {
         svcMeasureEnabled = false;
         svcMeasureBtn.textContent = "Mät avstånd";
-        svcHint.textContent = "Välj en service och klicka Mät avstånd";
+        svcHint.textContent = "Klicka på kartan för att räkna avstånd";
         svcList.innerHTML = "";
         lastSvcMeasurePoint = null;
+        clearRoute();
       });
       svcRouteBtn.addEventListener("click", () => {
         if (!svcSelect.value) {
