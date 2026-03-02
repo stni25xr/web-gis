@@ -3907,6 +3907,13 @@ Maintain safe distance
           const mins = Math.max(1, Math.round(summary.duration / 60));
           const elevLine = summary?.elevation ? `<div class="elevation-info">${formatElevationInfo(summary.elevation)}</div>` : "";
           svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>${elevLine}`;
+        } else {
+          // Fallback: still attempt elevation from last route if available
+          if (lastRouteGeometry) {
+            const elevation = await getElevationStats(lastRouteGeometry);
+            const elevLine = elevation ? `<div class="elevation-info">${formatElevationInfo(elevation)}</div>` : "";
+            svcList.innerHTML = `${header}<div>${formatDistanceColored(d)} • ca ${formatWalkTime(d)} till fots</div>${elevLine}`;
+          }
         }
       }
 
