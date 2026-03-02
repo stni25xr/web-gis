@@ -941,18 +941,23 @@ Maintain safe distance
       "esri/layers/GeoJSONLayer",
       "esri/layers/FeatureLayer",
       "esri/layers/WebTileLayer",
+      "esri/config",
       "esri/geometry/geometryEngine",
       "esri/geometry/support/webMercatorUtils",
       "esri/geometry/Polyline",
       "esri/geometry/Polygon",
       "esri/layers/GraphicsLayer",
       "esri/Graphic"
-    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, WebTileLayer, geometryEngine, webMercatorUtils, Polyline, Polygon, GraphicsLayer, Graphic) {
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, WebTileLayer, esriConfig, geometryEngine, webMercatorUtils, Polyline, Polygon, GraphicsLayer, Graphic) {
 
       const RESROBOT_KEY = window.RESROBOT_KEY || "";
       const ORS_KEY = window.ORS_KEY || "";
       const GTFS_RT_KEY = window.GTFS_RT_KEY || "";
       const GTFS_STATIC_KEY = window.GTFS_STATIC_KEY || "";
+      const ESRI_API_KEY = window.ESRI_API_KEY || "";
+      if (ESRI_API_KEY) {
+        esriConfig.apiKey = ESRI_API_KEY;
+      }
 
       const map = new Map({ basemap: "osm", ground: "world-elevation" });
 
@@ -3724,7 +3729,7 @@ Maintain safe distance
         return `${paths.length}:${first[0].toFixed(6)},${first[1].toFixed(6)}:${last[0].toFixed(6)},${last[1].toFixed(6)}`;
       }
       function formatElevationInfo(stats) {
-        if (!stats) return "Höjd: –";
+        if (!stats) return "Höjd: kräver ArcGIS-nyckel";
         const up = Math.round(stats.up || 0);
         const down = Math.round(stats.down || 0);
         return `Höjd: ↑ ${up} m / ↓ ${down} m`;
