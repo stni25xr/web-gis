@@ -523,55 +523,6 @@
         <div id="windStatus" class="pm25-status">Av</div>
       </details>
       <details class="switch-group" open>
-        <summary class="switch-group-title">Brand & Rök (demo)</summary>
-        <div class="fire-demo">
-          <div class="fire-demo-badge">Demo simulation – not certified</div>
-          <div class="fire-demo-note">Demo simulation (visual) – not a certified smoke/fire model.</div>
-          <div class="fire-demo-row">
-            <span class="fire-demo-label">Objekt</span>
-            <span id="fireObjId" class="fire-demo-value">a0924a6e-bc86-424e-8f17-17dec38ed863</span>
-          </div>
-          <div id="fireDemoError" class="fire-demo-error"></div>
-          <div class="fire-demo-actions">
-            <button id="fireStartBtn" type="button">Start brand (1h)</button>
-            <button id="fireStopBtn" type="button" class="secondary">Stop</button>
-            <button id="fireCenterBtn" type="button" class="secondary">Center on building</button>
-          </div>
-          <div class="fire-demo-kpis">
-            <div class="fire-demo-row">
-              <span class="fire-demo-label">Elapsed</span>
-              <span id="fireElapsed" class="fire-demo-value">00:00</span>
-            </div>
-            <div class="fire-demo-row">
-              <span class="fire-demo-label">Phase</span>
-              <span id="firePhase" class="fire-demo-value">—</span>
-            </div>
-            <div class="fire-demo-row">
-              <span class="fire-demo-label">Wind</span>
-              <span id="fireWind" class="fire-demo-value">—</span>
-            </div>
-            <div class="fire-demo-row">
-              <span class="fire-demo-label">Wind updated</span>
-              <span id="fireWindTime" class="fire-demo-value">—</span>
-            </div>
-            <div class="fire-demo-row">
-              <span class="fire-demo-label">Affected area</span>
-              <span id="fireArea" class="fire-demo-value">—</span>
-            </div>
-          </div>
-          <div class="fire-demo-sliders">
-            <label class="fire-demo-slider">
-              <span>Turbulens</span>
-              <input id="fireDiffusion" type="range" min="0.05" max="0.3" step="0.01" value="0.15" />
-            </label>
-            <label class="fire-demo-slider">
-              <span>Rökstyrka</span>
-              <input id="fireIntensity" type="range" min="0.4" max="1.6" step="0.05" value="1.0" />
-            </label>
-          </div>
-        </div>
-      </details>
-      <details class="switch-group" open>
         <summary class="switch-group-title">Export</summary>
         <div class="export-block">
           <button id="oxnehagaExportBtn" type="button" class="export-btn">Export buildings (Öxnehaga) → Excel</button>
@@ -802,7 +753,7 @@ Maintain safe distance
         <div id="incidentRouteStatus" class="incident-status"></div>
       </div>
       <div class="incident-actions">
-        <button id="incidentRoute" type="button">Visa räddningstjänstväg</button>
+        <button id="incidentRoute" type="button">Visa polisväg</button>
         <button id="incidentRouteClear" type="button">Avbryt</button>
         <button id="incidentAcknowledge" type="button">Bekräfta</button>
       </div>
@@ -946,7 +897,6 @@ Maintain safe distance
   <script type="module" src="./pm25Live.js"></script>
   <script type="module" src="./cloudWms.js"></script>
   <script type="module" src="./windLive.js"></script>
-  <script src="./fireSmokeSim.js"></script>
 
   <!-- ARCGIS (3D) -->
   <script>
@@ -1083,66 +1033,6 @@ Maintain safe distance
         popupEnabled: true
       });
       map.add(buildingFootprints);
-
-      const fireUi = {
-        startBtn: document.getElementById("fireStartBtn"),
-        stopBtn: document.getElementById("fireStopBtn"),
-        centerBtn: document.getElementById("fireCenterBtn"),
-        objIdEl: document.getElementById("fireObjId"),
-        elapsedEl: document.getElementById("fireElapsed"),
-        phaseEl: document.getElementById("firePhase"),
-        windEl: document.getElementById("fireWind"),
-        windTimeEl: document.getElementById("fireWindTime"),
-        areaEl: document.getElementById("fireArea"),
-        errorEl: document.getElementById("fireDemoError"),
-        diffusionEl: document.getElementById("fireDiffusion"),
-        intensityEl: document.getElementById("fireIntensity")
-      };
-
-      const FIRE_OBJECT_ID = "a0924a6e-bc86-424e-8f17-17dec38ed863";
-      const fireSim = typeof window.FireSmokeSim === "function"
-        ? new window.FireSmokeSim({ view, buildingLayer: buildingFootprints, geometryEngine, webMercatorUtils, GraphicsLayer, Graphic, FeatureLayer })
-        : null;
-      if (fireSim) fireSim.setUI(fireUi);
-
-      async function ensureFireInit() {
-        if (!fireSim) return false;
-        if (fireSim.ready) return true;
-        return fireSim.init(FIRE_OBJECT_ID);
-      }
-
-      let latestSimNow = new Date();
-      window.addEventListener("simtime:change", (e) => {
-        const detail = e.detail || {};
-        if (detail.simNow) latestSimNow = detail.simNow;
-        if (!fireSim) return;
-        fireSim.onSimTimeChange(detail.simNow, detail.simRunning, detail.simMode);
-      });
-
-      fireUi.startBtn?.addEventListener("click", async () => {
-        const ok = await ensureFireInit();
-        if (!ok || !fireSim) return;
-        fireSim.start(latestSimNow || new Date());
-        fireUi.stopBtn && (fireUi.stopBtn.disabled = false);
-      });
-
-      fireUi.stopBtn?.addEventListener("click", () => {
-        fireSim?.stop();
-      });
-
-      fireUi.centerBtn?.addEventListener("click", () => {
-        fireSim?.centerOnSource();
-      });
-
-      fireUi.diffusionEl?.addEventListener("input", (e) => {
-        const val = e.target?.value;
-        fireSim?.setDiffusion(val);
-      });
-
-      fireUi.intensityEl?.addEventListener("input", (e) => {
-        const val = e.target?.value;
-        fireSim?.setSourcePeak(val);
-      });
 
       
 
@@ -2318,22 +2208,6 @@ Maintain safe distance
         return center || null;
       }
 
-      function getFireTargetPoint() {
-        if (typeof fireSim !== "undefined" && fireSim?.fireSourcePoint) {
-          return fireSim.fireSourcePoint;
-        }
-        if (typeof fireSim !== "undefined" && fireSim?.fireGeometry) {
-          const geom = fireSim.fireGeometry;
-          let center = null;
-          if (geometryEngine && typeof geometryEngine.centroid === "function") {
-            try { center = geometryEngine.centroid(geom); } catch (e) { /* ignore */ }
-          }
-          if (!center && geom?.extent) center = geom.extent.center;
-          return center || null;
-        }
-        return null;
-      }
-
       window.showPoliceRouteToAlarm = async function () {
         setIncidentStatus("");
         const targetPoint = getAlarmTargetPoint();
@@ -2379,55 +2253,6 @@ Maintain safe distance
           if (lastSafetyRouteCoords) startPoliceDriveAnimation(lastSafetyRouteCoords, summary.duration);
         } else {
           setIncidentEta(420, "Polis");
-          if (lastSafetyRouteCoords) startPoliceDriveAnimation(lastSafetyRouteCoords, 420);
-        }
-      };
-
-      window.showFireRouteToIncident = async function () {
-        setIncidentStatus("");
-        const targetPoint = getFireTargetPoint();
-        if (!targetPoint) {
-          setIncidentStatus("Kunde inte läsa målpunkt");
-          return;
-        }
-        await buildSafetyIndex();
-        const fireItems = safetyIndex.filter((s) => s.key === "fire");
-        if (!fireItems.length) {
-          setIncidentStatus("Ingen räddningstjänst hittades");
-          return;
-        }
-        const targetWgs = toGeographic(targetPoint);
-        if (!targetWgs) {
-          setIncidentStatus("Okänt koordinatsystem");
-          return;
-        }
-        let nearest = null;
-        let best = Infinity;
-        fireItems.forEach((p) => {
-          const pWgs = toGeographic(p.feature.geometry);
-          const d = pWgs ? distanceMeters(targetWgs, pWgs) : null;
-          if (d != null && d < best) {
-            best = d;
-            nearest = p;
-          }
-        });
-        if (!nearest) {
-          setIncidentStatus("Kunde inte beräkna närmaste räddningstjänst");
-          return;
-        }
-        lastSafeMeasurePoint = toGeographic(nearest.feature.geometry);
-        if (!lastSafeMeasurePoint) {
-          setIncidentStatus("Kunde inte läsa räddningstjänstens position");
-          return;
-        }
-        const summary = await drawDrivingRouteToFeature({ geometry: targetPoint }, "#ef4444", (msg) => {
-          setIncidentStatus(msg);
-        });
-        if (summary?.duration != null) {
-          setIncidentEta(summary.duration, "Räddningstjänst");
-          if (lastSafetyRouteCoords) startPoliceDriveAnimation(lastSafetyRouteCoords, summary.duration);
-        } else {
-          setIncidentEta(420, "Räddningstjänst");
           if (lastSafetyRouteCoords) startPoliceDriveAnimation(lastSafetyRouteCoords, 420);
         }
       };
@@ -4264,22 +4089,6 @@ Maintain safe distance
           if (id === ALARM_OBJECT_ID) {
             window.showAlarmModal();
           }
-          if (id === FIRE_OBJECT_ID) {
-            ensureFireInit().then((ok) => {
-              if (ok) fireSim?.blinkSource();
-            });
-            showIncidentModalWithContent({
-              title: "Brandlarm – flerbostadshus",
-              etaLabel: "Räddningstjänst",
-              etaSeconds: 360,
-              text: [
-                "Larm om kraftig rök från trapphus.",
-                "Flera boende uppger lukt och rökgång i våningsplan 2–4.",
-                "Möjlig brand i lägenhet, utrymning pågår.",
-                "Prioritet: Hög (nivå 1)."
-              ].join("\n")
-            });
-          }
           if (SIM_OBJECT_IDS.includes(id)) {
             buildingLink.innerHTML = `
               <button type="button" style="display:inline-block;margin-top:6px;color:#fff;background:#1f6feb;padding:6px 10px;border-radius:8px;font-size:12px;text-decoration:none;border:none;cursor:pointer;" onclick="openBimModal();">Se BIM Model</button>
@@ -4571,11 +4380,7 @@ Maintain safe distance
       window.hideIncidentModal();
     });
     document.getElementById("incidentRoute")?.addEventListener("click", () => {
-      if (typeof window.showFireRouteToIncident === "function") {
-        window.showFireRouteToIncident();
-      } else {
-        window.showPoliceRouteToAlarm();
-      }
+      window.showPoliceRouteToAlarm();
     });
     document.getElementById("incidentRouteClear")?.addEventListener("click", () => {
       window.clearPoliceRoute();
