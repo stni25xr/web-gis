@@ -1795,15 +1795,15 @@ Maintain safe distance
         return `${m}:${String(s).padStart(2, "0")}`;
       }
 
-      function setIncidentEta(seconds) {
+      function setIncidentEta(seconds, label = "Polis") {
         const el = document.getElementById("incidentEta");
         if (!el) return;
         if (incidentEtaTimer) clearInterval(incidentEtaTimer);
         let remaining = Math.max(0, Math.round(seconds));
         const tick = () => {
           el.textContent = remaining > 0
-            ? `Polis på plats om: ${formatEta(remaining)}`
-            : "Polis på plats: nu";
+            ? `${label} på plats om: ${formatEta(remaining)}`
+            : `${label} på plats: nu`;
           remaining = Math.max(0, remaining - 1);
           if (remaining === 0 && incidentEtaTimer) {
             clearInterval(incidentEtaTimer);
@@ -1812,6 +1812,21 @@ Maintain safe distance
         };
         tick();
         incidentEtaTimer = setInterval(tick, 1000);
+      }
+
+      function showIncidentModalWithContent(payload) {
+        const modal = document.getElementById("incidentModal");
+        if (!modal) return;
+        const titleEl = modal.querySelector(".incident-title");
+        const textEl = modal.querySelector(".incident-text");
+        const title = payload?.title || "Polisnotis";
+        const text = payload?.text || "";
+        if (titleEl) titleEl.textContent = title;
+        if (textEl) textEl.textContent = text;
+        modal.style.display = "flex";
+        const etaSeconds = Number(payload?.etaSeconds ?? 420);
+        const etaLabel = payload?.etaLabel || "Polis";
+        setIncidentEta(etaSeconds, etaLabel);
       }
 
       function setIncidentStatus(text) {
@@ -4183,6 +4198,22 @@ Maintain safe distance
           const id = found.graphic.attributes?.objektidentitet;
           if (id === ALARM_OBJECT_ID) {
             window.showAlarmModal();
+          }
+          if (id === FIRE_OBJECT_ID) {
+            ensureFireInit().then((ok) => {
+              if (ok) fireSim?.blinkSource();
+            });
+            showIncidentModalWithContent({
+              title: "Brandlarm – flerbostadshus",
+              etaLabel: "Räddningstjänst",
+              etaSeconds: 360,
+              text: [
+                "Larm om kraftig rök från trapphus.",
+                "Flera boende uppger lukt och rökgång i våningsplan 2–4.",
+                "Möjlig brand i lägenhet, utrymning pågår.",
+                "Prioritet: Hög (nivå 1)."
+              ].join(\"\\n\")
+            });
           }
           if (SIM_OBJECT_IDS.includes(id)) {
             buildingLink.innerHTML = `

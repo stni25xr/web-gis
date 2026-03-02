@@ -69,6 +69,7 @@
       this.cachedWind = { speed_mps: 1.5, direction_deg_from: 270, updatedAt: null };
 
       this.ui = {};
+      this.blinkTimers = [];
     }
 
     setUI(ui) {
@@ -250,6 +251,7 @@
     stop() {
       this.active = false;
       this.fireStartSim = null;
+      this.clearBlinkTimers();
       this.clearSmoke();
       this.updateUIState();
     }
@@ -634,6 +636,32 @@
       }
     }
 
+    blinkSource() {
+      if (!this.fireSourceLayer) return;
+      this.clearBlinkTimers();
+      const setVis = (v) => {
+        if (this.fireSourceLayer) this.fireSourceLayer.visible = v;
+      };
+      const steps = [
+        { t: 0, v: true },
+        { t: 150, v: false },
+        { t: 300, v: true },
+        { t: 450, v: false },
+        { t: 600, v: true },
+        { t: 1200, v: true }
+      ];
+      steps.forEach((step) => {
+        const id = setTimeout(() => setVis(step.v), step.t);
+        this.blinkTimers.push(id);
+      });
+    }
+
+    clearBlinkTimers() {
+      if (!this.blinkTimers.length) return;
+      this.blinkTimers.forEach((id) => clearTimeout(id));
+      this.blinkTimers = [];
+    }
+
     setDiffusion(value) {
       const v = Number(value);
       if (!Number.isFinite(v)) return;
@@ -648,6 +676,7 @@
 
     dispose() {
       this.stop();
+      this.clearBlinkTimers();
       if (this.fireSourceLayer) this.view.map.remove(this.fireSourceLayer);
       if (this.smokeLayer) this.view.map.remove(this.smokeLayer);
       if (this.affectedLayer) this.view.map.remove(this.affectedLayer);
