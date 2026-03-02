@@ -685,6 +685,22 @@
       </div>
     </div>
   </div>
+
+  <div id="walkthroughControls" class="walkthrough-controls" style="display:none;">
+    <div class="walkthrough-title">Förstapersons‑promenad</div>
+    <div class="walkthrough-buttons">
+      <button id="walkStart" type="button">Gå i förstaperson</button>
+      <button id="walkPause" type="button" class="secondary">Paus</button>
+      <button id="walkResume" type="button" class="secondary">Fortsätt</button>
+      <button id="walkCancel" type="button" class="secondary">Avbryt</button>
+    </div>
+    <div class="walkthrough-speed">
+      <span>Hastighet</span>
+      <button class="walk-speed-btn is-active" data-speed="1">1x</button>
+      <button class="walk-speed-btn" data-speed="2">2x</button>
+      <button class="walk-speed-btn" data-speed="4">4x</button>
+    </div>
+  </div>
   <div id="incidentModal" style="display:none;">
     <div class="incident-modal">
       <div class="incident-header">
@@ -906,6 +922,7 @@ Maintain safe distance
   <script type="module" src="./pm25Live.js"></script>
   <script type="module" src="./cloudWms.js"></script>
   <script type="module" src="./windLive.js"></script>
+  <script src="./routeWalkthrough.js"></script>
 
   <!-- ARCGIS (3D) -->
   <script>
@@ -4037,6 +4054,11 @@ Maintain safe distance
           }
 
           await renderGradientRoute(coords, summary?.distance ?? straightMeters);
+          lastWalkRoute = {
+            type: "polyline",
+            paths: [coords],
+            spatialReference: { wkid: 4326 }
+          };
 
           return summary || null;
         } finally {
@@ -4048,12 +4070,66 @@ Maintain safe distance
         routeLayer.removeAll();
         corridorLayer.removeAll();
         lastRouteGeometry = null;
+        lastWalkRoute = null;
         updateSeniorRouteButtons();
       }
       function clearSafetyRoute() {
         safetyRouteLayer.removeAll();
         updateSeniorSafetyRouteButtons();
       }
+
+      let walkthrough = null;
+      let lastWalkRoute = null;
+      let currentWalkSpeed = 1;
+      const walkControls = document.getElementById("walkthroughControls");
+      const walkStart = document.getElementById("walkStart");
+      const walkPause = document.getElementById("walkPause");
+      const walkResume = document.getElementById("walkResume");
+      const walkCancel = document.getElementById("walkCancel");
+      const walkSpeedBtns = document.querySelectorAll(".walk-speed-btn");
+
+      function ensureWalkthrough() {
+        if (walkthrough || typeof window.RouteWalkthrough !== "function") return;
+        walkthrough = new window.RouteWalkthrough({
+          view,
+          geometryEngine,
+          webMercatorUtils,
+          GraphicsLayer,
+          Graphic,
+          onStateChange: ({ running, paused }) => {
+            if (walkControls) walkControls.style.display = running ? "flex" : "none";
+            if (walkStart) walkStart.style.display = running ? "none" : "inline-flex";
+            if (walkPause) walkPause.style.display = running && !paused ? "inline-flex" : "none";
+            if (walkResume) walkResume.style.display = running && paused ? "inline-flex" : "none";
+            if (walkCancel) walkCancel.style.display = running ? "inline-flex" : "none";
+          }
+        });
+      }
+
+      function setWalkSpeedUI(speed) {
+        currentWalkSpeed = speed;
+        walkSpeedBtns.forEach((btn) => {
+          btn.classList.toggle("is-active", Number(btn.dataset.speed) === speed);
+        });
+        if (walkthrough) walkthrough.setSpeed(speed);
+      }
+
+      walkSpeedBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const speed = Number(btn.dataset.speed) || 1;
+          setWalkSpeedUI(speed);
+        });
+      });
+      setWalkSpeedUI(1);
+
+      walkStart?.addEventListener("click", () => {
+        if (!lastWalkRoute) return;
+        ensureWalkthrough();
+        walkthrough?.start(lastWalkRoute, currentWalkSpeed);
+      });
+      walkPause?.addEventListener("click", () => walkthrough?.pause());
+      walkResume?.addEventListener("click", () => walkthrough?.resume());
+      walkCancel?.addEventListener("click", () => walkthrough?.cancel(true));
 
       function resetNearest() {
         nearHint.textContent = "Klicka på kartan för att mäta";
