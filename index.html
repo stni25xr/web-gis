@@ -4059,6 +4059,7 @@ Maintain safe distance
             paths: [coords],
             spatialReference: { wkid: 4326 }
           };
+          if (walkControls) walkControls.style.display = "flex";
 
           return summary || null;
         } finally {
