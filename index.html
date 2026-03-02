@@ -4284,8 +4284,13 @@ Maintain safe distance
         resetNearest();
         clearRoute();
       });
-      nearRouteBtn.addEventListener("click", () => {
-        drawWalkingRouteToFeature(lastNearestFeature, (msg) => { nearMeta.textContent = msg; });
+      nearRouteBtn.addEventListener("click", async () => {
+        const summary = await drawWalkingRouteToFeature(lastNearestFeature, (msg) => { nearMeta.textContent = msg; });
+        if (summary?.distance != null && summary?.duration != null) {
+          const dist = formatDistanceColored(summary.distance);
+          const mins = Math.max(1, Math.round(summary.duration / 60));
+          nearMeta.innerHTML = `${dist} • ca ${mins} min (gångväg)`;
+        }
         updateSeniorRouteButtons();
       });
       nearClearRouteBtn.addEventListener("click", () => {
@@ -4355,7 +4360,7 @@ Maintain safe distance
         lastSvcMeasurePoint = null;
         clearRoute();
       });
-      svcRouteBtn.addEventListener("click", () => {
+      svcRouteBtn.addEventListener("click", async () => {
         if (!svcSelect.value) {
           svcHint.textContent = "Välj en service i listan";
           return;
@@ -4367,7 +4372,13 @@ Maintain safe distance
           return;
         }
         lastMeasurePoint = lastSvcMeasurePoint;
-        drawWalkingRouteToFeature(selected.feature, (msg) => { svcList.innerHTML = `<div>${msg}</div>`; });
+        const header = `<div><b>${labelForService(selected.key)}</b> – ${selected.name}</div>`;
+        const summary = await drawWalkingRouteToFeature(selected.feature, (msg) => { svcList.innerHTML = `${header}<div>${msg}</div>`; });
+        if (summary?.distance != null && summary?.duration != null) {
+          const dist = formatDistanceColored(summary.distance);
+          const mins = Math.max(1, Math.round(summary.duration / 60));
+          svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>`;
+        }
         updateSeniorRouteButtons();
       });
       svcClearRouteBtn.addEventListener("click", () => {
