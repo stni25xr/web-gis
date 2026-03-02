@@ -4558,6 +4558,17 @@ if (isBus) {
       simState.timer = setInterval(tickSim, 1000);
     }
 
+    function startSimNow() {
+      simState.baseReal = new Date();
+      simState.simNow = new Date(simState.baseReal.getTime());
+      simState.mode = "1x";
+      if (simSlider) simSlider.value = "0";
+      updateSimUI();
+      syncSliderToSim();
+      dispatchSimEvent();
+      startSim();
+    }
+
     simPlay?.addEventListener("click", () => {
       if (!simState.running) {
         startSim();
@@ -4581,9 +4592,7 @@ if (isBus) {
       });
     });
 
-    updateSimUI();
-    syncSliderToSim();
-    dispatchSimEvent();
+    startSimNow();
 
     window.stopSimTime = () => {
       stopSim();
