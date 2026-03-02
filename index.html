@@ -3546,6 +3546,15 @@ Maintain safe distance
         if (meters < 900) return "#f59e0b";
         return "#ef4444";
       }
+      function distanceColorRgb(meters) {
+        if (meters < 500) return [34, 197, 94];
+        if (meters < 900) return [245, 158, 11];
+        return [239, 68, 68];
+      }
+      function distanceColorRgba(meters, alpha) {
+        const [r, g, b] = distanceColorRgb(meters);
+        return [r, g, b, alpha];
+      }
       function formatDistanceColored(meters) {
         const color = distanceColor(meters);
         return `<span style="color:${color};font-weight:600;">${formatDistance(meters)}</span>`;
@@ -3845,9 +3854,11 @@ Maintain safe distance
             spatialReference: { wkid: 4326 }
           });
           lastRouteGeometry = route;
+          const distMeters = summary?.distance ?? straightMeters;
+          const lineColor = distanceColor(distMeters);
           const graphic = new Graphic({
             geometry: route,
-            symbol: { type: "simple-line", color: "#7dd3fc", width: 3 }
+            symbol: { type: "simple-line", color: lineColor, width: 3 }
           });
           routeLayer.add(graphic);
 
@@ -3869,12 +3880,14 @@ Maintain safe distance
               const diff = geometryEngine.difference(corridor, union);
               if (diff) corridorClipped = diff;
             }
+            const fillColor = distanceColorRgba(distMeters, 0.18);
+            const outlineColor = distanceColorRgba(distMeters, 0.7);
             const corridorGraphic = new Graphic({
               geometry: corridorClipped,
               symbol: {
                 type: "simple-fill",
-                color: [125, 211, 252, 0.18],
-                outline: { color: [125, 211, 252, 0.7], width: 1 }
+                color: fillColor,
+                outline: { color: outlineColor, width: 1 }
               }
             });
             corridorLayer.add(corridorGraphic);
