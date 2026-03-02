@@ -523,6 +523,55 @@
         <div id="windStatus" class="pm25-status">Av</div>
       </details>
       <details class="switch-group" open>
+        <summary class="switch-group-title">Brand & Rök (demo)</summary>
+        <div class="fire-demo">
+          <div class="fire-demo-badge">Demo simulation – not certified</div>
+          <div class="fire-demo-note">Demo simulation (visual) – not a certified smoke/fire model.</div>
+          <div class="fire-demo-row">
+            <span class="fire-demo-label">Objekt</span>
+            <span id="fireObjId" class="fire-demo-value">a0924a6e-bc86-424e-8f17-17dec38ed863</span>
+          </div>
+          <div id="fireDemoError" class="fire-demo-error"></div>
+          <div class="fire-demo-actions">
+            <button id="fireStartBtn" type="button">Start brand (1h)</button>
+            <button id="fireStopBtn" type="button" class="secondary">Stop</button>
+            <button id="fireCenterBtn" type="button" class="secondary">Center on building</button>
+          </div>
+          <div class="fire-demo-kpis">
+            <div class="fire-demo-row">
+              <span class="fire-demo-label">Elapsed</span>
+              <span id="fireElapsed" class="fire-demo-value">00:00</span>
+            </div>
+            <div class="fire-demo-row">
+              <span class="fire-demo-label">Phase</span>
+              <span id="firePhase" class="fire-demo-value">—</span>
+            </div>
+            <div class="fire-demo-row">
+              <span class="fire-demo-label">Wind</span>
+              <span id="fireWind" class="fire-demo-value">—</span>
+            </div>
+            <div class="fire-demo-row">
+              <span class="fire-demo-label">Wind updated</span>
+              <span id="fireWindTime" class="fire-demo-value">—</span>
+            </div>
+            <div class="fire-demo-row">
+              <span class="fire-demo-label">Affected area</span>
+              <span id="fireArea" class="fire-demo-value">—</span>
+            </div>
+          </div>
+          <div class="fire-demo-sliders">
+            <label class="fire-demo-slider">
+              <span>Turbulens</span>
+              <input id="fireDiffusion" type="range" min="0.05" max="0.3" step="0.01" value="0.15" />
+            </label>
+            <label class="fire-demo-slider">
+              <span>Rökstyrka</span>
+              <input id="fireIntensity" type="range" min="0.4" max="1.6" step="0.05" value="1.0" />
+            </label>
+          </div>
+        </div>
+      </details>
+      <details class="switch-group" open>
         <summary class="switch-group-title">Export</summary>
         <div class="export-block">
           <button id="oxnehagaExportBtn" type="button" class="export-btn">Export buildings (Öxnehaga) → Excel</button>
@@ -897,6 +946,7 @@ Maintain safe distance
   <script type="module" src="./pm25Live.js"></script>
   <script type="module" src="./cloudWms.js"></script>
   <script type="module" src="./windLive.js"></script>
+  <script src="./fireSmokeSim.js"></script>
 
   <!-- ARCGIS (3D) -->
   <script>
@@ -1033,6 +1083,68 @@ Maintain safe distance
         popupEnabled: true
       });
       map.add(buildingFootprints);
+
+      const fireUi = {
+        startBtn: document.getElementById("fireStartBtn"),
+        stopBtn: document.getElementById("fireStopBtn"),
+        centerBtn: document.getElementById("fireCenterBtn"),
+        objIdEl: document.getElementById("fireObjId"),
+        elapsedEl: document.getElementById("fireElapsed"),
+        phaseEl: document.getElementById("firePhase"),
+        windEl: document.getElementById("fireWind"),
+        windTimeEl: document.getElementById("fireWindTime"),
+        areaEl: document.getElementById("fireArea"),
+        errorEl: document.getElementById("fireDemoError"),
+        diffusionEl: document.getElementById("fireDiffusion"),
+        intensityEl: document.getElementById("fireIntensity")
+      };
+
+      const FIRE_OBJECT_ID = "a0924a6e-bc86-424e-8f17-17dec38ed863";
+      const fireSim = typeof window.FireSmokeSim === "function"
+        ? new window.FireSmokeSim({ view, buildingLayer: buildingFootprints, geometryEngine, GraphicsLayer, Graphic, FeatureLayer })
+        : null;
+      if (fireSim) fireSim.setUI(fireUi);
+
+      async function ensureFireInit() {
+        if (!fireSim) return false;
+        if (fireSim.ready) return true;
+        return fireSim.init(FIRE_OBJECT_ID);
+      }
+
+      let latestSimNow = new Date();
+      window.addEventListener("simtime:change", (e) => {
+        const detail = e.detail || {};
+        if (detail.simNow) latestSimNow = detail.simNow;
+        if (!fireSim) return;
+        fireSim.onSimTimeChange(detail.simNow, detail.simRunning, detail.simMode);
+      });
+
+      fireUi.startBtn?.addEventListener("click", async () => {
+        const ok = await ensureFireInit();
+        if (!ok || !fireSim) return;
+        fireSim.start(latestSimNow || new Date());
+        fireUi.stopBtn && (fireUi.stopBtn.disabled = false);
+      });
+
+      fireUi.stopBtn?.addEventListener("click", () => {
+        fireSim?.stop();
+      });
+
+      fireUi.centerBtn?.addEventListener("click", () => {
+        fireSim?.centerOnSource();
+      });
+
+      fireUi.diffusionEl?.addEventListener("input", (e) => {
+        const val = e.target?.value;
+        fireSim?.setDiffusion(val);
+      });
+
+      fireUi.intensityEl?.addEventListener("input", (e) => {
+        const val = e.target?.value;
+        fireSim?.setSourcePeak(val);
+      });
+
+      
 
       // Öxnehaga boundary (demo rectangle, easy to adjust later)
       const OXNEHAGA_POLYGON_WGS84 = new Polygon({
