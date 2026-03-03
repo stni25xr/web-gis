@@ -115,6 +115,7 @@
         <option value="map_click">map_click</option>
         <option value="event">event</option>
       </select>
+      <input id="fileInput" type="file" accept="application/json" />
       <button id="refreshBtn">Uppdatera</button>
       <button id="downloadBtn" class="primary">Exportera JSON</button>
     </div>
@@ -142,8 +143,10 @@
     const STORAGE_KEY = "clickLogs";
     let map = null;
     let heatLayer = null;
+    let loadedLogs = null;
 
     function getLogs() {
+      if (Array.isArray(loadedLogs)) return loadedLogs;
       try {
         return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
       } catch (e) {
@@ -239,13 +242,28 @@
     document.getElementById("search").addEventListener("input", render);
     document.getElementById("typeFilter").addEventListener("change", render);
     document.getElementById("downloadBtn").addEventListener("click", () => {
-      const logs = localStorage.getItem(STORAGE_KEY) || "[]";
+      const logs = JSON.stringify(getLogs());
       const blob = new Blob([logs], { type: "application/json" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = "click_logs.json";
       a.click();
       URL.revokeObjectURL(a.href);
+    });
+    document.getElementById("fileInput").addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          loadedLogs = Array.isArray(data) ? data : [];
+          render();
+        } catch (err) {
+          alert("Kunde inte läsa JSON-filen.");
+        }
+      };
+      reader.readAsText(file);
     });
 
     render();
