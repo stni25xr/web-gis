@@ -798,6 +798,7 @@ Maintain safe distance
       <button class="sim-speed-btn" data-mode="day">per dag</button>
       <button class="sim-speed-btn" data-mode="week">per vecka</button>
     </div>
+    <button id="exportClicksBtn" type="button" class="sim-btn">Export click data</button>
   </div>
   <div id="buildingInfoModal" style="display:none;">
     <div class="bi-modal" role="dialog" aria-modal="true" aria-labelledby="biTitle">
@@ -957,6 +958,46 @@ Maintain safe distance
       if (ESRI_API_KEY) {
         esriConfig.apiKey = ESRI_API_KEY;
       }
+
+      function saveClick(entry) {
+        try {
+          const logs = JSON.parse(localStorage.getItem("clickLogs") || "[]");
+          logs.push(entry);
+          if (logs.length > 500) logs.shift();
+          localStorage.setItem("clickLogs", JSON.stringify(logs));
+        } catch (e) {
+          // ignore storage errors
+        }
+      }
+      window.saveClick = saveClick;
+
+      function exportClicks() {
+        try {
+          const logs = localStorage.getItem("clickLogs") || "[]";
+          const blob = new Blob([logs], { type: "application/json" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "click_logs.json";
+          a.click();
+          URL.revokeObjectURL(a.href);
+        } catch (e) {
+          console.warn("Export failed:", e);
+        }
+      }
+      window.exportClicks = exportClicks;
+
+      document.addEventListener("click", (e) => {
+        const target = e.target && e.target.closest ? e.target.closest("button, [data-track], a") : null;
+        if (!target) return;
+        saveClick({
+          type: "click",
+          elementText: target.innerText || null,
+          elementId: target.id || null,
+          elementClass: target.className || null,
+          timestamp: new Date().toISOString(),
+          page: window.location.pathname
+        });
+      });
 
       const map = new Map({ basemap: "osm", ground: "world-elevation" });
 
@@ -3196,6 +3237,12 @@ Maintain safe distance
         } catch (e) {
           // ignore storage errors
         }
+        saveClick({
+          type: "event",
+          name: "senior_mode",
+          value: isSeniorMode,
+          timestamp: new Date().toISOString()
+        });
         const panel = document.getElementById("info-panel");
         if (panel) panel.classList.toggle("panel--senior", isSeniorMode);
 
@@ -4141,6 +4188,11 @@ Maintain safe distance
             }
             updateSeniorRouteButtons();
             updateRouteColorButton();
+            saveClick({
+              type: "event",
+              name: "route_created",
+              timestamp: new Date().toISOString()
+            });
             const elevation = await getElevationStats(route);
             return elevation;
           };
@@ -4184,6 +4236,11 @@ Maintain safe distance
         lastWalkRoute = null;
         updateRouteColorButton();
         updateSeniorRouteButtons();
+        saveClick({
+          type: "event",
+          name: "route_cleared",
+          timestamp: new Date().toISOString()
+        });
       }
       function clearSafetyRoute() {
         safetyRouteLayer.removeAll();
@@ -4343,6 +4400,14 @@ Maintain safe distance
       }
 
       view.on("click", (event) => {
+        if (event?.mapPoint) {
+          saveClick({
+            type: "map_click",
+            latitude: event.mapPoint.latitude,
+            longitude: event.mapPoint.longitude,
+            timestamp: new Date().toISOString()
+          });
+        }
         if (measureEnabled && event.mapPoint) {
           updateNearestStop(event.mapPoint);
         }
@@ -4842,6 +4907,7 @@ Maintain safe distance
     const simValue = document.getElementById("simTimeValue");
     const simPlay = document.getElementById("simPlay");
     const simPause = document.getElementById("simPause");
+    const exportClicksBtn = document.getElementById("exportClicksBtn");
     const simSpeedBtns = document.querySelectorAll(".sim-speed-btn");
 
     function formatSim(dt) {
@@ -4936,6 +5002,11 @@ Maintain safe distance
     simPlay?.addEventListener("click", () => {
       if (!simState.running) {
         startSim();
+        saveClick({
+          type: "event",
+          name: "sim_start",
+          timestamp: new Date().toISOString()
+        });
       }
       updateSimUI();
       dispatchSimEvent();
@@ -4943,6 +5014,11 @@ Maintain safe distance
 
     simPause?.addEventListener("click", () => {
       stopSim();
+      saveClick({
+        type: "event",
+        name: "sim_pause",
+        timestamp: new Date().toISOString()
+      });
       updateSimUI();
       dispatchSimEvent();
     });
@@ -4951,12 +5027,22 @@ Maintain safe distance
       btn.addEventListener("click", () => {
         simState.mode = btn.dataset.mode || "1x";
         simState.lastTickReal = Date.now();
+        saveClick({
+          type: "event",
+          name: "sim_speed",
+          value: simState.mode,
+          timestamp: new Date().toISOString()
+        });
         updateSimUI();
         dispatchSimEvent();
       });
     });
 
     startSimNow();
+
+    exportClicksBtn?.addEventListener("click", () => {
+      exportClicks();
+    });
 
     window.stopSimTime = () => {
       stopSim();
