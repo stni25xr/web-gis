@@ -160,6 +160,7 @@
   </style>
   <link rel="stylesheet" href="./styles.css" />
   <script src="./config.local.js"></script>
+  <script src="./elevationProvider.js"></script>
   <script type="module">
     import JSZip from "https://esm.sh/jszip@3.10.1";
     window.JSZip = JSZip;
@@ -597,6 +598,7 @@
           <div class="field-row" style="margin-top:6px;">
             <button id="svcRouteBtn" type="button">Visa gångväg</button>
             <button id="svcClearRouteBtn" type="button">Rensa rutt</button>
+            <button id="routeColorInfoBtn" type="button" class="ghost">Färger?</button>
           </div>
           <div id="svcList" style="font-size:13px;color:#0f172a;"></div>
         </div>
@@ -682,6 +684,19 @@
       </div>
       <div class="alarm-actions">
         <button id="alarmGoIncident" type="button">Go to incident</button>
+      </div>
+    </div>
+  </div>
+  <div id="routeColorModal" style="display:none;">
+    <div class="route-color-modal" role="dialog" aria-modal="true" aria-labelledby="routeColorTitle">
+      <div class="route-color-header">
+        <div id="routeColorTitle" class="route-color-title">Färger på vägen</div>
+        <button id="routeColorClose" type="button" aria-label="Close color info">✕</button>
+      </div>
+      <div class="route-color-body">
+        <div>Grön = nära start / kort kvar</div>
+        <div>Gul/Orange = mitt på vägen</div>
+        <div>Röd = nära mål / sista delen</div>
       </div>
     </div>
   </div>
@@ -778,7 +793,7 @@ Maintain safe distance
     <button id="simPlay" type="button" class="sim-btn">Spela</button>
     <button id="simPause" type="button" class="sim-btn">Paus</button>
     <div class="sim-speed">
-      <button class="sim-speed-btn" data-mode="1x">nu tid</button>
+      <button class="sim-speed-btn" data-mode="1x">nutid</button>
       <button class="sim-speed-btn" data-mode="hour">per timme</button>
       <button class="sim-speed-btn" data-mode="day">per dag</button>
       <button class="sim-speed-btn" data-mode="week">per vecka</button>
@@ -3166,7 +3181,7 @@ Maintain safe distance
       let busDashPhase = 0;
       let busDashTotal = 0;
 
-      let isSeniorMode = false;
+      let isSeniorMode = true;
       let seniorPrevStates = null;
       let lastServiceClickPoint = null;
       let lastSafetyClickPoint = null;
@@ -3176,6 +3191,11 @@ Maintain safe distance
 
       function setSeniorMode(on) {
         isSeniorMode = !!on;
+        try {
+          localStorage.setItem("stn25xr_senior_mode", String(isSeniorMode));
+        } catch (e) {
+          // ignore storage errors
+        }
         const panel = document.getElementById("info-panel");
         if (panel) panel.classList.toggle("panel--senior", isSeniorMode);
 
@@ -3280,7 +3300,15 @@ Maintain safe distance
       });
 
       if (seniorToggle) {
-        seniorToggle.checked = false;
+        let stored = null;
+        try {
+          stored = localStorage.getItem("stn25xr_senior_mode");
+        } catch (e) {
+          stored = null;
+        }
+        const initialSenior = stored === null ? true : stored === "true";
+        seniorToggle.checked = initialSenior;
+        setSeniorMode(initialSenior);
         seniorToggle.addEventListener("change", () => {
           setSeniorMode(seniorToggle.checked);
         });
@@ -3713,44 +3741,57 @@ Maintain safe distance
         return `${paths.length}:${first[0].toFixed(6)},${first[1].toFixed(6)}:${last[0].toFixed(6)},${last[1].toFixed(6)}`;
       }
       function formatElevationInfo(stats) {
-        if (!stats) return "Höjd: kräver ArcGIS-nyckel";
+        if (!stats) return "Höjd: ej tillgänglig just nu";
         const up = Math.round(stats.up || 0);
         const down = Math.round(stats.down || 0);
-        return `Höjd: ↑ ${up} m / ↓ ${down} m`;
+        const diff = Math.round(stats.diff || 0);
+        const diffLabel = diff >= 0 ? `+${diff}` : `${diff}`;
+        return `Höjdskillnad: ${diffLabel} m • ↑ ${up} m / ↓ ${down} m`;
       }
       const elevationCache = new Map();
       async function getElevationStats(routePolyline) {
-        if (!view?.ground?.queryElevation || !routePolyline) return null;
+        if (!routePolyline) return null;
         const key = makeRouteKey(routePolyline);
         if (key && elevationCache.has(key)) return elevationCache.get(key);
         try {
-          const dense = geometryEngine.densify(routePolyline, 10, "meters");
-          const points = dense?.paths?.[0];
-          if (!points || points.length < 2) return null;
-          const multipoint = {
-            type: "multipoint",
-            points,
-            spatialReference: dense.spatialReference || routePolyline.spatialReference
-          };
-          const elevationResult = await view.ground.queryElevation(multipoint);
-          const zValues = (elevationResult?.geometry?.points || [])
-            .map((p) => p[2])
-            .filter((z) => Number.isFinite(z));
-          if (zValues.length < 2) return null;
-          let totalUp = 0;
-          let totalDown = 0;
-          for (let i = 1; i < zValues.length; i++) {
-            const delta = zValues[i] - zValues[i - 1];
-            if (delta > 0) totalUp += delta;
-            else totalDown += Math.abs(delta);
+          if (view?.ground?.queryElevation) {
+            const dense = geometryEngine.densify(routePolyline, 10, "meters");
+            const points = dense?.paths?.[0];
+            if (points && points.length >= 2) {
+              const multipoint = {
+                type: "multipoint",
+                points,
+                spatialReference: dense.spatialReference || routePolyline.spatialReference
+              };
+              const elevationResult = await view.ground.queryElevation(multipoint);
+              const zValues = (elevationResult?.geometry?.points || [])
+                .map((p) => p[2])
+                .filter((z) => Number.isFinite(z));
+              if (zValues.length >= 2) {
+                let totalUp = 0;
+                let totalDown = 0;
+                for (let i = 1; i < zValues.length; i++) {
+                  const delta = zValues[i] - zValues[i - 1];
+                  if (delta > 0) totalUp += delta;
+                  else totalDown += Math.abs(delta);
+                }
+                const stats = { up: totalUp, down: totalDown, diff: zValues[zValues.length - 1] - zValues[0] };
+                if (key) elevationCache.set(key, stats);
+                return stats;
+              }
+            }
           }
-          const stats = { up: totalUp, down: totalDown, diff: zValues[zValues.length - 1] - zValues[0] };
-          if (key) elevationCache.set(key, stats);
-          return stats;
+          if (window.ElevationProvider?.sampleRouteElevations) {
+            const stats = await window.ElevationProvider.sampleRouteElevations(routePolyline);
+            if (stats) {
+              if (key) elevationCache.set(key, stats);
+              return stats;
+            }
+          }
         } catch (e) {
           console.warn("Elevation calc failed:", e);
-          return null;
         }
+        return null;
       }
       function formatDistanceColored(meters) {
         const color = distanceColor(meters);
@@ -3894,13 +3935,13 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistanceColored(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div>`;
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
           svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>${elevLine}`;
         } else {
           // Fallback: still attempt elevation from last route if available
           if (lastRouteGeometry) {
             const elevation = await getElevationStats(lastRouteGeometry);
-            const elevLine = `<div class="elevation-info">${formatElevationInfo(elevation)}</div>`;
+            const elevLine = `<div class="elevation-info">${formatElevationInfo(elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
             svcList.innerHTML = `${header}<div>${formatDistanceColored(d)} • ca ${formatWalkTime(d)} till fots</div>${elevLine}`;
           }
         }
@@ -3999,7 +4040,7 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistance(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div>`;
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
           safeList.innerHTML = `${header}<div>${dist} • ca ${mins} min (bil)</div>${elevLine}`;
         }
       }
@@ -4061,17 +4102,17 @@ Maintain safe distance
               });
               routeLayer.add(new Graphic({
                 geometry: segLine,
-                symbol: { type: "simple-line", color: [r, g, bCol], width: 3 }
+                symbol: { type: "simple-line", color: [r, g, bCol], width: 5 }
               }));
               try {
-                const corridorWidth = 25;
+                const corridorWidth = 30;
                 const segBuffer = geometryEngine.geodesicBuffer(segLine, corridorWidth, "meters");
                 corridorLayer.add(new Graphic({
                   geometry: segBuffer,
                   symbol: {
                     type: "simple-fill",
                     color: [r, g, bCol, 0.18],
-                    outline: { color: [r, g, bCol, 0.7], width: 1 }
+                    outline: { color: [r, g, bCol, 0.7], width: 2 }
                   }
                 }));
               } catch (e) {
@@ -4372,7 +4413,7 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistanceColored(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div>`;
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
           nearMeta.innerHTML = `${dist} • ca ${mins} min (gångväg)${elevLine}`;
         }
         updateSeniorRouteButtons();
@@ -4461,7 +4502,7 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistanceColored(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div>`;
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
           svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>${elevLine}`;
         }
         updateSeniorRouteButtons();
@@ -4652,6 +4693,22 @@ Maintain safe distance
     });
     document.getElementById("incidentRouteClear")?.addEventListener("click", () => {
       window.clearPoliceRoute();
+    });
+    const routeColorModal = document.getElementById("routeColorModal");
+    const routeColorBtn = document.getElementById("routeColorInfoBtn");
+    const routeColorClose = document.getElementById("routeColorClose");
+    const openRouteColorModal = () => {
+      if (routeColorModal) routeColorModal.style.display = "flex";
+    };
+    const closeRouteColorModal = () => {
+      if (routeColorModal) routeColorModal.style.display = "none";
+    };
+    routeColorBtn?.addEventListener("click", openRouteColorModal);
+    routeColorClose?.addEventListener("click", closeRouteColorModal);
+    document.addEventListener("click", (e) => {
+      if (e.target && e.target.id === "routeColorModal") {
+        closeRouteColorModal();
+      }
     });
 
     // Panel toggle logic
