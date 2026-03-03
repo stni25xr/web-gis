@@ -3716,15 +3716,15 @@ Maintain safe distance
       }
       function distanceGradientRgb(meters) {
         const lerp = (a, b, t) => Math.round(a + (b - a) * t);
-        const green = [34, 197, 94];
+        const green = [16, 185, 129];
         const orange = [245, 158, 11];
         const red = [239, 68, 68];
-        if (meters <= 500) {
-          const t = Math.max(0, Math.min(meters / 500, 1));
+        if (meters <= 650) {
+          const t = Math.max(0, Math.min(meters / 650, 1));
           return [lerp(green[0], orange[0], t), lerp(green[1], orange[1], t), lerp(green[2], orange[2], t)];
         }
-        if (meters <= 900) {
-          const t = Math.max(0, Math.min((meters - 500) / 400, 1));
+        if (meters <= 1000) {
+          const t = Math.max(0, Math.min((meters - 650) / 350, 1));
           return [lerp(orange[0], red[0], t), lerp(orange[1], red[1], t), lerp(orange[2], red[2], t)];
         }
         return red;
@@ -4088,6 +4088,20 @@ Maintain safe distance
               spatialReference: { wkid: 4326 }
             });
             lastRouteGeometry = route;
+            try {
+              const corridorWidth = 26;
+              const corridor = geometryEngine.geodesicBuffer(route, corridorWidth, "meters");
+              corridorLayer.add(new Graphic({
+                geometry: corridor,
+                symbol: {
+                  type: "simple-fill",
+                  color: [30, 64, 175, 0.08],
+                  outline: { color: [30, 64, 175, 0.18], width: 1 }
+                }
+              }));
+            } catch (e) {
+              // ignore buffer errors
+            }
             let cumulative = 0;
             for (let i = 1; i < coords.length; i++) {
               const a = coords[i - 1];
@@ -4104,20 +4118,6 @@ Maintain safe distance
                 geometry: segLine,
                 symbol: { type: "simple-line", color: [r, g, bCol], width: 5 }
               }));
-              try {
-                const corridorWidth = 30;
-                const segBuffer = geometryEngine.geodesicBuffer(segLine, corridorWidth, "meters");
-                corridorLayer.add(new Graphic({
-                  geometry: segBuffer,
-                  symbol: {
-                    type: "simple-fill",
-                    color: [r, g, bCol, 0.18],
-                    outline: { color: [r, g, bCol, 0.7], width: 2 }
-                  }
-                }));
-              } catch (e) {
-                // ignore segment buffer errors
-              }
               cumulative += segMeters;
             }
             updateSeniorRouteButtons();
