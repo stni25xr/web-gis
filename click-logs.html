@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Click Logs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Sora", system-ui, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    body {
+      margin: 0;
+      padding: 24px;
+    }
+    .card {
+      max-width: 1100px;
+      margin: 0 auto;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
+    .title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .meta {
+      color: #64748b;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+    .controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    input[type="search"] {
+      flex: 1;
+      min-width: 220px;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    select, button {
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    button.primary {
+      background: #1f6feb;
+      color: #fff;
+      border-color: #1f6feb;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th, td {
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
+      padding: 6px 8px;
+      vertical-align: top;
+    }
+    th {
+      background: #f1f5f9;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .empty {
+      color: #64748b;
+      padding: 12px 8px;
+    }
+    .pill {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 11px;
+      background: #e2e8f0;
+    }
+    #heatmap {
+      height: 360px;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="title">Click Logs (localStorage)</div>
+    <div class="meta">Källa: `clickLogs` i localStorage för denna domän.</div>
+    <div class="controls">
+      <input id="search" type="search" placeholder="Sök text, id, typ..." />
+      <select id="typeFilter">
+        <option value="">Alla typer</option>
+        <option value="click">click</option>
+        <option value="map_click">map_click</option>
+        <option value="event">event</option>
+      </select>
+      <button id="refreshBtn">Uppdatera</button>
+      <button id="downloadBtn" class="primary">Exportera JSON</button>
+    </div>
+    <div id="summary" class="meta"></div>
+    <div id="heatmap"></div>
+    <div style="overflow:auto; max-height: 70vh;">
+      <table>
+        <thead>
+          <tr>
+            <th>Tid</th>
+            <th>Typ</th>
+            <th>Text/namn</th>
+            <th>ID / Klass</th>
+            <th>Data</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <script>
+    const STORAGE_KEY = "clickLogs";
+    let map = null;
+    let heatLayer = null;
+
+    function getLogs() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function render() {
+      const rows = document.getElementById("rows");
+      const search = document.getElementById("search").value.trim().toLowerCase();
+      const typeFilter = document.getElementById("typeFilter").value;
+      const logs = getLogs();
+
+      let filtered = logs;
+      if (typeFilter) {
+        filtered = filtered.filter((l) => l.type === typeFilter);
+      }
+      if (search) {
+        filtered = filtered.filter((l) => {
+          const hay = [
+            l.type,
+            l.elementText,
+            l.elementId,
+            l.elementClass,
+            l.name,
+            l.page
+          ].filter(Boolean).join(" ").toLowerCase();
+          return hay.includes(search);
+        });
+      }
+
+      rows.innerHTML = "";
+      if (!filtered.length) {
+        rows.innerHTML = `<tr><td colspan="5" class="empty">Inga loggar hittades.</td></tr>`;
+      } else {
+        filtered.slice().reverse().forEach((l) => {
+          const tr = document.createElement("tr");
+          const time = l.timestamp || "";
+          const type = l.type || "";
+          const label = l.elementText || l.name || "";
+          const idClass = [l.elementId, l.elementClass].filter(Boolean).join(" · ");
+          const data = l.type === "map_click"
+            ? `lat ${Number(l.latitude).toFixed(5)}, lon ${Number(l.longitude).toFixed(5)}`
+            : (l.value != null ? String(l.value) : "");
+          tr.innerHTML = `
+            <td>${time}</td>
+            <td><span class="pill">${type}</span></td>
+            <td>${label}</td>
+            <td>${idClass}</td>
+            <td>${data}</td>
+          `;
+          rows.appendChild(tr);
+        });
+      }
+
+      const summary = document.getElementById("summary");
+      summary.textContent = `Totalt: ${logs.length} • Visas: ${filtered.length}`;
+      renderHeatmap(logs);
+    }
+
+    function renderHeatmap(logs) {
+      const points = (logs || [])
+        .filter((l) => l.type === "map_click" && Number.isFinite(l.latitude) && Number.isFinite(l.longitude))
+        .map((l) => [l.latitude, l.longitude, 0.7]);
+
+      if (!map) {
+        map = L.map("heatmap", { zoomControl: true, attributionControl: true });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: "&copy; OpenStreetMap contributors"
+        }).addTo(map);
+      }
+
+      if (!points.length) {
+        map.setView([57.781, 14.161], 12);
+        if (heatLayer) {
+          heatLayer.setLatLngs([]);
+        }
+        return;
+      }
+
+      if (!heatLayer) {
+        heatLayer = L.heatLayer(points, { radius: 22, blur: 18, maxZoom: 17 }).addTo(map);
+      } else {
+        heatLayer.setLatLngs(points);
+      }
+
+      const bounds = L.latLngBounds(points.map((p) => [p[0], p[1]]));
+      map.fitBounds(bounds, { padding: [20, 20] });
+    }
+
+    document.getElementById("refreshBtn").addEventListener("click", render);
+    document.getElementById("search").addEventListener("input", render);
+    document.getElementById("typeFilter").addEventListener("change", render);
+    document.getElementById("downloadBtn").addEventListener("click", () => {
+      const logs = localStorage.getItem(STORAGE_KEY) || "[]";
+      const blob = new Blob([logs], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "click_logs.json";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    render();
+  </script>
+</body>
+</html>
