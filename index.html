@@ -3928,6 +3928,19 @@ Maintain safe distance
         svcHint.textContent = "";
         const header = `<div><b>${labelForService(selected.key)}</b> – ${selected.name}</div>`;
         svcList.innerHTML = `${header}<div>${formatDistanceColored(d)} • ca ${formatWalkTime(d)} till fots</div>`;
+        try {
+          const straight = new Polyline({
+            paths: [[[mapPtWgs.longitude, mapPtWgs.latitude], [fWgs.longitude, fWgs.latitude]]],
+            spatialReference: { wkid: 4326 }
+          });
+          const elevation = await getElevationStats(straight);
+          if (elevation) {
+            const elevLine = `<div class="elevation-info">${formatElevationInfo(elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
+            svcList.innerHTML = `${header}<div>${formatDistanceColored(d)} • ca ${formatWalkTime(d)} till fots</div>${elevLine}`;
+          }
+        } catch (e) {
+          // ignore elevation errors
+        }
 
         const summary = await drawWalkingRouteToFeature(selected.feature, (msg) => {
           svcList.innerHTML = `${header}<div>${msg}</div>`;
