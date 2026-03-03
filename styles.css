@@ -467,6 +467,21 @@ html, body, body.app {
   flex: 1;
 }
 
+.sim-info-btn {
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.sim-info-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .sim-btn {
   border: 1px solid #334155;
   background: #0f172a;

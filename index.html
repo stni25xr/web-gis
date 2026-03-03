@@ -598,7 +598,6 @@
           <div class="field-row" style="margin-top:6px;">
             <button id="svcRouteBtn" type="button">Visa gångväg</button>
             <button id="svcClearRouteBtn" type="button">Rensa rutt</button>
-            <button id="routeColorInfoBtn" type="button" class="ghost">Färger?</button>
           </div>
           <div id="svcList" style="font-size:13px;color:#0f172a;"></div>
         </div>
@@ -787,6 +786,7 @@ Maintain safe distance
 
   <!-- Simulation time bar -->
   <div id="simTimeBar" class="sim-time-bar">
+    <button id="routeColorInfoBtn" type="button" class="sim-info-btn" disabled>Färger?</button>
     <div class="sim-time-label">Simulation time</div>
     <div id="simTimeValue" class="sim-time-value">—</div>
     <input id="simTimeSlider" type="range" class="sim-time-slider" min="0" max="43200" value="0" step="15" />
@@ -3285,6 +3285,12 @@ Maintain safe distance
         if (svcClearRouteBtn) svcClearRouteBtn.style.display = hasRoute ? "inline-flex" : "none";
       }
 
+      function updateRouteColorButton() {
+        const hasRoute = routeLayer?.graphics?.length > 0;
+        const btn = document.getElementById("routeColorInfoBtn");
+        if (btn) btn.disabled = !hasRoute;
+      }
+
       function updateSeniorSafetyRouteButtons() {
         if (!isSeniorMode) return;
         if (safeClearRouteBtn) safeClearRouteBtn.style.display = "inline-flex";
@@ -4134,6 +4140,7 @@ Maintain safe distance
               cumulative += segMeters;
             }
             updateSeniorRouteButtons();
+            updateRouteColorButton();
             const elevation = await getElevationStats(route);
             return elevation;
           };
@@ -4175,6 +4182,7 @@ Maintain safe distance
         corridorLayer.removeAll();
         lastRouteGeometry = null;
         lastWalkRoute = null;
+        updateRouteColorButton();
         updateSeniorRouteButtons();
       }
       function clearSafetyRoute() {
@@ -4711,6 +4719,7 @@ Maintain safe distance
     const routeColorBtn = document.getElementById("routeColorInfoBtn");
     const routeColorClose = document.getElementById("routeColorClose");
     const openRouteColorModal = () => {
+      if (routeColorBtn && routeColorBtn.disabled) return;
       if (routeColorModal) routeColorModal.style.display = "flex";
     };
     const closeRouteColorModal = () => {
