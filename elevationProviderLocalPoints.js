@@ -2,11 +2,11 @@
   const STATE = {
     status: "idle",
     message: "",
-    field: "grid_code",
+    field: null,
     points: [],
     bbox: null,
     grid: new Map(),
-    cellSize: 0.001,
+    cellSize: 0.0007,
     cache: new Map(),
     view: null,
     webMercatorUtils: null,
@@ -30,8 +30,13 @@
 
   function detectField(props) {
     if (!props) return null;
-    const key = Object.keys(props).find((k) => normalizeKey(k) === "grid_code");
-    return key || null;
+    const candidates = ["elevation", "elev", "height", "hojd", "hojd_m", "z", "alt", "altitude", "hojd_m"];
+    const entries = Object.entries(props);
+    for (const k of candidates) {
+      const match = entries.find(([key, val]) => normalizeKey(key) === k && Number.isFinite(Number(val)));
+      if (match) return match[0];
+    }
+    return null;
   }
 
   function setStatus(status, message) {
@@ -115,7 +120,9 @@
           if (coords.length >= 3 && Number.isFinite(coords[2])) {
             z = coords[2];
           } else {
-            if (!field) field = detectField(f.properties || f.attributes || null);
+            if (!field) {
+              field = detectField(f.properties || f.attributes || null);
+            }
             if (field) {
               const raw = (f.properties || f.attributes || {})[field];
               const v = Number(raw);
@@ -132,7 +139,6 @@
         points.forEach(addToGrid);
 
         log(`loaded points: ${points.length}`);
-        if (points.length) log("example z:", points[0].z);
         if (STATE.bbox) log("bbox:", STATE.bbox);
         log("elevationField:", field || "coords[2]");
 
@@ -201,15 +207,17 @@
     if (!distances.length) return null;
     distances.sort((a, b) => a.d - b.d);
 
-    const nearest = distances[0];
-    if (!nearest || nearest.d > 600) return null;
-
-    const within = distances.slice(0, 8);
+    const radius = 200;
+    const within = distances.filter((d) => d.d <= radius).slice(0, 6);
     if (within.length >= 2) {
       let wSum = 0;
       let zSum = 0;
       for (const n of within) {
-        const w = 1 / (n.d * n.d + 1);
+        if (n.d === 0) {
+          cacheSet(lat, lon, n.pt.z);
+          return n.pt.z;
+        }
+        const w = 1 / (n.d * n.d);
         wSum += w;
         zSum += w * n.pt.z;
       }
@@ -218,6 +226,7 @@
       return Number.isFinite(z) ? z : null;
     }
 
+    const nearest = distances[0];
     if (nearest && Number.isFinite(nearest.pt.z)) {
       cacheSet(lat, lon, nearest.pt.z);
       return nearest.pt.z;
@@ -278,7 +287,7 @@
     if (!total) return { error: "no-line" };
 
     let spacing = 30;
-    const maxSamples = 100;
+    const maxSamples = 120;
     if (total / spacing > maxSamples) spacing = total / maxSamples;
 
     const sampleDistances = [];
@@ -297,7 +306,7 @@
       }
     }
 
-    if (valid < 5) {
+    if (!zArray.length || valid / sampleDistances.length < 0.5) {
       console.debug("[ELEV] sparse samples", { valid, total: sampleDistances.length });
       return { error: "sparse", valid, total: sampleDistances.length };
     }
