@@ -68,6 +68,9 @@
       this._uColor = null;
       this._renderPositions = null;
       this._localPositions = null;
+      this._debugUntil = 0;
+      this._debugBeamWidthDeg = 1;
+      this._debugZOffset = 0;
     }
 
     updateCenter(center, beamZ, radius) {
@@ -164,6 +167,10 @@
         return;
       }
 
+      const debugActive = this._debugUntil && performance.now() < this._debugUntil;
+      const beamWidthDeg = debugActive ? this._debugBeamWidthDeg : this.beamWidthDeg;
+      const zOffset = debugActive ? this._debugZOffset : 0;
+
       const now = performance.now();
       if (this.lastTimeMs == null) this.lastTimeMs = now;
       const dt = (now - this.lastTimeMs) / 1000;
@@ -172,7 +179,11 @@
       const angularSpeed = (2 * Math.PI) / this.rotationPeriodSec;
       this.sweepAngle = (this.sweepAngle + angularSpeed * dt) % (2 * Math.PI);
 
-      if (!this._buildLocalGeometry()) return;
+      const prevWidth = this.beamWidthDeg;
+      this.beamWidthDeg = beamWidthDeg;
+      const ok = this._buildLocalGeometry();
+      this.beamWidthDeg = prevWidth;
+      if (!ok) return;
 
       if (!this._renderPositions || this._renderPositions.length !== this._localPositions.length) {
         this._renderPositions = new Float32Array(this._localPositions.length);
@@ -180,7 +191,7 @@
 
       const view = this.view;
       const center = this.center;
-      const origin = [center.x, center.y, this.beamZ];
+      const origin = [center.x, center.y, this.beamZ + zOffset];
       const transform = new Float32Array(16);
       this.externalRenderers.renderCoordinateTransformAt(
         view,
@@ -292,11 +303,15 @@
       radarInstance.updateCenter(center, beamZ, radius);
     }
     ensureRadarBadge();
-    // Temporary debug boost: widen beam for 10 seconds to confirm visibility.
-    radarInstance.beamWidthDeg = 6;
+    // Temporary debug boost: full disk at +15m for 10 seconds to confirm visibility.
+    radarInstance._debugUntil = performance.now() + 10000;
+    radarInstance._debugBeamWidthDeg = 360;
+    radarInstance._debugZOffset = 15;
     setTimeout(() => {
       if (!radarInstance) return;
-      radarInstance.beamWidthDeg = 1;
+      radarInstance._debugUntil = 0;
+      radarInstance._debugBeamWidthDeg = 1;
+      radarInstance._debugZOffset = 0;
       hideRadarBadge();
     }, 10000);
     externalRenderers.requestRender(view);
