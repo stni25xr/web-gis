@@ -38,10 +38,37 @@ function setStatus(text) {
 async function initThree() {
   if (!panel || !viewEl) return;
   try {
-    const threeMod = await import("https://unpkg.com/three@0.160.0/build/three.module.js");
-    const orbitMod = await import("https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js");
-    const transformMod = await import("https://unpkg.com/three@0.160.0/examples/jsm/controls/TransformControls.js");
-    const gltfMod = await import("https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js");
+    const importWithFallback = async (urls) => {
+      let lastErr = null;
+      for (const url of urls) {
+        try {
+          return await import(url);
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+      throw lastErr;
+    };
+    const threeMod = await importWithFallback([
+      "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "https://esm.sh/three@0.160.0"
+    ]);
+    const orbitMod = await importWithFallback([
+      "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js",
+      "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js",
+      "https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js"
+    ]);
+    const transformMod = await importWithFallback([
+      "https://unpkg.com/three@0.160.0/examples/jsm/controls/TransformControls.js",
+      "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/TransformControls.js",
+      "https://esm.sh/three@0.160.0/examples/jsm/controls/TransformControls.js"
+    ]);
+    const gltfMod = await importWithFallback([
+      "https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js",
+      "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js",
+      "https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js"
+    ]);
     THREE = threeMod;
     OrbitControls = orbitMod.OrbitControls;
     TransformControls = transformMod.TransformControls;
