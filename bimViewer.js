@@ -1,8 +1,3 @@
-import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
-import { OrbitControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
-import { TransformControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/TransformControls.js";
-import { GLTFLoader } from "https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
-
 const panel = document.getElementById("bimViewerPanel");
 const viewEl = document.getElementById("bimView");
 const toggleBtn = document.getElementById("bimViewerToggle");
@@ -22,6 +17,14 @@ const clipToggle = document.getElementById("bimClipToggle");
 const clipX = document.getElementById("bimClipX");
 const clipY = document.getElementById("bimClipY");
 const clipZ = document.getElementById("bimClipZ");
+
+if (!window.THREE) {
+  console.error("[BIM] THREE not loaded");
+}
+const THREE = window.THREE;
+const OrbitControls = THREE?.OrbitControls;
+const TransformControls = THREE?.TransformControls;
+const GLTFLoader = THREE?.GLTFLoader;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b1220);
