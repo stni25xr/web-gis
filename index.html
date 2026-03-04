@@ -3764,7 +3764,7 @@ Maintain safe distance
         return Math.max(1, Math.round(minutes)) + " min";
       }
       function formatDriveTime(meters) {
-        const minutes = meters / 833.333; // ~50 km/h
+        const minutes = meters / 1000; // ~60 km/h
         return Math.max(1, Math.round(minutes)) + " min";
       }
       function distanceColor(meters) {
@@ -4067,7 +4067,7 @@ Maintain safe distance
           }));
           updateSeniorSafetyRouteButtons();
           const meters = geometryEngine.geodesicLength(route, "meters");
-          const duration = meters / (50 * 1000 / 3600); // 50 km/h fallback
+          const duration = meters / (60 * 1000 / 3600); // 60 km/h fallback
           const elevation = await getElevationStats(route);
           return { distance: meters, duration, elevation };
         };
