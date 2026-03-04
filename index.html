@@ -3890,7 +3890,7 @@ Maintain safe distance
 
       async function updateNearestStop(mapPoint) {
         try {
-          window.infoFlowController?.setActiveFlow?.("BUS");
+          window.infoFlowController?.activateFlow?.("BUS");
           const mapPtWgs = toGeographic(mapPoint);
           if (!mapPtWgs) throw new Error("Okänt koordinatsystem");
           lastMeasurePoint = mapPtWgs;
@@ -4587,7 +4587,7 @@ Maintain safe distance
           svcList.innerHTML = "";
           return;
         }
-        window.infoFlowController?.setActiveFlow?.("SERVICE");
+        window.infoFlowController?.activateFlow?.("SERVICE");
         if (isSeniorMode && lastServiceClickPoint) {
           updateSelectedServiceDistance(lastServiceClickPoint);
         }
@@ -4604,14 +4604,14 @@ Maintain safe distance
           safeList.innerHTML = "";
           return;
         }
-        window.infoFlowController?.setActiveFlow?.("CAR");
+        window.infoFlowController?.activateFlow?.("CAR");
         if (isSeniorMode && lastSafetyClickPoint) {
           updateSelectedSafetyDistance(lastSafetyClickPoint);
         }
       });
 
       svcMeasureBtn.addEventListener("click", () => {
-        window.infoFlowController?.setActiveFlow?.("SERVICE");
+        window.infoFlowController?.activateFlow?.("SERVICE");
         svcMeasureEnabled = true;
         svcMeasureBtn.textContent = "Mätning: PÅ";
         svcHint.textContent = "Klicka på kartan för att räkna avstånd";
@@ -4625,7 +4625,7 @@ Maintain safe distance
         clearRoute();
       });
       svcRouteBtn.addEventListener("click", async () => {
-        window.infoFlowController?.setActiveFlow?.("SERVICE");
+        window.infoFlowController?.activateFlow?.("SERVICE");
         if (!svcSelect.value) {
           svcHint.textContent = "Välj en service i listan";
           return;
@@ -4657,7 +4657,7 @@ Maintain safe distance
           safeHint.textContent = "Välj trygghet i listan";
           return;
         }
-        window.infoFlowController?.setActiveFlow?.("CAR");
+        window.infoFlowController?.activateFlow?.("CAR");
         safeMeasureEnabled = !safeMeasureEnabled;
         safeMeasureBtn.textContent = safeMeasureEnabled ? "Mätning: PÅ" : "Mät avstånd";
         if (safeMeasureEnabled) {
@@ -4672,7 +4672,7 @@ Maintain safe distance
         lastSafeMeasurePoint = null;
       });
       safeRouteBtn.addEventListener("click", async () => {
-        window.infoFlowController?.setActiveFlow?.("CAR");
+        window.infoFlowController?.activateFlow?.("CAR");
         if (!safeSelect.value) {
           safeHint.textContent = "Välj trygghet i listan";
           return;
@@ -4923,7 +4923,7 @@ Maintain safe distance
     function closeRight() {
       rightOpen = false;
       updateUI();
-      window.infoFlowController?.clearAllFlows?.();
+      window.infoFlowController?.clearAllNonBus?.();
       if (typeof window.stopPoliceDriveAnimation === "function") {
         window.stopPoliceDriveAnimation();
       }
