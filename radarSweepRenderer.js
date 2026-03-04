@@ -4,6 +4,23 @@
 
   let radarInstance = null;
 
+  function ensureRadarBadge() {
+    let badge = document.getElementById("radarDebugBadge");
+    if (!badge) {
+      badge = document.createElement("div");
+      badge.id = "radarDebugBadge";
+      badge.textContent = "RADAR ON (debug)";
+      badge.style.cssText = "position:fixed;top:90px;left:16px;z-index:9999;background:#ff8c00;color:#111;padding:6px 10px;border-radius:8px;font:600 12px/1.2 system-ui, sans-serif;box-shadow:0 4px 10px rgba(0,0,0,0.2);";
+      document.body.appendChild(badge);
+    }
+    return badge;
+  }
+
+  function hideRadarBadge() {
+    const badge = document.getElementById("radarDebugBadge");
+    if (badge) badge.remove();
+  }
+
   function normalizeCenter(center, view, webMercatorUtils) {
     if (!center) return null;
     const sr = center.spatialReference || view?.spatialReference || null;
@@ -49,7 +66,6 @@
       this._uView = null;
       this._uProj = null;
       this._uColor = null;
-      this._positions = null;
       this._renderPositions = null;
       this._localPositions = null;
     }
@@ -102,37 +118,6 @@
       this._uColor = gl.getUniformLocation(program, "u_color");
 
       this._buffer = gl.createBuffer();
-    }
-
-    _buildGeometry() {
-      if (!this.center) return false;
-      const halfWidth = (this.beamWidthDeg * DEG2RAD) / 2;
-      const angleStart = this.sweepAngle - halfWidth;
-      const angleEnd = this.sweepAngle + halfWidth;
-      const segments = 16;
-      const vertexCount = segments + 2; // center + arc points
-      const positions = new Float64Array(vertexCount * 3);
-
-      const cx = this.center.x;
-      const cy = this.center.y;
-      const z = this.beamZ;
-
-      positions[0] = cx;
-      positions[1] = cy;
-      positions[2] = z;
-
-      for (let i = 0; i <= segments; i++) {
-        const t = i / segments;
-        const ang = angleStart + (angleEnd - angleStart) * t;
-        const idx = (i + 1) * 3;
-        positions[idx] = cx + Math.cos(ang) * this.radius;
-        positions[idx + 1] = cy + Math.sin(ang) * this.radius;
-        positions[idx + 2] = z;
-      }
-
-      this._positions = positions;
-      this.vertexCount = vertexCount;
-      return true;
     }
 
     _buildLocalGeometry() {
@@ -306,6 +291,14 @@
     } else {
       radarInstance.updateCenter(center, beamZ, radius);
     }
+    ensureRadarBadge();
+    // Temporary debug boost: widen beam for 10 seconds to confirm visibility.
+    radarInstance.beamWidthDeg = 6;
+    setTimeout(() => {
+      if (!radarInstance) return;
+      radarInstance.beamWidthDeg = 1;
+      hideRadarBadge();
+    }, 10000);
     externalRenderers.requestRender(view);
   };
 
@@ -318,5 +311,6 @@
     }
     radarInstance.dispose();
     radarInstance = null;
+    hideRadarBadge();
   };
 })();
