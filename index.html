@@ -4057,7 +4057,7 @@ Maintain safe distance
         };
 
         const fetchOsrmRoute = async () => {
-          const url = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${eLon},${eLat}?overview=full&geometries=geojson`;
+          const url = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${eLon},${eLat}?overview=full&geometries=geojson&alternatives=false`;
           const res = await fetch(url);
           if (!res.ok) throw new Error("OSRM " + res.status);
           const data = await res.json();
@@ -4067,15 +4067,18 @@ Maintain safe distance
           return { coords, summary: { distance: route.distance, duration: route.duration } };
         };
 
-        if (!ORS_KEY) {
-          status("ORS saknas – provar OSRM");
-          try {
-            const osrm = await fetchOsrmRoute();
-            return await drawRoute(osrm.coords, osrm.summary);
-          } catch (e) {
+        // Prefer OSRM for driving routes to avoid API key issues
+        try {
+          status("Räknar körväg (OSRM)…");
+          const osrm = await fetchOsrmRoute();
+          return await drawRoute(osrm.coords, osrm.summary);
+        } catch (e) {
+          console.warn("OSRM route failed, trying ORS if available", e);
+          if (!ORS_KEY) {
             status("OSRM misslyckades – visar rak linje");
             return await drawStraight();
           }
+          // fall through to ORS
         }
 
         const url = "https://api.openrouteservice.org/v2/directions/driving-car/geojson";
@@ -4091,20 +4094,13 @@ Maintain safe distance
           const coords = feat?.geometry?.coordinates;
           const summary = feat?.properties?.summary;
           if (!coords || coords.length < 2) {
-            status("ORS hittade ingen rutt – provar OSRM");
-            const osrm = await fetchOsrmRoute();
-            return await drawRoute(osrm.coords, osrm.summary);
+            status("ORS hittade ingen rutt – visar rak linje");
+            return await drawStraight();
           }
           return await drawRoute(coords, summary);
         } catch (e) {
-          status("ORS fel – provar OSRM");
-          try {
-            const osrm = await fetchOsrmRoute();
-            return await drawRoute(osrm.coords, osrm.summary);
-          } catch (e2) {
-            status("Ruttfel – visar rak linje");
-            return await drawStraight();
-          }
+          status("ORS fel – visar rak linje");
+          return await drawStraight();
         }
       }
 
