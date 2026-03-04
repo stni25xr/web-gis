@@ -46,10 +46,10 @@
 
   function setActiveFlow(nextFlow) {
     if (!nextFlow || activeFlow === nextFlow) return;
-    if (activeFlow) {
-      clearFlow(activeFlow);
-      showToast("Tidigare visning rensades för att visa ny information.");
-    }
+    if (nextFlow !== "BUS") clearFlow("BUS");
+    if (nextFlow !== "SERVICE") clearFlow("SERVICE");
+    if (nextFlow !== "CAR") clearFlow("CAR");
+    showToast("Tidigare visning rensades för att visa ny information.");
     activeFlow = nextFlow;
   }
 
