@@ -222,14 +222,31 @@
   }
 
   async function resolveBeamZ(view, center, PointCtor) {
-    if (!view?.ground || !center) return 1.7;
+    if (!center) return 1.7;
     try {
       const geom = PointCtor
         ? new PointCtor({ x: center.x, y: center.y, spatialReference: center.spatialReference || view.spatialReference })
         : { type: "point", x: center.x, y: center.y, spatialReference: center.spatialReference || view.spatialReference };
-      const res = await view.ground.queryElevation(geom);
-      const z = res?.geometry?.z;
-      if (Number.isFinite(z)) return z + 1.7;
+
+      if (view?.ground && typeof view.ground.queryElevation === "function") {
+        const res = await view.ground.queryElevation(geom);
+        const z = res?.geometry?.z ?? res?.z;
+        if (Number.isFinite(z)) return z + 1.7;
+      }
+
+      const sampler = view?.groundView?.elevationSampler;
+      if (sampler) {
+        if (typeof sampler.queryElevation === "function") {
+          const res = sampler.queryElevation(geom);
+          const z = res?.z ?? res?.geometry?.z;
+          if (Number.isFinite(z)) return z + 1.7;
+        }
+        if (typeof sampler.sample === "function") {
+          const res = sampler.sample(geom);
+          const z = res?.z ?? res?.geometry?.z;
+          if (Number.isFinite(z)) return z + 1.7;
+        }
+      }
     } catch (e) {
       // ignore elevation failures
     }
