@@ -1,1 +1,6 @@
 .DS_Store
+
+# Local large/untracked assets
+/data/Project3.glb
+/data/oxnehaga_buildings_2026-03-01.csv
+/ifc_to_html.py
