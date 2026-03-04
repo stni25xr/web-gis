@@ -160,6 +160,7 @@
   </style>
   <link rel="stylesheet" href="./styles.css" />
   <script src="./config.local.js"></script>
+  <script src="./infoFlowController.js"></script>
   <script src="./elevationProvider.js"></script>
   <script type="module">
     import JSZip from "https://esm.sh/jszip@3.10.1";
@@ -394,8 +395,8 @@
         </label>
       </div>
       <div class="switch-row switch-child">
-        <span class="switch-label">Polis Myndighet</span>
-        <label class="switch" aria-label="Polis Myndighet">
+        <span class="switch-label">Räddningstjänst, Huskvarna</span>
+        <label class="switch" aria-label="Räddningstjänst, Huskvarna">
           <input id="swFire" type="checkbox" checked />
           <span class="slider"></span>
         </label>
@@ -464,7 +465,7 @@
         </div>
         <div class="legend-item">
           <span class="legend-fire"></span>
-          <span>Polis Myndighet</span>
+          <span>Räddningstjänst, Huskvarna</span>
         </div>
         <div class="legend-item">
           <span class="legend-hospital"></span>
@@ -536,6 +537,7 @@
   <!-- INFO PANEL -->
   <aside id="info-panel" aria-label="Info panel">
     <h2>Information <button id="rightPanelClose" class="panel-close" type="button" aria-label="Stäng information">✕</button></h2>
+    <div id="infoFlowToast" aria-live="polite"></div>
 
     <div class="panel-section" id="seniorModeRow" data-role="senior-toggle">
       <div class="panel-body" style="margin-top:0;">
@@ -703,11 +705,11 @@
   <div id="incidentModal" style="display:none;">
     <div class="incident-modal">
       <div class="incident-header">
-        <div class="incident-title">Polis Myndighet</div>
+        <div class="incident-title">Räddningstjänst, Huskvarna</div>
         <button id="incidentClose" type="button" aria-label="Close incident">✕</button>
       </div>
       <div class="incident-body">
-        <div id="incidentEta" class="incident-eta">Polis Myndighet på plats: beräknas…</div>
+        <div id="incidentEta" class="incident-eta">Räddningstjänst, Huskvarna på plats: beräknas…</div>
         <div class="incident-text">
 🚓 POLICE TRAINING SCENARIO
 Scenario Title: Disturbance with Unknown Object
@@ -3700,7 +3702,7 @@ Maintain safe distance
         ]);
         safetyIndex = [];
         (pRes.features || []).forEach((f, i) => safetyIndex.push({ id: `police:${i}`, key: "police", name: f.attributes?.name || "Polis", feature: f }));
-        (fRes.features || []).forEach((f, i) => safetyIndex.push({ id: `fire:${i}`, key: "fire", name: f.attributes?.name || "Polis Myndighet", feature: f }));
+        (fRes.features || []).forEach((f, i) => safetyIndex.push({ id: `fire:${i}`, key: "fire", name: f.attributes?.name || "Räddningstjänst, Huskvarna", feature: f }));
         (hRes.features || []).forEach((f, i) => safetyIndex.push({ id: `hospital:${i}`, key: "hospital", name: f.attributes?.name || "Sjukhus", feature: f }));
         (sRes.features || []).forEach((f, i) => safetyIndex.push({ id: `shelter:${i}`, key: "shelter", name: f.attributes?.namn || f.attributes?.name || "Skyddsrum", feature: f }));
       }
@@ -3887,6 +3889,7 @@ Maintain safe distance
 
       async function updateNearestStop(mapPoint) {
         try {
+          window.infoFlowController?.setActiveFlow?.("BUS");
           const mapPtWgs = toGeographic(mapPoint);
           if (!mapPtWgs) throw new Error("Okänt koordinatsystem");
           lastMeasurePoint = mapPtWgs;
@@ -4579,6 +4582,7 @@ Maintain safe distance
           svcList.innerHTML = "";
           return;
         }
+        window.infoFlowController?.setActiveFlow?.("SERVICE");
         if (isSeniorMode && lastServiceClickPoint) {
           updateSelectedServiceDistance(lastServiceClickPoint);
         }
@@ -4595,12 +4599,14 @@ Maintain safe distance
           safeList.innerHTML = "";
           return;
         }
+        window.infoFlowController?.setActiveFlow?.("CAR");
         if (isSeniorMode && lastSafetyClickPoint) {
           updateSelectedSafetyDistance(lastSafetyClickPoint);
         }
       });
 
       svcMeasureBtn.addEventListener("click", () => {
+        window.infoFlowController?.setActiveFlow?.("SERVICE");
         svcMeasureEnabled = true;
         svcMeasureBtn.textContent = "Mätning: PÅ";
         svcHint.textContent = "Klicka på kartan för att räkna avstånd";
@@ -4614,6 +4620,7 @@ Maintain safe distance
         clearRoute();
       });
       svcRouteBtn.addEventListener("click", async () => {
+        window.infoFlowController?.setActiveFlow?.("SERVICE");
         if (!svcSelect.value) {
           svcHint.textContent = "Välj en service i listan";
           return;
@@ -4645,6 +4652,7 @@ Maintain safe distance
           safeHint.textContent = "Välj trygghet i listan";
           return;
         }
+        window.infoFlowController?.setActiveFlow?.("CAR");
         safeMeasureEnabled = !safeMeasureEnabled;
         safeMeasureBtn.textContent = safeMeasureEnabled ? "Mätning: PÅ" : "Mät avstånd";
         if (safeMeasureEnabled) {
@@ -4659,6 +4667,7 @@ Maintain safe distance
         lastSafeMeasurePoint = null;
       });
       safeRouteBtn.addEventListener("click", async () => {
+        window.infoFlowController?.setActiveFlow?.("CAR");
         if (!safeSelect.value) {
           safeHint.textContent = "Välj trygghet i listan";
           return;
