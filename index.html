@@ -162,7 +162,6 @@
   <script src="./config.local.js"></script>
   <script src="./elevationProvider.js"></script>
   <script src="./elevationFromGeojson.js"></script>
-  <script src="./elevationProviderLocalPoints.js"></script>
   <script type="module">
     import JSZip from "https://esm.sh/jszip@3.10.1";
     window.JSZip = JSZip;
@@ -980,6 +979,9 @@ Maintain safe distance
       if (ESRI_API_KEY) {
         esriConfig.apiKey = ESRI_API_KEY;
       }
+      if (window.ElevationFromGeojson?.loadElevationGeojson) {
+        window.ElevationFromGeojson.loadElevationGeojson();
+      }
 
       function saveClick(entry) {
         try {
@@ -1314,12 +1316,7 @@ Maintain safe distance
           setTimeout(() => tryInitWind(attempt + 1), 100);
         }
       }
-      view.when(() => {
-        tryInitWind();
-        if (window.ElevationLocal?.init) {
-          window.ElevationLocal.init({ view, webMercatorUtils, GraphicsLayer, Graphic });
-        }
-      });
+      view.when(() => tryInitWind());
       let incidentEtaTimer = null;
       let policeDriveTimer = null;
       let policeDriveGraphic = null;
@@ -3877,18 +3874,9 @@ Maintain safe distance
         return `Höjdskillnad: ${diffLabel} m (↑ ${up} m / ↓ ${down} m)`;
       }
       function elevationLineHtml(stats) {
-        const elevStatus = window.ElevationLocal?.getStatus?.() || { status: "error", message: "" };
-        if (elevStatus.status === "loading" || elevStatus.status === "idle") {
+        const status = window.ElevationFromGeojson?.getStatus?.() || "error";
+        if (status === "loading" || status === "idle") {
           return `<div class="elevation-under-distance">Höjd: laddar…</div>`;
-        }
-        if (elevStatus.status === "no-field") {
-          return `<div class="elevation-under-distance">Höjddata: saknar höjdfält</div>`;
-        }
-        if (elevStatus.status === "error" || elevStatus.status === "empty") {
-          return `<div class="elevation-under-distance">Höjd: kunde inte laddas</div>`;
-        }
-        if (stats?.error === "sparse") {
-          return `<div class="elevation-under-distance">Höjd: saknas i höjddata för denna sträcka</div>`;
         }
         if (!stats) {
           return `<div class="elevation-under-distance">Höjd: saknas för området</div>`;
@@ -3901,8 +3889,8 @@ Maintain safe distance
         const key = makeRouteKey(routePolyline);
         if (key && elevationCache.has(key)) return elevationCache.get(key);
         try {
-          if (window.ElevationLocal?.computeForPolyline) {
-            const stats = window.ElevationLocal.computeForPolyline(routePolyline);
+          if (window.ElevationFromGeojson?.sampleElevationAlongPolyline) {
+            const stats = window.ElevationFromGeojson.sampleElevationAlongPolyline(routePolyline);
             if (stats) {
               if (key) elevationCache.set(key, stats);
               return stats;
