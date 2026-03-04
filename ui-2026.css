@@ -298,9 +298,9 @@ button.ghost:hover {
 }
 
 .elevation-under-distance {
-  font-size: 15px;
+  font-size: 14px;
   margin-top: 4px;
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 .elevation-help {
@@ -311,6 +311,10 @@ button.ghost:hover {
 
 .panel--senior .elevation-info {
   font-size: inherit;
+}
+
+.panel--senior .elevation-under-distance {
+  font-size: 15px;
 }
 
 
