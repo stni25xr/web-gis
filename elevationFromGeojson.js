@@ -18,7 +18,7 @@
   function extractElevationValue(props) {
     if (!props) return null;
     const entries = Object.entries(props);
-    const preferred = ["elevation", "hojd", "hojdskillnad", "z", "height"];
+    const preferred = ["elevation", "hojd", "hojdskillnad", "z", "height", "grid_code"];
     for (const [k, v] of entries) {
       const nk = normalizeKey(k);
       if (preferred.some((p) => nk === p || nk.includes(p))) {
