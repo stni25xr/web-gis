@@ -4133,11 +4133,12 @@ Maintain safe distance
             ? "#22c55e"
             : "#1d4ed8";
         const summary = await drawDrivingRouteToFeature(selected.feature, driveColor, (msg) => {
-          safeList.innerHTML = `${header}<div>${msg}</div>`;
+          safeHint.textContent = msg;
         });
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistance(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
+          safeHint.textContent = "";
           const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
           safeList.innerHTML = `${header}<div>${dist} • ca ${mins} min (bil)</div>${elevLine}`;
         }
@@ -4662,11 +4663,12 @@ Maintain safe distance
         const driveColor = selected.key === "fire" ? "#ef4444" : "#1d4ed8";
         const header = `<div><b>${selected.name}</b></div>`;
         const summary = await drawDrivingRouteToFeature(selected.feature, driveColor, (msg) => {
-          safeList.innerHTML = `${header}<div>${msg}</div>`;
+          safeHint.textContent = msg;
         });
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistance(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
+          safeHint.textContent = "";
           safeList.innerHTML = `${header}<div>${dist} • ca ${mins} min (bil)</div>`;
         }
         updateSeniorSafetyRouteButtons();
