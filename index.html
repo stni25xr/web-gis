@@ -1298,6 +1298,7 @@ Maintain safe distance
       let policeDriveGraphic = null;
       let lastSafetyRouteCoords = null;
       let lastSafetyRouteSummary = null;
+      let safetyRouteReqId = 0;
       const bus15State = {
         graphics: new Map(),
         timer: null,
@@ -4019,6 +4020,8 @@ Maintain safe distance
           status("Mät först en punkt på kartan");
           return null;
         }
+        const requestId = ++safetyRouteReqId;
+        let drewRoute = false;
         const end = toGeographic(targetFeature.geometry);
         if (!end) {
           status("Kunde inte läsa positionen");
@@ -4030,6 +4033,8 @@ Maintain safe distance
         const eLat = end.latitude ?? end.y;
 
         const drawRoute = async (coords, summary) => {
+          if (requestId !== safetyRouteReqId) return null;
+          drewRoute = true;
           lastSafetyRouteCoords = coords;
           lastSafetyRouteSummary = summary || null;
           safetyRouteLayer.removeAll();
@@ -4043,6 +4048,8 @@ Maintain safe distance
         };
 
         const drawStraight = async () => {
+          if (requestId !== safetyRouteReqId) return null;
+          if (drewRoute) return null;
           const route = new Polyline({ paths: [[[sLon, sLat], [eLon, eLat]]], spatialReference: { wkid: 4326 } });
           safetyRouteLayer.removeAll();
           safetyRouteLayer.add(new Graphic({
