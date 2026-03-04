@@ -17,6 +17,7 @@ const rotateBtn = document.getElementById("bimViewerRotate");
 const closeBtn = document.getElementById("bimViewerClose");
 const resetBtn = document.getElementById("bimViewerReset");
 const clearBtn = document.getElementById("bimViewerClear");
+const statusEl = document.getElementById("bimViewerStatus");
 const clipToggle = document.getElementById("bimClipToggle");
 const clipX = document.getElementById("bimClipX");
 const clipY = document.getElementById("bimClipY");
@@ -47,6 +48,9 @@ scene.add(ambient);
 const dir = new THREE.DirectionalLight(0xffffff, 0.7);
 dir.position.set(5, 10, 8);
 scene.add(dir);
+
+const grid = new THREE.GridHelper(20, 20, 0x1f2937, 0x111827);
+scene.add(grid);
 
 const planeX = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
 const planeY = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -104,6 +108,7 @@ const loader = new GLTFLoader();
 
 function loadModel(url) {
   if (!url) return;
+  if (statusEl) statusEl.textContent = "Laddar modell…";
   loader.load(
     url,
     (gltf) => {
@@ -112,10 +117,12 @@ function loadModel(url) {
       scene.add(modelRoot);
       fitToModel(modelRoot);
       setClipEnabled(Boolean(clipToggle?.checked));
+      if (statusEl) statusEl.textContent = "Model laddad.";
     },
     undefined,
     (err) => {
       console.error("[BIM] Failed to load model", err);
+      if (statusEl) statusEl.textContent = "Kunde inte ladda modellen.";
     }
   );
 }
@@ -157,6 +164,7 @@ fileInput?.addEventListener("change", (e) => {
   if (!file) return;
   const url = URL.createObjectURL(file);
   loadModel(url);
+  panel?.classList.add("is-open");
 });
 
 function clearModel() {
@@ -178,6 +186,7 @@ resetBtn?.addEventListener("click", () => {
 
 clearBtn?.addEventListener("click", () => {
   clearModel();
+  if (statusEl) statusEl.textContent = "Modell borttagen.";
 });
 
 clipToggle?.addEventListener("change", (e) => setClipEnabled(e.target.checked));
