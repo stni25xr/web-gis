@@ -51,6 +51,7 @@
       this._uColor = null;
       this._positions = null;
       this._renderPositions = null;
+      this._localPositions = null;
     }
 
     updateCenter(center, beamZ, radius) {
@@ -134,6 +135,43 @@
       return true;
     }
 
+    _buildLocalGeometry() {
+      if (!this.center) return false;
+      const halfWidth = (this.beamWidthDeg * DEG2RAD) / 2;
+      const angleStart = this.sweepAngle - halfWidth;
+      const angleEnd = this.sweepAngle + halfWidth;
+      const segments = 16;
+      const vertexCount = segments + 2;
+      const positions = new Float32Array(vertexCount * 3);
+
+      positions[0] = 0;
+      positions[1] = 0;
+      positions[2] = 0;
+
+      for (let i = 0; i <= segments; i++) {
+        const t = i / segments;
+        const ang = angleStart + (angleEnd - angleStart) * t;
+        const idx = (i + 1) * 3;
+        positions[idx] = Math.cos(ang) * this.radius;
+        positions[idx + 1] = Math.sin(ang) * this.radius;
+        positions[idx + 2] = 0;
+      }
+
+      this._localPositions = positions;
+      this.vertexCount = vertexCount;
+      return true;
+    }
+
+    _transformLocalToRender(matrix, x, y, z, out, offset) {
+      const m = matrix;
+      const rx = m[0] * x + m[4] * y + m[8] * z + m[12];
+      const ry = m[1] * x + m[5] * y + m[9] * z + m[13];
+      const rz = m[2] * x + m[6] * y + m[10] * z + m[14];
+      out[offset] = rx;
+      out[offset + 1] = ry;
+      out[offset + 2] = rz;
+    }
+
     render(context) {
       const gl = context.gl;
 
@@ -149,39 +187,33 @@
       const angularSpeed = (2 * Math.PI) / this.rotationPeriodSec;
       this.sweepAngle = (this.sweepAngle + angularSpeed * dt) % (2 * Math.PI);
 
-      if (!this._buildGeometry()) return;
+      if (!this._buildLocalGeometry()) return;
 
-      if (!this._renderPositions || this._renderPositions.length !== this._positions.length) {
-        this._renderPositions = new Float32Array(this._positions.length);
+      if (!this._renderPositions || this._renderPositions.length !== this._localPositions.length) {
+        this._renderPositions = new Float32Array(this._localPositions.length);
       }
 
       const view = this.view;
-      const sr = view?.spatialReference || null;
-      const isWebMerc = sr && (sr.isWebMercator || sr.wkid === 3857 || sr.wkid === 102100);
-      const isWgs = sr && (sr.isWGS84 || sr.wkid === 4326);
-
-      let points = this._positions;
-      if (!isWebMerc && isWgs && this.webMercatorUtils?.webMercatorToGeographic) {
-        const converted = new Float64Array(this._positions.length);
-        for (let i = 0; i < this._positions.length; i += 3) {
-          const wm = { x: this._positions[i], y: this._positions[i + 1], spatialReference: { wkid: 3857 } };
-          const geo = this.webMercatorUtils.webMercatorToGeographic(wm);
-          converted[i] = geo.x;
-          converted[i + 1] = geo.y;
-          converted[i + 2] = this._positions[i + 2];
-        }
-        points = converted;
-      }
-
-      this.externalRenderers.toRenderCoordinates(
+      const center = this.center;
+      const origin = [center.x, center.y, this.beamZ];
+      const transform = new Float32Array(16);
+      this.externalRenderers.renderCoordinateTransformAt(
         view,
-        points,
-        0,
-        this._renderPositions,
-        0,
-        this.vertexCount,
-        context.renderCoordinateSystem
+        origin,
+        center.spatialReference || view.spatialReference,
+        transform
       );
+
+      for (let i = 0; i < this._localPositions.length; i += 3) {
+        this._transformLocalToRender(
+          transform,
+          this._localPositions[i],
+          this._localPositions[i + 1],
+          this._localPositions[i + 2],
+          this._renderPositions,
+          i
+        );
+      }
 
       gl.useProgram(this._program);
       gl.bindBuffer(gl.ARRAY_BUFFER, this._buffer);
