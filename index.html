@@ -1882,6 +1882,7 @@ Maintain safe distance
         policeDriveLayer.removeAll();
         policeDriveGraphic = null;
       }
+      window.stopPoliceDriveAnimation = stopPoliceDriveAnimation;
 
       window.clearPoliceRoute = function () {
         safetyRouteLayer.removeAll();
@@ -4287,22 +4288,26 @@ Maintain safe distance
           timestamp: new Date().toISOString()
         });
       }
+      window.clearRoute = clearRoute;
       function clearSafetyRoute() {
         safetyRouteLayer.removeAll();
         updateSeniorSafetyRouteButtons();
       }
+      window.clearSafetyRoute = clearSafetyRoute;
 
       function resetNearest() {
         nearHint.textContent = "Klicka på kartan för att mäta";
         nearResult.textContent = "";
         nearMeta.textContent = "";
       }
+      window.resetNearest = resetNearest;
 
       function clearDepartures(message) {
         depList.innerHTML = "";
         depMeta.textContent = "";
         depHint.textContent = message || "Klicka på en busshållplats";
       }
+      window.clearDepartures = clearDepartures;
 
       function renderAttributes(attrs) {
         attrTable.innerHTML = "";
@@ -4918,6 +4923,10 @@ Maintain safe distance
     function closeRight() {
       rightOpen = false;
       updateUI();
+      window.infoFlowController?.clearAllFlows?.();
+      if (typeof window.stopPoliceDriveAnimation === "function") {
+        window.stopPoliceDriveAnimation();
+      }
     }
     function closeAll() {
       leftOpen = false;
