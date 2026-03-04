@@ -3,10 +3,6 @@ const viewEl = document.getElementById("bimView");
 const toggleBtn = document.getElementById("bimViewerToggle");
 const fileInput = document.getElementById("bimViewerFile");
 const clearFileBtn = document.getElementById("bimViewerClearFile");
-if (!panel || !viewEl) {
-  console.warn("[BIM] Panel not found");
-}
-
 const moveBtn = document.getElementById("bimViewerMove");
 const rotateBtn = document.getElementById("bimViewerRotate");
 const closeBtn = document.getElementById("bimViewerClose");
@@ -18,51 +14,88 @@ const clipX = document.getElementById("bimClipX");
 const clipY = document.getElementById("bimClipY");
 const clipZ = document.getElementById("bimClipZ");
 
-if (!window.THREE) {
-  console.error("[BIM] THREE not loaded");
+let THREE;
+let OrbitControls;
+let TransformControls;
+let GLTFLoader;
+let scene;
+let camera;
+let renderer;
+let orbit;
+let transform;
+let loader;
+let modelRoot;
+let grid;
+let planeX;
+let planeY;
+let planeZ;
+let clippingPlanes;
+
+function setStatus(text) {
+  if (statusEl) statusEl.textContent = text || "";
 }
-const THREE = window.THREE;
-const OrbitControls = THREE?.OrbitControls;
-const TransformControls = THREE?.TransformControls;
-const GLTFLoader = THREE?.GLTFLoader;
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0b1220);
+async function initThree() {
+  if (!panel || !viewEl) return;
+  try {
+    const threeMod = await import("https://unpkg.com/three@0.160.0/build/three.module.js");
+    const orbitMod = await import("https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js");
+    const transformMod = await import("https://unpkg.com/three@0.160.0/examples/jsm/controls/TransformControls.js");
+    const gltfMod = await import("https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js");
+    THREE = threeMod;
+    OrbitControls = orbitMod.OrbitControls;
+    TransformControls = transformMod.TransformControls;
+    GLTFLoader = gltfMod.GLTFLoader;
+  } catch (e) {
+    console.error("[BIM] Failed to load Three modules", e);
+    setStatus("Kunde inte ladda Three.js.");
+    return;
+  }
 
-const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 10000);
-camera.position.set(6, 6, 10);
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0b1220);
+  camera = new THREE.PerspectiveCamera(55, 1, 0.1, 10000);
+  camera.position.set(6, 6, 10);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(window.devicePixelRatio || 1);
-renderer.localClippingEnabled = true;
-viewEl.appendChild(renderer.domElement);
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(window.devicePixelRatio || 1);
+  renderer.localClippingEnabled = true;
+  viewEl.innerHTML = "";
+  viewEl.appendChild(renderer.domElement);
 
-const orbit = new OrbitControls(camera, renderer.domElement);
-orbit.enableDamping = true;
+  orbit = new OrbitControls(camera, renderer.domElement);
+  orbit.enableDamping = true;
 
-const transform = new TransformControls(camera, renderer.domElement);
-transform.addEventListener("dragging-changed", (e) => {
-  orbit.enabled = !e.value;
-});
-scene.add(transform);
+  transform = new TransformControls(camera, renderer.domElement);
+  transform.addEventListener("dragging-changed", (e) => {
+    orbit.enabled = !e.value;
+  });
+  scene.add(transform);
 
-const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-scene.add(ambient);
-const dir = new THREE.DirectionalLight(0xffffff, 0.7);
-dir.position.set(5, 10, 8);
-scene.add(dir);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+  scene.add(ambient);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.7);
+  dir.position.set(5, 10, 8);
+  scene.add(dir);
 
-const grid = new THREE.GridHelper(20, 20, 0x1f2937, 0x111827);
-scene.add(grid);
+  grid = new THREE.GridHelper(20, 20, 0x1f2937, 0x111827);
+  scene.add(grid);
 
-const planeX = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
-const planeY = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-const planeZ = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-const clippingPlanes = [planeX, planeY, planeZ];
+  planeX = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
+  planeY = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  planeZ = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+  clippingPlanes = [planeX, planeY, planeZ];
 
-let modelRoot = null;
+  loader = new GLTFLoader();
+  resize();
+  animate();
+
+  const modelUrl = viewEl.dataset.model || "./data/model.glb";
+  loadModel(modelUrl);
+}
 
 function setClipEnabled(enabled) {
+  if (!renderer) return;
   renderer.localClippingEnabled = enabled;
   if (modelRoot) {
     modelRoot.traverse((child) => {
@@ -79,6 +112,7 @@ function setClipEnabled(enabled) {
 }
 
 function updateClipFromSliders() {
+  if (!planeX) return;
   planeX.constant = Number(clipX?.value || 0);
   planeY.constant = Number(clipY?.value || 0);
   planeZ.constant = Number(clipZ?.value || 0);
@@ -107,11 +141,9 @@ function fitToModel(object) {
   updateClipFromSliders();
 }
 
-const loader = new GLTFLoader();
-
 function loadModel(url) {
-  if (!url) return;
-  if (statusEl) statusEl.textContent = "Laddar modell…";
+  if (!loader || !url) return;
+  setStatus("Laddar modell…");
   loader.load(
     url,
     (gltf) => {
@@ -120,55 +152,54 @@ function loadModel(url) {
       scene.add(modelRoot);
       fitToModel(modelRoot);
       setClipEnabled(Boolean(clipToggle?.checked));
-      if (statusEl) statusEl.textContent = "Model laddad.";
+      setStatus("Model laddad.");
     },
     undefined,
     (err) => {
       console.error("[BIM] Failed to load model", err);
-      if (statusEl) statusEl.textContent = "Kunde inte ladda modellen.";
+      setStatus("Kunde inte ladda modellen.");
     }
   );
 }
 
-const modelUrl = viewEl.dataset.model || "./data/model.glb";
-loadModel(modelUrl);
-
-const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
+const raycaster = {
+  obj: null,
+  pointer: null
+};
 
 function selectAt(event) {
+  if (!modelRoot) return;
+  if (!raycaster.obj) {
+    raycaster.obj = new THREE.Raycaster();
+    raycaster.pointer = new THREE.Vector2();
+  }
   const rect = renderer.domElement.getBoundingClientRect();
-  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-  raycaster.setFromCamera(pointer, camera);
+  raycaster.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  raycaster.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.obj.setFromCamera(raycaster.pointer, camera);
   const targets = [];
-  if (modelRoot) {
-    modelRoot.traverse((child) => {
-      if (child.isMesh) targets.push(child);
-    });
-  }
-  const hits = raycaster.intersectObjects(targets, true);
-  if (hits.length) {
-    transform.attach(hits[0].object);
-  }
+  modelRoot.traverse((child) => {
+    if (child.isMesh) targets.push(child);
+  });
+  const hits = raycaster.obj.intersectObjects(targets, true);
+  if (hits.length) transform.attach(hits[0].object);
 }
 
-renderer.domElement.addEventListener("pointerdown", selectAt);
+function resize() {
+  if (!renderer || !camera) return;
+  const w = viewEl.clientWidth || 1;
+  const h = viewEl.clientHeight || 1;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h, false);
+}
 
-moveBtn?.addEventListener("click", () => transform.setMode("translate"));
-rotateBtn?.addEventListener("click", () => transform.setMode("rotate"));
-closeBtn?.addEventListener("click", () => panel?.classList.remove("is-open"));
-toggleBtn?.addEventListener("click", () => {
-  if (!panel) return;
-  panel.classList.toggle("is-open");
-});
-fileInput?.addEventListener("change", (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  const url = URL.createObjectURL(file);
-  loadModel(url);
-  panel?.classList.add("is-open");
-});
+function animate() {
+  if (!renderer) return;
+  requestAnimationFrame(animate);
+  orbit.update();
+  renderer.render(scene, camera);
+}
 
 function clearModel() {
   if (modelRoot) {
@@ -176,42 +207,37 @@ function clearModel() {
     modelRoot = null;
   }
   transform.detach();
+  setStatus("Modell borttagen.");
 }
 
+toggleBtn?.addEventListener("click", () => {
+  panel?.classList.toggle("is-open");
+});
+closeBtn?.addEventListener("click", () => panel?.classList.remove("is-open"));
+fileInput?.addEventListener("change", (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  loadModel(url);
+  panel?.classList.add("is-open");
+});
 clearFileBtn?.addEventListener("click", () => {
   if (fileInput) fileInput.value = "";
   clearModel();
 });
-
 resetBtn?.addEventListener("click", () => {
   if (modelRoot) fitToModel(modelRoot);
 });
-
-clearBtn?.addEventListener("click", () => {
-  clearModel();
-  if (statusEl) statusEl.textContent = "Modell borttagen.";
-});
-
+clearBtn?.addEventListener("click", clearModel);
+moveBtn?.addEventListener("click", () => transform.setMode("translate"));
+rotateBtn?.addEventListener("click", () => transform.setMode("rotate"));
 clipToggle?.addEventListener("change", (e) => setClipEnabled(e.target.checked));
 clipX?.addEventListener("input", updateClipFromSliders);
 clipY?.addEventListener("input", updateClipFromSliders);
 clipZ?.addEventListener("input", updateClipFromSliders);
 
-function resize() {
-  const w = viewEl.clientWidth || 1;
-  const h = viewEl.clientHeight || 1;
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
-  renderer.setSize(w, h, false);
-}
 window.addEventListener("resize", resize);
-resize();
+if (viewEl) viewEl.addEventListener("pointerdown", selectAt);
 
-function animate() {
-  requestAnimationFrame(animate);
-  orbit.update();
-  renderer.render(scene, camera);
-}
-animate();
-
-window.BIMViewer = { loadModel, clearModel };
+window.BIMViewer = { loadModel, clearModel, initThree };
+initThree();
