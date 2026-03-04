@@ -971,6 +971,7 @@ Maintain safe distance
   <script type="module" src="./cloudWms.js"></script>
   <script type="module" src="./windLive.js"></script>
   <script type="module" src="./bimViewer.js"></script>
+  <script src="./radarSweepRenderer.js"></script>
 
   <!-- ARCGIS (3D) -->
   <script>
@@ -992,11 +993,12 @@ Maintain safe distance
       "esri/config",
       "esri/geometry/geometryEngine",
       "esri/geometry/support/webMercatorUtils",
+      "esri/views/3d/externalRenderers",
       "esri/geometry/Polyline",
       "esri/geometry/Polygon",
       "esri/layers/GraphicsLayer",
       "esri/Graphic"
-    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, WebTileLayer, esriConfig, geometryEngine, webMercatorUtils, Polyline, Polygon, GraphicsLayer, Graphic) {
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, WebTileLayer, esriConfig, geometryEngine, webMercatorUtils, externalRenderers, Polyline, Polygon, GraphicsLayer, Graphic) {
 
       const RESROBOT_KEY = window.RESROBOT_KEY || "";
       const ORS_KEY = window.ORS_KEY || "";
@@ -4326,6 +4328,7 @@ Maintain safe distance
         corridorLayer.removeAll();
         lastRouteGeometry = null;
         lastWalkRoute = null;
+        if (typeof window.stopRadarBeam === "function") window.stopRadarBeam();
         updateRouteColorButton();
         updateSeniorRouteButtons();
         saveClick({
@@ -4597,6 +4600,15 @@ Maintain safe distance
           const mins = Math.max(1, Math.round(summary.duration / 60));
           const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
           nearMeta.innerHTML = `${dist} • ca ${mins} min (gångväg)${elevLine}`;
+          if (typeof window.startRadarBeam === "function" && lastMeasurePoint) {
+            window.startRadarBeam({
+              view,
+              externalRenderers,
+              webMercatorUtils,
+              center: lastMeasurePoint,
+              radius: 500
+            });
+          }
         }
         updateSeniorRouteButtons();
       });
@@ -4690,6 +4702,15 @@ Maintain safe distance
           const mins = Math.max(1, Math.round(summary.duration / 60));
           const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
           svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>${elevLine}`;
+          if (typeof window.startRadarBeam === "function" && lastSvcMeasurePoint) {
+            window.startRadarBeam({
+              view,
+              externalRenderers,
+              webMercatorUtils,
+              center: lastSvcMeasurePoint,
+              radius: 500
+            });
+          }
         }
         updateSeniorRouteButtons();
       });
