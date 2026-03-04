@@ -100,7 +100,7 @@
   function loadElevationGeojson() {
     if (loadPromise) return loadPromise;
     STATE.status = "loading";
-    const candidates = ["./data/Hojder_Oxnehaga.geojson"];
+    const candidates = ["./data/Hojder_Oxnehaga_2.geojson"];
     loadPromise = (async () => {
       for (const url of candidates) {
         try {
