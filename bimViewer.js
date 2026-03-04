@@ -7,6 +7,7 @@ const panel = document.getElementById("bimViewerPanel");
 const viewEl = document.getElementById("bimView");
 const toggleBtn = document.getElementById("bimViewerToggle");
 const fileInput = document.getElementById("bimViewerFile");
+const clearFileBtn = document.getElementById("bimViewerClearFile");
 if (!panel || !viewEl) {
   console.warn("[BIM] Panel not found");
 }
@@ -148,7 +149,8 @@ moveBtn?.addEventListener("click", () => transform.setMode("translate"));
 rotateBtn?.addEventListener("click", () => transform.setMode("rotate"));
 closeBtn?.addEventListener("click", () => panel?.classList.remove("is-open"));
 toggleBtn?.addEventListener("click", () => {
-  panel?.classList.toggle("is-open");
+  if (!panel) return;
+  panel.classList.toggle("is-open");
 });
 fileInput?.addEventListener("change", (e) => {
   const file = e.target.files?.[0];
@@ -157,16 +159,25 @@ fileInput?.addEventListener("change", (e) => {
   loadModel(url);
 });
 
-resetBtn?.addEventListener("click", () => {
-  if (modelRoot) fitToModel(modelRoot);
-});
-
-clearBtn?.addEventListener("click", () => {
+function clearModel() {
   if (modelRoot) {
     scene.remove(modelRoot);
     modelRoot = null;
   }
   transform.detach();
+}
+
+clearFileBtn?.addEventListener("click", () => {
+  if (fileInput) fileInput.value = "";
+  clearModel();
+});
+
+resetBtn?.addEventListener("click", () => {
+  if (modelRoot) fitToModel(modelRoot);
+});
+
+clearBtn?.addEventListener("click", () => {
+  clearModel();
 });
 
 clipToggle?.addEventListener("change", (e) => setClipEnabled(e.target.checked));
@@ -191,4 +202,4 @@ function animate() {
 }
 animate();
 
-window.BIMViewer = { loadModel };
+window.BIMViewer = { loadModel, clearModel };

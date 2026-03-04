@@ -156,7 +156,7 @@
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.35);
   display: none;
   flex-direction: column;
-  z-index: 20;
+  z-index: 60;
 }
 
 #bimViewerPanel .bim-viewer-controls label {
