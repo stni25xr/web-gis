@@ -132,7 +132,7 @@
   color: var(--app-text-muted);
 }
 
-#viewDiv {
+#sceneView {
   top: 88px;
   left: 260px;
   right: 320px;
@@ -321,7 +321,7 @@ button.ghost:hover {
 @media (max-width: 900px) {
   #sidebar { width: 210px; }
   #info-panel { width: 260px; }
-  #viewDiv {
+  #sceneView {
     left: 210px;
     right: 260px;
   }
@@ -330,7 +330,7 @@ button.ghost:hover {
 @media (max-width: 720px) {
   #sidebar { width: 180px; }
   #info-panel { display: none; }
-  #viewDiv {
+  #sceneView {
     left: 180px;
     right: 0;
   }
@@ -341,7 +341,7 @@ button.ghost:hover {
     height: 72px;
     padding: 0 var(--app-spacing-3);
   }
-  #viewDiv {
+  #sceneView {
     top: 72px;
     height: calc(100% - 72px - (2 * var(--app-spacing-3)));
   }

@@ -92,7 +92,7 @@
 }
 
 /* Force map to full size (override ui-2026 defaults) */
-#viewDiv {
+#sceneView {
   top: 110px !important;
   left: 0 !important;
   right: 0 !important;

@@ -143,23 +143,26 @@
     #uniqueList li { padding:4px 0; border-bottom:1px dashed #e2e8f0; color:#0f172a; }
 
     /* ===== Map ===== */
-    #viewDiv {
+    #sceneView {
       position:absolute; top:110px; left:0; right:0; bottom:0; width:100%; height:auto; z-index:1;
     }
 
     @media (max-width: 900px) {
       #sidebar { width:220px; }
       #info-panel { width:260px; }
-      #viewDiv { left:0; right:0; }
+      #sceneView { left:0; right:0; }
     }
     @media (max-width: 720px) {
       #sidebar { width:180px; }
       #info-panel { display:none; }
-      #viewDiv { left:0; right:0; }
+      #sceneView { left:0; right:0; }
     }
   </style>
   <link rel="stylesheet" href="./styles.css" />
   <script src="./config.local.js"></script>
+  <script src="./elevationProvider.js"></script>
+  <script src="./elevationFromGeojson.js"></script>
+  <script src="./elevationProviderLocalPoints.js"></script>
   <script type="module">
     import JSZip from "https://esm.sh/jszip@3.10.1";
     window.JSZip = JSZip;
@@ -678,7 +681,7 @@
   </aside>
 
   <!-- MAP -->
-  <div id="viewDiv" role="main" aria-label="3D‑karta"></div>
+  <div id="sceneView" role="main" aria-label="3D‑karta"></div>
   <div id="windBlueTint" class="wind-blue-tint hidden" aria-hidden="true"></div>
   <div id="bus15Widget" aria-live="polite">Bus simulation: init...</div>
   <div id="iotContainer" style="display:none;"></div>
@@ -955,7 +958,8 @@ Maintain safe distance
   <script>
     require([
       "esri/Map",
-      "esri/views/MapView",
+      "esri/views/SceneView",
+      "esri/layers/SceneLayer",
       "esri/layers/GeoJSONLayer",
       "esri/layers/FeatureLayer",
       "esri/layers/WebTileLayer",
@@ -966,7 +970,7 @@ Maintain safe distance
       "esri/geometry/Polygon",
       "esri/layers/GraphicsLayer",
       "esri/Graphic"
-    ], function (Map, MapView, GeoJSONLayer, FeatureLayer, WebTileLayer, esriConfig, geometryEngine, webMercatorUtils, Polyline, Polygon, GraphicsLayer, Graphic) {
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, WebTileLayer, esriConfig, geometryEngine, webMercatorUtils, Polyline, Polygon, GraphicsLayer, Graphic) {
 
       const RESROBOT_KEY = window.RESROBOT_KEY || "";
       const ORS_KEY = window.ORS_KEY || "";
@@ -1017,36 +1021,57 @@ Maintain safe distance
         });
       });
 
-      const map = new Map({ basemap: "osm" });
+      const map = new Map({ basemap: "osm", ground: "world-elevation" });
 
-      const routeLayer = new GraphicsLayer();
+      const routeLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 } });
       map.add(routeLayer);
-      const corridorLayer = new GraphicsLayer();
+      const corridorLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 1 } });
       map.add(corridorLayer);
-      const safetyRouteLayer = new GraphicsLayer();
+      const safetyRouteLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 } });
       map.add(safetyRouteLayer);
-      const policeDriveLayer = new GraphicsLayer();
+      const policeDriveLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 3 } });
       map.add(policeDriveLayer);
-      const bus15Layer = new GraphicsLayer();
+      const bus15Layer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 8 } });
       map.add(bus15Layer);
-      const bimMarkerLayer = new GraphicsLayer();
+      const bimMarkerLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 3 } });
       map.add(bimMarkerLayer);
-      const bimBuildingLayer = new GraphicsLayer();
+      const bimBuildingLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 0 } });
       map.add(bimBuildingLayer);
-      const busDashLayer = new GraphicsLayer();
+      const busDashLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 4 } });
       map.add(busDashLayer);
 
-      const view = new MapView({
-        container: "viewDiv",
+      const view = new SceneView({
+        container: "sceneView",
         map,
-        center: [14.187974955833315, 57.762686206841096],
-        zoom: 13
+        // Start at LOD1 camera to avoid post-load rescale
+        camera: { position: { latitude: 57.762686206841096, longitude: 14.187974955833315, z: 7500 }, tilt: 0 }
       });
       window.view = view;
       console.log("devicePixelRatio", window.devicePixelRatio);
       view.popup.dockEnabled = true;
       view.popup.dockOptions = { position: "top-right", breakpoint: false };
       view.popup.highlightEnabled = false;
+
+      function syncLighting() {
+        if (!view?.environment?.lighting) return;
+        const parts = new Intl.DateTimeFormat("sv-SE", {
+          timeZone: "Europe/Stockholm",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hourCycle: "h23"
+        }).formatToParts(new Date());
+        const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+        const year = Number(lookup.year);
+        const month = Number(lookup.month) - 1;
+        const day = Number(lookup.day);
+        // Always set to midday for daylight
+        view.environment.lighting.date = new Date(Date.UTC(year, month, day, 12, 0, 0));
+        view.environment.lighting.directShadowsEnabled = false;
+      }
+      syncLighting();
+      // Keep daylight fixed (no time-based darkening)
+      setInterval(syncLighting, 300000);
 
       view.highlightOptions = {
         color: "#7dd3fc",
@@ -1062,11 +1087,19 @@ Maintain safe distance
       window.refreshViewSize = refreshViewSize;
 
       // ResizeObserver for map container
-      const sceneEl = document.getElementById("viewDiv");
+      const sceneEl = document.getElementById("sceneView");
       if (sceneEl && "ResizeObserver" in window) {
         const ro = new ResizeObserver(() => refreshViewSize());
         ro.observe(sceneEl);
       }
+
+      // 3D‑byggnader (globalt)
+      const buildings = new SceneLayer({
+        portalItem: { id: "c444b24b184c4523a5dc96248bfea4e1" },
+        visible: false,
+        popupEnabled: false
+      });
+      map.add(buildings);
 
       const buildingFootprints = new GeoJSONLayer({
         url: "./data/Main_byggnad.geojson",
@@ -1283,6 +1316,9 @@ Maintain safe distance
       }
       view.when(() => {
         tryInitWind();
+        if (window.ElevationLocal?.init) {
+          window.ElevationLocal.init({ view, webMercatorUtils, GraphicsLayer, Graphic });
+        }
       });
       let incidentEtaTimer = null;
       let policeDriveTimer = null;
@@ -2662,6 +2698,7 @@ Maintain safe distance
       const bus = new GeoJSONLayer({
         url: "./data/Busshallplaster_oxnehaga.geojson",
         outFields: ["*"],
+        elevationInfo: { mode: "relative-to-ground", offset: 1 },
         renderer: {
           type: "simple",
           symbol: {
@@ -3840,137 +3877,36 @@ Maintain safe distance
         return `Höjdskillnad: ${diffLabel} m (↑ ${up} m / ↓ ${down} m)`;
       }
       function elevationLineHtml(stats) {
-        if (!stats) {
+        const elevStatus = window.ElevationLocal?.getStatus?.() || { status: "error", message: "" };
+        if (elevStatus.status === "loading" || elevStatus.status === "idle") {
           return `<div class="elevation-under-distance">Höjd: laddar…</div>`;
         }
-        if (stats.error === "api") {
+        if (elevStatus.status === "no-field") {
+          return `<div class="elevation-under-distance">Höjddata: saknar höjdfält</div>`;
+        }
+        if (elevStatus.status === "error" || elevStatus.status === "empty") {
           return `<div class="elevation-under-distance">Höjd: kunde inte laddas</div>`;
         }
-        if (stats.error === "outside") {
-          return `<div class="elevation-under-distance">Höjd: saknas (utanför höjdrutnät)</div>`;
+        if (stats?.error === "sparse") {
+          return `<div class="elevation-under-distance">Höjd: saknas i höjddata för denna sträcka</div>`;
+        }
+        if (!stats) {
+          return `<div class="elevation-under-distance">Höjd: saknas för området</div>`;
         }
         return `<div class="elevation-under-distance">${formatElevationInfo(stats)}</div>`;
       }
       const elevationCache = new Map();
-      const elevationQueryCache = new Map();
-      async function getElevation(lat, lon) {
-        const key = `${lat.toFixed(5)},${lon.toFixed(5)}`;
-        if (elevationQueryCache.has(key)) return elevationQueryCache.get(key);
-        const url = `https://api.opentopodata.org/v1/srtm90m?locations=${lat},${lon}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("Elevation API failed");
-        const data = await res.json();
-        const value = data?.results?.[0]?.elevation ?? null;
-        elevationQueryCache.set(key, value);
-        return value;
-      }
-      function haversineMeters(a, b) {
-        const R = 6371000;
-        const toRad = (v) => (v * Math.PI) / 180;
-        const dLat = toRad(b.lat - a.lat);
-        const dLon = toRad(b.lon - a.lon);
-        const lat1 = toRad(a.lat);
-        const lat2 = toRad(b.lat);
-        const h = Math.sin(dLat / 2) ** 2
-          + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-        return 2 * R * Math.asin(Math.sqrt(h));
-      }
-      function normalizeRoutePolyline(routePolyline) {
-        if (!routePolyline) return null;
-        const paths = routePolyline?.paths || [];
-        if (!paths.length || !paths[0].length) return null;
-        const sr = routePolyline.spatialReference;
-        if (sr && (sr.isWebMercator || sr.wkid === 3857 || sr.wkid === 102100) && webMercatorUtils) {
-          try {
-            const geo = webMercatorUtils.webMercatorToGeographic(routePolyline);
-            const gpaths = geo?.paths || [];
-            if (gpaths.length) return gpaths[0].map((p) => ({ lon: p[0], lat: p[1] }));
-          } catch (e) {
-            return null;
-          }
-        }
-        return paths[0].map((p) => ({ lon: p[0], lat: p[1] }));
-      }
-      function buildDistances(points) {
-        const distances = [0];
-        let total = 0;
-        for (let i = 1; i < points.length; i++) {
-          const d = haversineMeters(points[i - 1], points[i]);
-          total += d;
-          distances.push(total);
-        }
-        return { distances, total };
-      }
-      function pointAtDistance(points, distances, target) {
-        if (!points.length) return null;
-        const total = distances[distances.length - 1] || 0;
-        const t = Math.max(0, Math.min(target, total));
-        let i = 0;
-        while (i < distances.length - 2 && distances[i + 1] < t) i += 1;
-        const d0 = distances[i];
-        const d1 = distances[i + 1];
-        const ratio = d1 > d0 ? (t - d0) / (d1 - d0) : 0;
-        const a = points[i];
-        const b = points[i + 1] || a;
-        return {
-          lon: a.lon + (b.lon - a.lon) * ratio,
-          lat: a.lat + (b.lat - a.lat) * ratio
-        };
-      }
-      async function sampleRouteElevations(routePolyline) {
-        const points = normalizeRoutePolyline(routePolyline);
-        if (!points || points.length < 2) return { error: "outside" };
-        const { distances, total } = buildDistances(points);
-        if (!total) return { error: "outside" };
-
-        const spacing = 50;
-        const maxSamples = 120;
-        const step = total / spacing > maxSamples ? total / maxSamples : spacing;
-        const sampleDistances = [];
-        for (let d = 0; d <= total; d += step) sampleDistances.push(d);
-        if (sampleDistances[sampleDistances.length - 1] !== total) sampleDistances.push(total);
-
-        const zValues = [];
-        for (const d of sampleDistances) {
-          const pt = pointAtDistance(points, distances, d);
-          if (!pt) continue;
-          try {
-            const z = await getElevation(pt.lat, pt.lon);
-            if (Number.isFinite(z)) zValues.push(z);
-          } catch (e) {
-            return { error: "api" };
-          }
-        }
-
-        if (zValues.length < 5) {
-          console.debug("[ELEV] sparse samples", { valid: zValues.length, total: sampleDistances.length });
-          return { error: "outside" };
-        }
-
-        let totalUp = 0;
-        let totalDown = 0;
-        for (let i = 1; i < zValues.length; i++) {
-          const delta = zValues[i] - zValues[i - 1];
-          if (delta > 0) totalUp += delta;
-          else totalDown += Math.abs(delta);
-        }
-        return {
-          start: zValues[0],
-          end: zValues[zValues.length - 1],
-          diff: zValues[zValues.length - 1] - zValues[0],
-          up: totalUp,
-          down: totalDown
-        };
-      }
       async function getElevationStats(routePolyline) {
         if (!routePolyline) return null;
         const key = makeRouteKey(routePolyline);
         if (key && elevationCache.has(key)) return elevationCache.get(key);
         try {
-          const stats = await sampleRouteElevations(routePolyline);
-          if (stats) {
-            if (key) elevationCache.set(key, stats);
-            return stats;
+          if (window.ElevationLocal?.computeForPolyline) {
+            const stats = window.ElevationLocal.computeForPolyline(routePolyline);
+            if (stats) {
+              if (key) elevationCache.set(key, stats);
+              return stats;
+            }
           }
         } catch (e) {
           console.warn("Elevation calc failed:", e);
