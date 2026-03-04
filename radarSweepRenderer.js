@@ -1,25 +1,9 @@
 (() => {
   const DEG2RAD = Math.PI / 180;
   const DEFAULT_COLOR = [255, 140, 0, 0.8]; // opaque orange
+  const DEFAULT_WALK_SPEED_MPS = 1.4;
 
   let radarInstance = null;
-
-  function ensureRadarBadge() {
-    let badge = document.getElementById("radarDebugBadge");
-    if (!badge) {
-      badge = document.createElement("div");
-      badge.id = "radarDebugBadge";
-      badge.textContent = "RADAR ON (debug)";
-      badge.style.cssText = "position:fixed;top:90px;left:16px;z-index:9999;background:#ff8c00;color:#111;padding:6px 10px;border-radius:8px;font:600 12px/1.2 system-ui, sans-serif;box-shadow:0 4px 10px rgba(0,0,0,0.2);";
-      document.body.appendChild(badge);
-    }
-    return badge;
-  }
-
-  function hideRadarBadge() {
-    const badge = document.getElementById("radarDebugBadge");
-    if (badge) badge.remove();
-  }
 
   function normalizeCenter(center, view, webMercatorUtils) {
     if (!center) return null;
@@ -42,6 +26,18 @@
     }
 
     return { x, y, spatialReference: spatialReference };
+  }
+
+  function haversineMeters(a, b) {
+    const R = 6371000;
+    const lat1 = (a.y ?? a.latitude) * DEG2RAD;
+    const lat2 = (b.y ?? b.latitude) * DEG2RAD;
+    const dLat = lat2 - lat1;
+    const dLon = ((b.x ?? b.longitude) - (a.x ?? a.longitude)) * DEG2RAD;
+    const sinDLat = Math.sin(dLat / 2);
+    const sinDLon = Math.sin(dLon / 2);
+    const h = sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLon * sinDLon;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
   }
 
   class RadarSweepRenderer {
@@ -68,15 +64,52 @@
       this._uColor = null;
       this._renderPositions = null;
       this._localPositions = null;
-      this._debugUntil = 0;
-      this._debugBeamWidthDeg = 1;
-      this._debugZOffset = 0;
+
+      this._pathPoints = null;
+      this._pathCum = null;
+      this._pathTotal = 0;
+      this._pathStartMs = 0;
+      this._pathDurationMs = 0;
+      this._pathActive = false;
+      this._lastZSampleMs = 0;
     }
 
     updateCenter(center, beamZ, radius) {
       this.radius = radius ?? this.radius;
       this.center = normalizeCenter(center, this.view, this.webMercatorUtils);
       if (Number.isFinite(beamZ)) this.beamZ = beamZ;
+    }
+
+    setPath(points, durationSec) {
+      if (!Array.isArray(points) || points.length < 2) return;
+      const pts = points.map((p) => {
+        if (Array.isArray(p)) {
+          return { x: p[0], y: p[1], spatialReference: { wkid: 4326 } };
+        }
+        if (p?.longitude != null || p?.latitude != null) {
+          return { x: p.longitude ?? p.x, y: p.latitude ?? p.y, spatialReference: p.spatialReference || { wkid: 4326 } };
+        }
+        return { x: p.x, y: p.y, spatialReference: p.spatialReference || { wkid: 4326 } };
+      });
+
+      const cum = new Float64Array(pts.length);
+      let total = 0;
+      for (let i = 1; i < pts.length; i++) {
+        const seg = haversineMeters(pts[i - 1], pts[i]);
+        total += seg;
+        cum[i] = total;
+      }
+
+      this._pathPoints = pts;
+      this._pathCum = cum;
+      this._pathTotal = total;
+      this._pathStartMs = performance.now();
+      const duration = Number.isFinite(durationSec) && durationSec > 0
+        ? durationSec * 1000
+        : (total / DEFAULT_WALK_SPEED_MPS) * 1000;
+      this._pathDurationMs = Math.max(1000, duration);
+      this._pathActive = true;
+      this.center = pts[0];
     }
 
     setup(context) {
@@ -160,16 +193,66 @@
       out[offset + 2] = rz;
     }
 
-    render(context) {
-      const gl = context.gl;
+    _sampleBeamZ(center) {
+      const now = performance.now();
+      if (now - this._lastZSampleMs < 500) return;
+      this._lastZSampleMs = now;
 
-      if (!this.center) {
-        return;
+      const view = this.view;
+      const sampler = view?.groundView?.elevationSampler;
+      if (!sampler || typeof sampler.sample !== "function") return;
+
+      let pt = center;
+      const sr = center?.spatialReference;
+      if (view?.spatialReference?.isWebMercator && sr && (sr.isWGS84 || sr.wkid === 4326) && this.webMercatorUtils?.geographicToWebMercator) {
+        pt = this.webMercatorUtils.geographicToWebMercator({
+          type: "point",
+          x: center.x,
+          y: center.y,
+          spatialReference: sr
+        });
       }
 
-      const debugActive = this._debugUntil && performance.now() < this._debugUntil;
-      const beamWidthDeg = debugActive ? this._debugBeamWidthDeg : this.beamWidthDeg;
-      const zOffset = debugActive ? this._debugZOffset : 0;
+      try {
+        const res = sampler.sample(pt);
+        const z = res?.z ?? res?.geometry?.z;
+        if (Number.isFinite(z)) this.beamZ = z + 1.7;
+      } catch (e) {
+        // ignore sampling errors
+      }
+    }
+
+    _updatePathCenter() {
+      if (!this._pathActive || !this._pathPoints || !this._pathCum) return;
+      const now = performance.now();
+      const t = (now - this._pathStartMs) / this._pathDurationMs;
+      if (t >= 1) {
+        this.center = this._pathPoints[this._pathPoints.length - 1];
+        this._pathActive = false;
+        return;
+      }
+      const targetDist = t * this._pathTotal;
+      const cum = this._pathCum;
+      let idx = 1;
+      while (idx < cum.length && cum[idx] < targetDist) idx++;
+      const prev = this._pathPoints[idx - 1];
+      const next = this._pathPoints[idx] || prev;
+      const segStart = cum[idx - 1];
+      const segEnd = cum[idx] || segStart + 1;
+      const segT = segEnd === segStart ? 0 : (targetDist - segStart) / (segEnd - segStart);
+      this.center = {
+        x: prev.x + (next.x - prev.x) * segT,
+        y: prev.y + (next.y - prev.y) * segT,
+        spatialReference: prev.spatialReference || { wkid: 4326 }
+      };
+    }
+
+    render(context) {
+      const gl = context.gl;
+      if (!this.center) return;
+
+      this._updatePathCenter();
+      this._sampleBeamZ(this.center);
 
       const now = performance.now();
       if (this.lastTimeMs == null) this.lastTimeMs = now;
@@ -179,11 +262,7 @@
       const angularSpeed = (2 * Math.PI) / this.rotationPeriodSec;
       this.sweepAngle = (this.sweepAngle + angularSpeed * dt) % (2 * Math.PI);
 
-      const prevWidth = this.beamWidthDeg;
-      this.beamWidthDeg = beamWidthDeg;
-      const ok = this._buildLocalGeometry();
-      this.beamWidthDeg = prevWidth;
-      if (!ok) return;
+      if (!this._buildLocalGeometry()) return;
 
       if (!this._renderPositions || this._renderPositions.length !== this._localPositions.length) {
         this._renderPositions = new Float32Array(this._localPositions.length);
@@ -191,7 +270,7 @@
 
       const view = this.view;
       const center = this.center;
-      const origin = [center.x, center.y, this.beamZ + zOffset];
+      const origin = [center.x, center.y, this.beamZ];
       const transform = new Float32Array(16);
       this.externalRenderers.renderCoordinateTransformAt(
         view,
@@ -302,18 +381,29 @@
     } else {
       radarInstance.updateCenter(center, beamZ, radius);
     }
-    ensureRadarBadge();
-    // Temporary debug boost: full disk at +15m for 10 seconds to confirm visibility.
-    radarInstance._debugUntil = performance.now() + 10000;
-    radarInstance._debugBeamWidthDeg = 360;
-    radarInstance._debugZOffset = 15;
-    setTimeout(() => {
-      if (!radarInstance) return;
-      radarInstance._debugUntil = 0;
-      radarInstance._debugBeamWidthDeg = 1;
-      radarInstance._debugZOffset = 0;
-      hideRadarBadge();
-    }, 10000);
+    externalRenderers.requestRender(view);
+  };
+
+  window.startRadarAlongRoute = async function (opts) {
+    const view = opts?.view;
+    const externalRenderers = opts?.externalRenderers;
+    const webMercatorUtils = opts?.webMercatorUtils;
+    const Point = opts?.Point;
+    const radius = opts?.radius ?? 500;
+    const path = opts?.path;
+    const durationSec = opts?.durationSec;
+
+    if (!view || !externalRenderers || !Array.isArray(path) || path.length < 2) return;
+
+    if (!radarInstance) {
+      const first = Array.isArray(path[0]) ? { x: path[0][0], y: path[0][1], spatialReference: { wkid: 4326 } } : path[0];
+      const beamZ = await resolveBeamZ(view, first, Point);
+      radarInstance = new RadarSweepRenderer({ view, externalRenderers, webMercatorUtils, Point, radius });
+      radarInstance.updateCenter(first, beamZ, radius);
+      externalRenderers.add(view, radarInstance);
+    }
+    radarInstance.radius = radius;
+    radarInstance.setPath(path, durationSec);
     externalRenderers.requestRender(view);
   };
 
@@ -326,6 +416,5 @@
     }
     radarInstance.dispose();
     radarInstance = null;
-    hideRadarBadge();
   };
 })();

@@ -4596,24 +4596,26 @@ Maintain safe distance
       });
       nearRouteBtn.addEventListener("click", async () => {
         const summary = await drawWalkingRouteToFeature(lastNearestFeature, (msg) => { nearMeta.textContent = msg; });
-        if (summary?.distance != null && summary?.duration != null) {
-          const dist = formatDistanceColored(summary.distance);
-          const mins = Math.max(1, Math.round(summary.duration / 60));
-          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
-          nearMeta.innerHTML = `${dist} • ca ${mins} min (gångväg)${elevLine}`;
-          if (typeof window.startRadarBeam === "function" && lastMeasurePoint) {
-            window.startRadarBeam({
-              view,
-              externalRenderers,
-              webMercatorUtils,
-              Point,
-              center: lastMeasurePoint,
-              radius: 500
-            });
+          if (summary?.distance != null && summary?.duration != null) {
+            const dist = formatDistanceColored(summary.distance);
+            const mins = Math.max(1, Math.round(summary.duration / 60));
+            const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
+            nearMeta.innerHTML = `${dist} • ca ${mins} min (gångväg)${elevLine}`;
+            const path = lastRouteGeometry?.paths?.[0];
+            if (typeof window.startRadarAlongRoute === "function" && Array.isArray(path) && path.length > 1) {
+              window.startRadarAlongRoute({
+                view,
+                externalRenderers,
+                webMercatorUtils,
+                Point,
+                path,
+                durationSec: summary.duration,
+                radius: 500
+              });
+            }
           }
-        }
-        updateSeniorRouteButtons();
-      });
+          updateSeniorRouteButtons();
+        });
       nearClearRouteBtn.addEventListener("click", () => {
         clearRoute();
         updateSeniorRouteButtons();
@@ -4699,24 +4701,26 @@ Maintain safe distance
         lastMeasurePoint = lastSvcMeasurePoint;
         const header = `<div><b>${labelForService(selected.key)}</b> – ${selected.name}</div>`;
         const summary = await drawWalkingRouteToFeature(selected.feature, (msg) => { svcList.innerHTML = `${header}<div>${msg}</div>`; });
-        if (summary?.distance != null && summary?.duration != null) {
-          const dist = formatDistanceColored(summary.distance);
-          const mins = Math.max(1, Math.round(summary.duration / 60));
-          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
-          svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>${elevLine}`;
-          if (typeof window.startRadarBeam === "function" && lastSvcMeasurePoint) {
-            window.startRadarBeam({
-              view,
-              externalRenderers,
-              webMercatorUtils,
-              Point,
-              center: lastSvcMeasurePoint,
-              radius: 500
-            });
+          if (summary?.distance != null && summary?.duration != null) {
+            const dist = formatDistanceColored(summary.distance);
+            const mins = Math.max(1, Math.round(summary.duration / 60));
+            const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
+            svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>${elevLine}`;
+            const path = lastRouteGeometry?.paths?.[0];
+            if (typeof window.startRadarAlongRoute === "function" && Array.isArray(path) && path.length > 1) {
+              window.startRadarAlongRoute({
+                view,
+                externalRenderers,
+                webMercatorUtils,
+                Point,
+                path,
+                durationSec: summary.duration,
+                radius: 500
+              });
+            }
           }
-        }
-        updateSeniorRouteButtons();
-      });
+          updateSeniorRouteButtons();
+        });
       svcClearRouteBtn.addEventListener("click", () => {
         clearRoute();
         updateSeniorRouteButtons();
