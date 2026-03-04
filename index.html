@@ -603,21 +603,6 @@
       </details>
     </div>
 
-<div class="panel-section">
-      <details data-section="departures">
-        <summary class="panel-title">Avgångar (busshållplats)</summary>
-        <div class="panel-body">
-          <div id="depHint">Klicka på en busshållplats</div>
-          <div id="depMeta" style="font-size:12px;color:#64748b;margin-top:6px;"></div>
-          <div style="margin-top:6px;">
-            <a id="depLink" href="https://www.jlt.se/tidtabeller/" target="_blank" rel="noopener"
-               style="font-size:12px;color:#2563eb;text-decoration:none;">Öppna tidtabell online</a>
-          </div>
-          <ul id="depList"></ul>
-        </div>
-      </details>
-
-
     <div class="panel-section">
       <details data-section="service">
         <summary class="panel-title">Avstånd till service</summary>
@@ -641,7 +626,7 @@
 
     <div class="panel-section">
       <details data-section="safety">
-        <summary class="panel-title">Utryckningsnärhet</summary>
+        <summary class="panel-title">Trygghet (bil)</summary>
         <div class="panel-body">
           <div id="safeHint">Välj trygghetstjänst och klicka Mät avstånd</div>
           <div class="field-row" style="margin-top:6px;">
@@ -660,9 +645,22 @@
       </details>
     </div>
 
+    <div class="panel-section">
+      <details data-section="departures">
+        <summary class="panel-title">Avgångar (busshållplats)</summary>
+        <div class="panel-body">
+          <div id="depHint">Klicka på en busshållplats</div>
+          <div id="depMeta" style="font-size:12px;color:#64748b;margin-top:6px;"></div>
+          <div style="margin-top:6px;">
+            <a id="depLink" href="https://www.jlt.se/tidtabeller/" target="_blank" rel="noopener"
+               style="font-size:12px;color:#2563eb;text-decoration:none;">Öppna tidtabell online</a>
+          </div>
+          <ul id="depList"></ul>
         </div>
+      </details>
+    </div>
 
-    <div class="panel-section" style="display:none;">
+    <div class="panel-section">
       <details>
         <summary class="panel-title">Unika attribut</summary>
         <div class="panel-body">
@@ -3319,7 +3317,7 @@ Maintain safe distance
         const titles = {
           bus: "🚌 Närmsta busshållplats",
           service: "🏫🏥 Service nära dig",
-          safety: "🚗 Utryckningsnärhet",
+          safety: "🚗 Trygg resa med bil",
           departures: "🚌 Avgångar (busshållplats)"
         };
         seniorDetails.forEach((detail) => {
