@@ -161,7 +161,6 @@
   <link rel="stylesheet" href="./styles.css" />
   <script src="./config.local.js"></script>
   <script src="./elevationProvider.js"></script>
-  <script src="./elevationFromGeojson.js"></script>
   <script type="module">
     import JSZip from "https://esm.sh/jszip@3.10.1";
     window.JSZip = JSZip;
@@ -978,9 +977,6 @@ Maintain safe distance
       const ESRI_API_KEY = window.ESRI_API_KEY || "";
       if (ESRI_API_KEY) {
         esriConfig.apiKey = ESRI_API_KEY;
-      }
-      if (window.ElevationFromGeojson?.loadElevationGeojson) {
-        window.ElevationFromGeojson.loadElevationGeojson();
       }
 
       function saveClick(entry) {
@@ -3871,17 +3867,7 @@ Maintain safe distance
         const down = Math.round(stats.down || 0);
         const diff = Math.round(stats.diff || 0);
         const diffLabel = diff >= 0 ? `+${diff}` : `${diff}`;
-        return `Höjdskillnad: ${diffLabel} m (↑ ${up} m / ↓ ${down} m)`;
-      }
-      function elevationLineHtml(stats) {
-        const status = window.ElevationFromGeojson?.getStatus?.() || "error";
-        if (status === "loading" || status === "idle") {
-          return `<div class="elevation-under-distance">Höjd: laddar…</div>`;
-        }
-        if (!stats) {
-          return `<div class="elevation-under-distance">Höjd: saknas för området</div>`;
-        }
-        return `<div class="elevation-under-distance">${formatElevationInfo(stats)}</div>`;
+        return `Höjdskillnad: ${diffLabel} m • ↑ ${up} m / ↓ ${down} m`;
       }
       const elevationCache = new Map();
       async function getElevationStats(routePolyline) {
@@ -3889,8 +3875,35 @@ Maintain safe distance
         const key = makeRouteKey(routePolyline);
         if (key && elevationCache.has(key)) return elevationCache.get(key);
         try {
-          if (window.ElevationFromGeojson?.sampleElevationAlongPolyline) {
-            const stats = window.ElevationFromGeojson.sampleElevationAlongPolyline(routePolyline);
+          if (view?.ground?.queryElevation) {
+            const dense = geometryEngine.densify(routePolyline, 10, "meters");
+            const points = dense?.paths?.[0];
+            if (points && points.length >= 2) {
+              const multipoint = {
+                type: "multipoint",
+                points,
+                spatialReference: dense.spatialReference || routePolyline.spatialReference
+              };
+              const elevationResult = await view.ground.queryElevation(multipoint);
+              const zValues = (elevationResult?.geometry?.points || [])
+                .map((p) => p[2])
+                .filter((z) => Number.isFinite(z));
+              if (zValues.length >= 2) {
+                let totalUp = 0;
+                let totalDown = 0;
+                for (let i = 1; i < zValues.length; i++) {
+                  const delta = zValues[i] - zValues[i - 1];
+                  if (delta > 0) totalUp += delta;
+                  else totalDown += Math.abs(delta);
+                }
+                const stats = { up: totalUp, down: totalDown, diff: zValues[zValues.length - 1] - zValues[0] };
+                if (key) elevationCache.set(key, stats);
+                return stats;
+              }
+            }
+          }
+          if (window.ElevationProvider?.sampleRouteElevations) {
+            const stats = await window.ElevationProvider.sampleRouteElevations(routePolyline);
             if (stats) {
               if (key) elevationCache.set(key, stats);
               return stats;
@@ -3971,21 +3984,7 @@ Maintain safe distance
           const name = best.attributes?.Hplnamn || "Okänd hållplats";
           const nr = best.attributes?.Nr != null ? ` (${best.attributes.Nr})` : "";
           nearResult.textContent = `${name}${nr}`;
-          const distLine = `${formatDistance(bestDist)} • ca ${formatWalkTime(bestDist)} till fots`;
-          nearMeta.innerHTML = `${distLine}${elevationLineHtml(null)}`;
-          try {
-            const fWgs = toGeographic(best.geometry);
-            if (fWgs) {
-              const straight = new Polyline({
-                paths: [[[mapPtWgs.longitude, mapPtWgs.latitude], [fWgs.longitude, fWgs.latitude]]],
-                spatialReference: { wkid: 4326 }
-              });
-              const elevation = await getElevationStats(straight);
-              nearMeta.innerHTML = `${distLine}${elevationLineHtml(elevation)}`;
-            }
-          } catch (e) {
-            nearMeta.innerHTML = `${distLine}${elevationLineHtml(null)}`;
-          }
+          nearMeta.textContent = `${formatDistance(bestDist)} • ca ${formatWalkTime(bestDist)} till fots`;
         } catch (e) {
           nearHint.textContent = "Kunde inte beräkna avstånd";
           nearResult.textContent = "";
@@ -4049,15 +4048,17 @@ Maintain safe distance
         if (d == null) return;
         svcHint.textContent = "";
         const header = `<div><b>${labelForService(selected.key)}</b> – ${selected.name}</div>`;
-        svcList.innerHTML = `${header}<div>${formatDistanceColored(d)} • ca ${formatWalkTime(d)} till fots</div>${elevationLineHtml(null)}`;
+        svcList.innerHTML = `${header}<div>${formatDistanceColored(d)} • ca ${formatWalkTime(d)} till fots</div>`;
         try {
           const straight = new Polyline({
             paths: [[[mapPtWgs.longitude, mapPtWgs.latitude], [fWgs.longitude, fWgs.latitude]]],
             spatialReference: { wkid: 4326 }
           });
           const elevation = await getElevationStats(straight);
-          const elevLine = elevationLineHtml(elevation);
-          svcList.innerHTML = `${header}<div>${formatDistanceColored(d)} • ca ${formatWalkTime(d)} till fots</div>${elevLine}`;
+          if (elevation) {
+            const elevLine = `<div class="elevation-info">${formatElevationInfo(elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
+            svcList.innerHTML = `${header}<div>${formatDistanceColored(d)} • ca ${formatWalkTime(d)} till fots</div>${elevLine}`;
+          }
         } catch (e) {
           // ignore elevation errors
         }
@@ -4068,13 +4069,13 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistanceColored(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          const elevLine = elevationLineHtml(summary?.elevation);
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
           svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>${elevLine}`;
         } else {
           // Fallback: still attempt elevation from last route if available
           if (lastRouteGeometry) {
             const elevation = await getElevationStats(lastRouteGeometry);
-            const elevLine = elevationLineHtml(elevation);
+            const elevLine = `<div class="elevation-info">${formatElevationInfo(elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
             svcList.innerHTML = `${header}<div>${formatDistanceColored(d)} • ca ${formatWalkTime(d)} till fots</div>${elevLine}`;
           }
         }
@@ -4161,7 +4162,7 @@ Maintain safe distance
         if (d == null) return;
         safeHint.textContent = "";
         const header = `<div><b>${selected.name}</b></div>`;
-        safeList.innerHTML = `${header}<div>${formatDistance(d)} • ca ${formatWalkTime(d)} till fots</div>${elevationLineHtml(null)}`;
+        safeList.innerHTML = `${header}<div>${formatDistance(d)} • ca ${formatWalkTime(d)} till fots</div>`;
         const driveColor = selected.key === "fire"
           ? "#ef4444"
           : selected.key === "hospital"
@@ -4173,7 +4174,7 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistance(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          const elevLine = elevationLineHtml(summary?.elevation);
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
           safeList.innerHTML = `${header}<div>${dist} • ca ${mins} min (bil)</div>${elevLine}`;
         }
       }
@@ -4566,7 +4567,7 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistanceColored(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          const elevLine = elevationLineHtml(summary?.elevation);
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
           nearMeta.innerHTML = `${dist} • ca ${mins} min (gångväg)${elevLine}`;
         }
         updateSeniorRouteButtons();
@@ -4655,7 +4656,7 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistanceColored(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          const elevLine = elevationLineHtml(summary?.elevation);
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
           svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>${elevLine}`;
         }
         updateSeniorRouteButtons();
