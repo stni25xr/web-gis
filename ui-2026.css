@@ -336,3 +336,28 @@ button.ghost:hover {
     height: calc(100% - 72px - (2 * var(--app-spacing-3)));
   }
 }
+#info-panel {
+  font-size: 15px;
+}
+
+#info-panel .panel-title {
+  font-size: 18px;
+}
+
+#info-panel button {
+  font-size: 16px;
+  padding: 12px 14px;
+  min-height: 44px;
+}
+
+#seniorModeRow,
+.senior-toggle,
+[data-role="senior-toggle"] {
+  display: none !important;
+}
+
+.section-unique-attributes,
+#uniqueAttributesSection,
+[data-section="unika-attribut"] {
+  display: none !important;
+}

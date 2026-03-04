@@ -537,7 +537,7 @@
   <aside id="info-panel" aria-label="Info panel">
     <h2>Information <button id="rightPanelClose" class="panel-close" type="button" aria-label="Stäng information">✕</button></h2>
 
-    <div class="panel-section">
+    <div class="panel-section" id="seniorModeRow" data-role="senior-toggle">
       <div class="panel-body" style="margin-top:0;">
         <label style="display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer;">
           <input id="seniorModeToggle" type="checkbox" style="width:18px;height:18px;" />
@@ -564,7 +564,7 @@
       </details>
     </div>
 
-    <div class="panel-section">
+    <div class="panel-section" id="nearestBusSection">
       <details data-section="bus" open>
         <summary class="panel-title">Närmsta busshållplats</summary>
         <div class="panel-body">
@@ -625,7 +625,7 @@
       </details>
     </div>
 
-    <div class="panel-section">
+    <div class="panel-section" id="departuresSection">
       <details data-section="departures">
         <summary class="panel-title">Avgångar (busshållplats)</summary>
         <div class="panel-body">
@@ -640,7 +640,7 @@
       </details>
     </div>
 
-    <div class="panel-section">
+    <div class="panel-section" id="uniqueAttributesSection" data-section="unika-attribut">
       <details>
         <summary class="panel-title">Unika attribut</summary>
         <div class="panel-body">
@@ -2883,7 +2883,7 @@ Maintain safe distance
           type: "FeatureCollection",
           features: [{
             type: "Feature",
-            properties: { name: "Polis Myndighet Huskvarna" },
+            properties: { name: "Räddningstjänst, Huskvarna" },
             geometry: { type: "Point", coordinates: [14.27955692260687, 57.78795689226685] }
           }]
         })),
@@ -3152,6 +3152,11 @@ Maintain safe distance
       const buildingTypeApply = document.getElementById("buildingTypeApply");
       const buildingTypeClear = document.getElementById("buildingTypeClear");
       const oxnehagaExportBtn = document.getElementById("oxnehagaExportBtn");
+      const nearestSection = document.getElementById("nearestBusSection");
+      const departuresSection = document.getElementById("departuresSection");
+      if (nearestSection && departuresSection) {
+        nearestSection.insertAdjacentElement("afterend", departuresSection);
+      }
 
       const layerOptions = [
         { id: "buildings", title: "Byggnader", layer: buildings },
