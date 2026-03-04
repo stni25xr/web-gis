@@ -394,8 +394,8 @@
         </label>
       </div>
       <div class="switch-row switch-child">
-        <span class="switch-label">Räddningstjänst</span>
-        <label class="switch" aria-label="Räddningstjänst">
+        <span class="switch-label">Polis Myndighet</span>
+        <label class="switch" aria-label="Polis Myndighet">
           <input id="swFire" type="checkbox" checked />
           <span class="slider"></span>
         </label>
@@ -464,7 +464,7 @@
         </div>
         <div class="legend-item">
           <span class="legend-fire"></span>
-          <span>Räddningstjänst</span>
+          <span>Polis Myndighet</span>
         </div>
         <div class="legend-item">
           <span class="legend-hospital"></span>
@@ -703,11 +703,11 @@
   <div id="incidentModal" style="display:none;">
     <div class="incident-modal">
       <div class="incident-header">
-        <div class="incident-title">Räddningstjänst</div>
+        <div class="incident-title">Polis Myndighet</div>
         <button id="incidentClose" type="button" aria-label="Close incident">✕</button>
       </div>
       <div class="incident-body">
-        <div id="incidentEta" class="incident-eta">Räddningstjänst på plats: beräknas…</div>
+        <div id="incidentEta" class="incident-eta">Polis Myndighet på plats: beräknas…</div>
         <div class="incident-text">
 🚓 POLICE TRAINING SCENARIO
 Scenario Title: Disturbance with Unknown Object
@@ -2882,7 +2882,7 @@ Maintain safe distance
           type: "FeatureCollection",
           features: [{
             type: "Feature",
-            properties: { name: "Räddningstjänsten Huskvarna" },
+            properties: { name: "Polis Myndighet Huskvarna" },
             geometry: { type: "Point", coordinates: [14.27955692260687, 57.78795689226685] }
           }]
         })),
@@ -3694,7 +3694,7 @@ Maintain safe distance
         ]);
         safetyIndex = [];
         (pRes.features || []).forEach((f, i) => safetyIndex.push({ id: `police:${i}`, key: "police", name: f.attributes?.name || "Polis", feature: f }));
-        (fRes.features || []).forEach((f, i) => safetyIndex.push({ id: `fire:${i}`, key: "fire", name: f.attributes?.name || "Räddningstjänst", feature: f }));
+        (fRes.features || []).forEach((f, i) => safetyIndex.push({ id: `fire:${i}`, key: "fire", name: f.attributes?.name || "Polis Myndighet", feature: f }));
         (hRes.features || []).forEach((f, i) => safetyIndex.push({ id: `hospital:${i}`, key: "hospital", name: f.attributes?.name || "Sjukhus", feature: f }));
         (sRes.features || []).forEach((f, i) => safetyIndex.push({ id: `shelter:${i}`, key: "shelter", name: f.attributes?.namn || f.attributes?.name || "Skyddsrum", feature: f }));
       }
@@ -4029,6 +4029,19 @@ Maintain safe distance
         const eLon = end.longitude ?? end.x;
         const eLat = end.latitude ?? end.y;
 
+        const drawRoute = async (coords, summary) => {
+          lastSafetyRouteCoords = coords;
+          lastSafetyRouteSummary = summary || null;
+          safetyRouteLayer.removeAll();
+          const route = new Polyline({ paths: [coords], spatialReference: { wkid: 4326 } });
+          safetyRouteLayer.add(new Graphic({
+            geometry: route,
+            symbol: { type: "simple-line", color: safetyColor || "#1d4ed8", width: 3 }
+          }));
+          const elevation = await getElevationStats(route);
+          return { ...(summary || {}), elevation };
+        };
+
         const drawStraight = async () => {
           const route = new Polyline({ paths: [[[sLon, sLat], [eLon, eLat]]], spatialReference: { wkid: 4326 } });
           safetyRouteLayer.removeAll();
@@ -4043,9 +4056,26 @@ Maintain safe distance
           return { distance: meters, duration, elevation };
         };
 
+        const fetchOsrmRoute = async () => {
+          const url = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${eLon},${eLat}?overview=full&geometries=geojson`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("OSRM " + res.status);
+          const data = await res.json();
+          const route = data?.routes?.[0];
+          const coords = route?.geometry?.coordinates;
+          if (!coords || coords.length < 2) throw new Error("OSRM no route");
+          return { coords, summary: { distance: route.distance, duration: route.duration } };
+        };
+
         if (!ORS_KEY) {
-          status("ORS saknas – visar rak linje");
-          return await drawStraight();
+          status("ORS saknas – provar OSRM");
+          try {
+            const osrm = await fetchOsrmRoute();
+            return await drawRoute(osrm.coords, osrm.summary);
+          } catch (e) {
+            status("OSRM misslyckades – visar rak linje");
+            return await drawStraight();
+          }
         }
 
         const url = "https://api.openrouteservice.org/v2/directions/driving-car/geojson";
@@ -4055,27 +4085,26 @@ Maintain safe distance
             headers: { "Content-Type": "application/json", "Authorization": ORS_KEY },
             body: JSON.stringify({ coordinates: [[sLon, sLat], [eLon, eLat]] })
           });
+          if (!res.ok) throw new Error("ORS " + res.status);
           const data = await res.json();
           const feat = data?.features?.[0];
           const coords = feat?.geometry?.coordinates;
           const summary = feat?.properties?.summary;
           if (!coords || coords.length < 2) {
-            status("Ingen rutt hittades – visar rak linje");
+            status("ORS hittade ingen rutt – provar OSRM");
+            const osrm = await fetchOsrmRoute();
+            return await drawRoute(osrm.coords, osrm.summary);
+          }
+          return await drawRoute(coords, summary);
+        } catch (e) {
+          status("ORS fel – provar OSRM");
+          try {
+            const osrm = await fetchOsrmRoute();
+            return await drawRoute(osrm.coords, osrm.summary);
+          } catch (e2) {
+            status("Ruttfel – visar rak linje");
             return await drawStraight();
           }
-          lastSafetyRouteCoords = coords;
-          lastSafetyRouteSummary = summary || null;
-          safetyRouteLayer.removeAll();
-          const route = new Polyline({ paths: [coords], spatialReference: { wkid: 4326 } });
-          safetyRouteLayer.add(new Graphic({
-            geometry: route,
-            symbol: { type: "simple-line", color: safetyColor || "#1d4ed8", width: 3 }
-          }));
-          const elevation = await getElevationStats(route);
-          return { ...(summary || {}), elevation };
-        } catch (e) {
-          status("Ruttfel – visar rak linje");
-          return await drawStraight();
         }
       }
 
