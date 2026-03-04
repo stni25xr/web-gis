@@ -665,6 +665,34 @@
   <div id="windBlueTint" class="wind-blue-tint hidden" aria-hidden="true"></div>
   <div id="bus15Widget" aria-live="polite">Bus simulation: init...</div>
   <div id="iotContainer" style="display:none;"></div>
+  <div id="bimViewerPanel" aria-label="BIM viewer">
+    <div class="bim-viewer-header">
+      <div>BIM‑viewer</div>
+      <div class="bim-viewer-actions">
+        <button id="bimViewerMove" type="button">Move</button>
+        <button id="bimViewerRotate" type="button">Rotate</button>
+        <button id="bimViewerClose" type="button" aria-label="Close BIM viewer">✕</button>
+      </div>
+    </div>
+    <div class="bim-viewer-body">
+      <div id="bimView" data-model="./data/model.glb"></div>
+      <div class="bim-viewer-controls">
+        <label><input id="bimClipToggle" type="checkbox" checked /> Clip</label>
+        <div class="bim-slider">
+          <span>X</span>
+          <input id="bimClipX" type="range" min="-50" max="50" step="1" value="0" />
+        </div>
+        <div class="bim-slider">
+          <span>Y</span>
+          <input id="bimClipY" type="range" min="-50" max="50" step="1" value="0" />
+        </div>
+        <div class="bim-slider">
+          <span>Z</span>
+          <input id="bimClipZ" type="range" min="-50" max="50" step="1" value="0" />
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="bimModal" style="display:none;">
     <div class="bim-modal">
       <div class="bim-header">
@@ -925,6 +953,7 @@ Maintain safe distance
   <script type="module" src="./pm25Live.js"></script>
   <script type="module" src="./cloudWms.js"></script>
   <script type="module" src="./windLive.js"></script>
+  <script type="module" src="./bimViewer.js"></script>
 
   <!-- ARCGIS (3D) -->
   <script>
