@@ -1,6 +1,6 @@
 (() => {
   const DEG2RAD = Math.PI / 180;
-  const DEFAULT_COLOR = [255, 140, 0, 0.6]; // opaque-ish orange
+  const DEFAULT_COLOR = [255, 140, 0, 0.8]; // opaque orange
 
   let radarInstance = null;
 
@@ -170,7 +170,15 @@
         points = converted;
       }
 
-      this.externalRenderers.toRenderCoordinates(view, points, 0, this._renderPositions, 0, this.vertexCount);
+      this.externalRenderers.toRenderCoordinates(
+        view,
+        points,
+        0,
+        this._renderPositions,
+        0,
+        this.vertexCount,
+        context.renderCoordinateSystem
+      );
 
       gl.useProgram(this._program);
       gl.bindBuffer(gl.ARRAY_BUFFER, this._buffer);
@@ -190,6 +198,7 @@
 
       gl.enable(gl.DEPTH_TEST);
       gl.depthFunc(gl.LEQUAL);
+      gl.disable(gl.CULL_FACE);
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.depthMask(false);
