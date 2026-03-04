@@ -443,26 +443,6 @@
           <span>Vatten</span>
         </div>
         <div class="legend-item">
-          <span class="legend-swatch" style="background:rgba(16,185,129,0.35); border-color:rgba(16,185,129,0.9);"></span>
-          <span>Skolväg (gång) 0–5</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-swatch" style="background:linear-gradient(90deg, rgba(16,185,129,0.35), rgba(245,158,11,0.35)); border-color:rgba(131,172,70,0.9);"></span>
-          <span>Skolväg (gång) 5–10</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-swatch" style="background:rgba(245,158,11,0.35); border-color:rgba(245,158,11,0.9);"></span>
-          <span>Skolväg (gång) 10–15</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-swatch" style="background:linear-gradient(90deg, rgba(245,158,11,0.35), rgba(239,68,68,0.35)); border-color:rgba(242,113,40,0.9);"></span>
-          <span>Skolväg (gång) 15–20</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-swatch" style="background:rgba(239,68,68,0.35); border-color:rgba(239,68,68,0.9);"></span>
-          <span>Skolväg (gång) 20–25</span>
-        </div>
-        <div class="legend-item">
           <span class="legend-daycare"></span>
           <span>Förskolor</span>
         </div>
@@ -2727,60 +2707,12 @@ Maintain safe distance
         url: "./data/Skol_Polygons_walk.geojson",
         outFields: ["*"],
         renderer: {
-          type: "unique-value",
-          field: "Name",
-          defaultSymbol: {
+          type: "simple",
+          symbol: {
             type: "simple-fill",
-            color: [148, 163, 184, 0.2],
-            outline: { color: [148, 163, 184, 0.7], width: 1 }
-          },
-          uniqueValueInfos: [
-            {
-              value: "Location 1 : 0 - 5",
-              label: "0 – 5",
-              symbol: {
-                type: "simple-fill",
-                color: [16, 185, 129, 0.35],
-                outline: { color: [16, 185, 129, 0.9], width: 1 }
-              }
-            },
-            {
-              value: "Location 1 : 5 - 10",
-              label: "5 – 10",
-              symbol: {
-                type: "simple-fill",
-                color: [131, 172, 70, 0.35],
-                outline: { color: [131, 172, 70, 0.9], width: 1 }
-              }
-            },
-            {
-              value: "Location 1 : 10 - 15",
-              label: "10 – 15",
-              symbol: {
-                type: "simple-fill",
-                color: [245, 158, 11, 0.35],
-                outline: { color: [245, 158, 11, 0.9], width: 1 }
-              }
-            },
-            {
-              value: "Location 1 : 15 - 20",
-              label: "15 – 20",
-              symbol: {
-                type: "simple-fill",
-                color: [242, 113, 40, 0.35],
-                outline: { color: [242, 113, 40, 0.9], width: 1 }
-              }
-            },
-            {
-              value: "Location 1 : 20 - 25",
-              label: "20 – 25",
-              symbol: {
-                type: "simple-fill",
-                color: [239, 68, 68, 0.35],
-                outline: { color: [239, 68, 68, 0.9], width: 1 }
-              }
-            }
-          ]
+            color: [59, 130, 246, 0.15],
+            outline: { color: [59, 130, 246, 0.9], width: 2 }
+          }
         },
         visible: false,
         popupTemplate: {
