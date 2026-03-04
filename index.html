@@ -3758,6 +3758,10 @@ Maintain safe distance
         const minutes = meters / 83.333; // ~5 km/h
         return Math.max(1, Math.round(minutes)) + " min";
       }
+      function formatDriveTime(meters) {
+        const minutes = meters / 833.333; // ~50 km/h
+        return Math.max(1, Math.round(minutes)) + " min";
+      }
       function distanceColor(meters) {
         if (meters < 500) return "#22c55e";
         if (meters < 900) return "#f59e0b";
@@ -4126,7 +4130,7 @@ Maintain safe distance
         if (d == null) return;
         safeHint.textContent = "";
         const header = `<div><b>${selected.name}</b></div>`;
-        safeList.innerHTML = `${header}<div>${formatDistance(d)} • ca ${formatWalkTime(d)} till fots</div>`;
+        safeList.innerHTML = `${header}<div>${formatDistance(d)} • ca ${formatDriveTime(d)} min (bil)</div>`;
         const driveColor = selected.key === "fire"
           ? "#ef4444"
           : selected.key === "hospital"
