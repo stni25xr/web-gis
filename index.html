@@ -993,12 +993,13 @@ Maintain safe distance
       "esri/config",
       "esri/geometry/geometryEngine",
       "esri/geometry/support/webMercatorUtils",
+      "esri/geometry/Point",
       "esri/views/3d/externalRenderers",
       "esri/geometry/Polyline",
       "esri/geometry/Polygon",
       "esri/layers/GraphicsLayer",
       "esri/Graphic"
-    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, WebTileLayer, esriConfig, geometryEngine, webMercatorUtils, externalRenderers, Polyline, Polygon, GraphicsLayer, Graphic) {
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, WebTileLayer, esriConfig, geometryEngine, webMercatorUtils, Point, externalRenderers, Polyline, Polygon, GraphicsLayer, Graphic) {
 
       const RESROBOT_KEY = window.RESROBOT_KEY || "";
       const ORS_KEY = window.ORS_KEY || "";
@@ -4605,6 +4606,7 @@ Maintain safe distance
               view,
               externalRenderers,
               webMercatorUtils,
+              Point,
               center: lastMeasurePoint,
               radius: 500
             });
@@ -4707,6 +4709,7 @@ Maintain safe distance
               view,
               externalRenderers,
               webMercatorUtils,
+              Point,
               center: lastSvcMeasurePoint,
               radius: 500
             });

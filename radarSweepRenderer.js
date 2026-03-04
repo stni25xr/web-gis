@@ -14,7 +14,9 @@
     let spatialReference = sr || { wkid: 4326 };
 
     if (isWgs && view?.spatialReference?.isWebMercator && webMercatorUtils?.geographicToWebMercator) {
-      const wm = webMercatorUtils.geographicToWebMercator({ x, y, spatialReference });
+      const wm = webMercatorUtils.geographicToWebMercator(center?.type === "point"
+        ? center
+        : { type: "point", x, y, spatialReference });
       return { x: wm.x, y: wm.y, spatialReference: view.spatialReference };
     }
 
@@ -30,6 +32,7 @@
       this.view = opts.view;
       this.externalRenderers = opts.externalRenderers;
       this.webMercatorUtils = opts.webMercatorUtils;
+      this.Point = opts.Point;
       this.radius = opts.radius ?? 500;
       this.beamWidthDeg = 1;
       this.rotationPeriodSec = 1;
@@ -218,15 +221,12 @@
     }
   }
 
-  async function resolveBeamZ(view, center) {
+  async function resolveBeamZ(view, center, PointCtor) {
     if (!view?.ground || !center) return 1.7;
     try {
-      const geom = {
-        type: "point",
-        x: center.x,
-        y: center.y,
-        spatialReference: center.spatialReference || view.spatialReference
-      };
+      const geom = PointCtor
+        ? new PointCtor({ x: center.x, y: center.y, spatialReference: center.spatialReference || view.spatialReference })
+        : { type: "point", x: center.x, y: center.y, spatialReference: center.spatialReference || view.spatialReference };
       const res = await view.ground.queryElevation(geom);
       const z = res?.geometry?.z;
       if (Number.isFinite(z)) return z + 1.7;
@@ -240,6 +240,7 @@
     const view = opts?.view;
     const externalRenderers = opts?.externalRenderers;
     const webMercatorUtils = opts?.webMercatorUtils;
+    const Point = opts?.Point;
     const centerRaw = opts?.center;
     const radius = opts?.radius ?? 500;
 
@@ -247,10 +248,10 @@
 
     const center = normalizeCenter(centerRaw, view, webMercatorUtils);
     if (!center) return;
-    const beamZ = await resolveBeamZ(view, center);
+    const beamZ = await resolveBeamZ(view, center, Point);
 
     if (!radarInstance) {
-      radarInstance = new RadarSweepRenderer({ view, externalRenderers, webMercatorUtils, radius });
+      radarInstance = new RadarSweepRenderer({ view, externalRenderers, webMercatorUtils, Point, radius });
       radarInstance.updateCenter(center, beamZ, radius);
       externalRenderers.add(view, radarInstance);
     } else {
