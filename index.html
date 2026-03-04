@@ -4648,7 +4648,7 @@ Maintain safe distance
         safeList.innerHTML = "";
         lastSafeMeasurePoint = null;
       });
-      safeRouteBtn.addEventListener("click", () => {
+      safeRouteBtn.addEventListener("click", async () => {
         if (!safeSelect.value) {
           safeHint.textContent = "Välj trygghet i listan";
           return;
@@ -4660,7 +4660,15 @@ Maintain safe distance
           return;
         }
         const driveColor = selected.key === "fire" ? "#ef4444" : "#1d4ed8";
-        drawDrivingRouteToFeature(selected.feature, driveColor, (msg) => { safeList.innerHTML = `<div>${msg}</div>`; });
+        const header = `<div><b>${selected.name}</b></div>`;
+        const summary = await drawDrivingRouteToFeature(selected.feature, driveColor, (msg) => {
+          safeList.innerHTML = `${header}<div>${msg}</div>`;
+        });
+        if (summary?.distance != null && summary?.duration != null) {
+          const dist = formatDistance(summary.distance);
+          const mins = Math.max(1, Math.round(summary.duration / 60));
+          safeList.innerHTML = `${header}<div>${dist} • ca ${mins} min (bil)</div>`;
+        }
         updateSeniorSafetyRouteButtons();
       });
       safeClearRouteBtn.addEventListener("click", () => {
