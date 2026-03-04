@@ -159,6 +159,22 @@
   z-index: 20;
 }
 
+#bimViewerPanel .bim-viewer-controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#bimViewerPanel input[type="range"] {
+  width: 100%;
+}
+
+#bimViewerPanel .bim-slider span {
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #cbd5f5;
+}
+
 #bimViewerPanel.is-open {
   display: flex;
 }

@@ -685,7 +685,14 @@
     <div class="bim-viewer-body">
       <div id="bimView" data-model="./data/model.glb"></div>
       <div class="bim-viewer-controls">
-        <label><input id="bimClipToggle" type="checkbox" checked /> Clip</label>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label style="display:flex;align-items:center;gap:6px;">
+            <input id="bimClipToggle" type="checkbox" checked />
+            Clip
+          </label>
+          <button id="bimViewerReset" type="button" style="margin-left:auto;">Reset</button>
+          <button id="bimViewerClear" type="button">Remove</button>
+        </div>
         <div class="bim-slider">
           <span>X</span>
           <input id="bimClipX" type="range" min="-50" max="50" step="1" value="0" />

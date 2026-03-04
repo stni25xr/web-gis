@@ -14,6 +14,8 @@ if (!panel || !viewEl) {
 const moveBtn = document.getElementById("bimViewerMove");
 const rotateBtn = document.getElementById("bimViewerRotate");
 const closeBtn = document.getElementById("bimViewerClose");
+const resetBtn = document.getElementById("bimViewerReset");
+const clearBtn = document.getElementById("bimViewerClear");
 const clipToggle = document.getElementById("bimClipToggle");
 const clipX = document.getElementById("bimClipX");
 const clipY = document.getElementById("bimClipY");
@@ -153,6 +155,18 @@ fileInput?.addEventListener("change", (e) => {
   if (!file) return;
   const url = URL.createObjectURL(file);
   loadModel(url);
+});
+
+resetBtn?.addEventListener("click", () => {
+  if (modelRoot) fitToModel(modelRoot);
+});
+
+clearBtn?.addEventListener("click", () => {
+  if (modelRoot) {
+    scene.remove(modelRoot);
+    modelRoot = null;
+  }
+  transform.detach();
 });
 
 clipToggle?.addEventListener("change", (e) => setClipEnabled(e.target.checked));
