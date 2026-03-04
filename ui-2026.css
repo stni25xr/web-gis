@@ -211,6 +211,12 @@
   background: #111827;
 }
 
+#bimViewerFile {
+  width: 100%;
+  font-size: 12px;
+  color: #e2e8f0;
+}
+
 .bim-slider {
   display: grid;
   grid-template-columns: 20px 1fr;

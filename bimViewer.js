@@ -5,6 +5,8 @@ import { GLTFLoader } from "https://unpkg.com/three@0.160.0/examples/jsm/loaders
 
 const panel = document.getElementById("bimViewerPanel");
 const viewEl = document.getElementById("bimView");
+const toggleBtn = document.getElementById("bimViewerToggle");
+const fileInput = document.getElementById("bimViewerFile");
 if (!panel || !viewEl) {
   console.warn("[BIM] Panel not found");
 }
@@ -96,20 +98,27 @@ function fitToModel(object) {
 }
 
 const loader = new GLTFLoader();
+
+function loadModel(url) {
+  if (!url) return;
+  loader.load(
+    url,
+    (gltf) => {
+      if (modelRoot) scene.remove(modelRoot);
+      modelRoot = gltf.scene;
+      scene.add(modelRoot);
+      fitToModel(modelRoot);
+      setClipEnabled(Boolean(clipToggle?.checked));
+    },
+    undefined,
+    (err) => {
+      console.error("[BIM] Failed to load model", err);
+    }
+  );
+}
+
 const modelUrl = viewEl.dataset.model || "./data/model.glb";
-loader.load(
-  modelUrl,
-  (gltf) => {
-    modelRoot = gltf.scene;
-    scene.add(modelRoot);
-    fitToModel(modelRoot);
-    setClipEnabled(Boolean(clipToggle?.checked));
-  },
-  undefined,
-  (err) => {
-    console.error("[BIM] Failed to load model", err);
-  }
-);
+loadModel(modelUrl);
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -136,6 +145,15 @@ renderer.domElement.addEventListener("pointerdown", selectAt);
 moveBtn?.addEventListener("click", () => transform.setMode("translate"));
 rotateBtn?.addEventListener("click", () => transform.setMode("rotate"));
 closeBtn?.addEventListener("click", () => panel?.classList.remove("is-open"));
+toggleBtn?.addEventListener("click", () => {
+  panel?.classList.toggle("is-open");
+});
+fileInput?.addEventListener("change", (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  loadModel(url);
+});
 
 clipToggle?.addEventListener("change", (e) => setClipEnabled(e.target.checked));
 clipX?.addEventListener("input", updateClipFromSliders);
@@ -159,5 +177,4 @@ function animate() {
 }
 animate();
 
-// Open panel on load (can be toggled later)
-panel?.classList.add("is-open");
+window.BIMViewer = { loadModel };
