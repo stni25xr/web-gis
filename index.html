@@ -3863,7 +3863,7 @@ Maintain safe distance
         const diffLabel = diff >= 0 ? `+${diff}` : `${diff}`;
         return `Höjdskillnad: ${diffLabel} m • ↑ ${up} m / ↓ ${down} m`;
       }
-      const elevationCache = new Map();
+      const elevationCache = new globalThis.Map();
       async function getElevationStats(routePolyline) {
         if (!routePolyline) return null;
         const key = makeRouteKey(routePolyline);
