@@ -304,11 +304,13 @@ html, body, body.app {
 }
 
 #sidebar {
+  left: 56px;
   transform: translateX(-100%);
 }
 
 #info-panel {
-  transform: translateX(100%);
+  left: 56px;
+  transform: translateX(-100%);
 }
 
 #sidebar.is-open {
@@ -319,15 +321,29 @@ html, body, body.app {
   transform: translateX(0);
 }
 
-.panel-tab {
+.left-rail {
   position: fixed;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 110px;
+  bottom: 0;
+  left: 0;
+  width: 56px;
+  background: #2b2b2b;
+  border-right: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+  gap: 8px;
+  z-index: 1100;
+}
+.panel-tab {
+  position: static;
+  transform: none;
   width: 40px;
-  height: 140px;
+  height: 40px;
   border: none;
-  border-radius: 10px;
-  background: #1f232b;
+  border-radius: 8px;
+  background: #2f2f2f;
   color: #e2e8f0;
   font-size: 18px;
   cursor: pointer;
@@ -337,7 +353,12 @@ html, body, body.app {
   justify-content: center;
   padding: 0;
 }
-
+.panel-tab:hover,
+.panel-tab:focus-visible {
+  background: #3a3a3a;
+  outline: 2px solid rgba(37, 99, 235, 0.5);
+  outline-offset: 2px;
+}
 .panel-tab-left { left: 0; }
 .panel-tab-right { right: 0; }
 
@@ -430,6 +451,9 @@ html, body, body.app {
 
 .panel-tab-offset {
   top: calc(50% + 90px);
+}
+.panel-tab-offset-2 {
+  top: calc(50% - 90px);
 }
 
 /* Simulation time bar */
