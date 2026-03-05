@@ -115,7 +115,7 @@
     /* ===== Right Panel ===== */
     #info-panel {
       position:fixed; top:110px; right:0; width:320px; height:calc(100% - 110px);
-      background:#f7f9fb; border-left:1px solid #d7dee6; padding:16px; box-sizing:border-box; overflow-y:auto; z-index:10;
+      background:var(--bg, #f7f9fb); border-left:1px solid var(--stroke, #d7dee6); padding:16px; box-sizing:border-box; overflow-y:auto; z-index:10;
     }
     #info-panel h2 { margin:0 0 10px 0; font-size:16px; color:#1f2937; }
     .panel-section { background:#fff; border:1px solid #e3e7ee; border-radius:10px; padding:12px; margin-bottom:12px; box-shadow:0 1px 2px rgba(15,23,42,.05); }
@@ -141,17 +141,89 @@
     button:disabled { background:#9bb3da; border-color:#9bb3da; cursor:not-allowed; }
     #uniqueList { list-style:none; padding:0; margin:8px 0 0 0; font-size:13px; }
     #uniqueList li { padding:4px 0; border-bottom:1px dashed #e2e8f0; color:#0f172a; }
-    .infoPanel { font-size:14px; line-height:1.35; }
+    .infoPanel {
+      font-size:14px;
+      line-height:1.35;
+      overflow-x:hidden;
+      --bg: #ffffff;
+      --card: #f7f9fc;
+      --stroke: rgba(15, 23, 42, 0.10);
+      --text: #0f172a;
+      --muted: rgba(15, 23, 42, 0.65);
+      --primary: #2563eb;
+      --primaryHover: #1d4ed8;
+      --primarySoft: rgba(37, 99, 235, 0.10);
+      --danger: #ef4444;
+      --shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+      background: var(--bg);
+      color: var(--text);
+    }
+    .infoPanel * { max-width:100%; }
     .infoPanel h2,
-    .infoPanel h3 { font-size:16px; letter-spacing:normal; text-transform:none; }
-    .infoPanel .panel-title { font-size:14px; letter-spacing:normal; text-transform:none; }
-    .infoPanel .sectionTitle { font-size:14px; font-weight:700; color:#334155; margin:8px 0 4px 0; }
+    .infoPanel h3 { font-size:16px; letter-spacing:normal; text-transform:none; color:var(--text); }
+    .infoPanel .panel-title { font-size:14px; letter-spacing:normal; text-transform:none; color:var(--text); font-weight:700; }
+    .infoPanel .panel-section {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+    .infoPanel .sectionTitle { font-size:14px; font-weight:700; color:var(--text); margin:8px 0 4px 0; }
     .infoPanel .cardTitle { font-size:14px; }
-    .infoPanel .muted { font-size:13px; color:#64748b; }
+    .infoPanel .muted { font-size:13px; color:var(--muted); }
     .infoPanel select,
-    .infoPanel button { font-size:14px; }
-    .infoPanel .support-accordion details { margin-top:8px; padding-top:8px; border-top:1px dashed #e2e8f0; }
-    .infoPanel .support-accordion details:first-child { margin-top:0; padding-top:0; border-top:0; }
+    .infoPanel button { font-size:13px; padding:10px 12px; border-radius:12px; line-height:1.1; min-height:38px; }
+    .infoPanel button { background:var(--primary); color:#fff; border-color:var(--primary); }
+    .infoPanel button:hover { background:var(--primaryHover); border-color:var(--primaryHover); }
+    .infoPanel button.secondary,
+    .infoPanel button.secondary:hover {
+      background:#fff; color:var(--text); border:1px solid var(--stroke);
+    }
+    .infoPanel .button-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .infoPanel .button-row button { width:100%; }
+    .infoPanel .panelDetails {
+      border:1px solid var(--stroke);
+      background:var(--card);
+      border-radius:18px;
+      overflow:hidden;
+      box-shadow: var(--shadow);
+      margin-bottom:12px;
+    }
+    .infoPanel .panelSummary {
+      list-style:none;
+      cursor:pointer;
+      padding:14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      user-select:none;
+    }
+    .infoPanel .panelSummary::-webkit-details-marker { display:none; }
+    .infoPanel .panelSummary::after {
+      content:"▾";
+      color:var(--muted);
+      transition:transform .2s ease;
+      font-size:14px;
+    }
+    .infoPanel .panelDetails[open] .panelSummary::after { transform:rotate(180deg); }
+    .infoPanel .summaryTitle { font-weight:800; color:var(--text); font-size:14px; }
+    .infoPanel .summaryHint { font-size:12px; color:var(--muted); }
+    .infoPanel .panelDetailsBody {
+      padding:12px 14px 14px 14px;
+      border-top:1px solid var(--stroke);
+      display:grid;
+      gap:12px;
+    }
+    .infoPanel .miniCard {
+      background:#fff;
+      border:1px solid var(--stroke);
+      border-radius:16px;
+      padding:12px;
+    }
+    .infoPanel .miniCard details { margin:0; }
+    .infoPanel .miniCard summary { list-style:none; cursor:default; }
+    .infoPanel .miniCard summary::-webkit-details-marker { display:none; }
 
     /* ===== Map ===== */
     #sceneView {
@@ -612,11 +684,11 @@
           <div class="field-row" style="margin-top:6px;">
             <select id="svcSelect"></select>
           </div>
-          <div class="field-row" style="margin-top:6px;">
+          <div class="field-row button-row" style="margin-top:6px;">
             <button id="svcMeasureBtn" type="button">Mät avstånd</button>
             <button id="svcResetBtn" type="button">Nollställ</button>
           </div>
-          <div class="field-row" style="margin-top:6px;">
+          <div class="field-row button-row" style="margin-top:6px;">
             <button id="svcRouteBtn" type="button">Visa gångväg</button>
             <button id="svcClearRouteBtn" type="button">Ta bort vägen</button>
           </div>
@@ -629,70 +701,78 @@
       </details>
     </div>
 
-    <div class="panel-section" id="supportGroup">
-      <details>
-        <summary class="panel-title">Alternativ &amp; Trygghet</summary>
-        <div class="panel-body">
-          <div class="muted" style="margin-bottom:8px;">Om väder/ork inte räcker: buss. Vid behov: bil. För trygghet: blåljus.</div>
-          <div class="support-accordion">
-            <details data-section="bus">
-              <summary class="panel-title">Buss (om du inte orkar gå)</summary>
-              <div class="panel-body">
-                <div class="muted" style="margin-bottom:6px;">Om du vill ta bussen</div>
-                <div class="sectionTitle">Närmsta busshållplats</div>
-                <div id="nearHint">Klicka på kartan för att mäta</div>
-                <div id="nearResult" style="font-size:13px;color:#0f172a;"></div>
-                <div id="nearMeta" style="font-size:12px;color:#64748b;margin-top:4px;"></div>
-                <div class="field-row" style="margin-top:8px;">
-                  <button id="nearMeasureBtn" type="button">Mät avstånd</button>
-                  <button id="nearResetBtn" type="button">Nollställ</button>
-                </div>
-                <div class="field-row" style="margin-top:6px;">
-                  <button id="nearRouteBtn" type="button">Visa gångväg</button>
-                  <button id="nearClearRouteBtn" type="button">Rensa rutt</button>
-                </div>
-                <div class="sectionTitle" style="margin-top:10px;">Avgångar</div>
-                <div id="depHint">Klicka på en busshållplats</div>
-                <div id="depMeta" style="font-size:12px;color:#64748b;margin-top:6px;"></div>
-                <div style="margin-top:6px;">
-                  <a id="depLink" href="https://www.jlt.se/tidtabeller/" target="_blank" rel="noopener"
-                     style="font-size:12px;color:#2563eb;text-decoration:none;">Öppna tidtabell online</a>
-                </div>
-                <ul id="depList"></ul>
+    <details id="altTryggDetails" class="panelDetails">
+      <summary class="panelSummary">
+        <span class="summaryTitle">Alternativ &amp; Trygghet</span>
+        <span class="summaryHint">Buss • Bil • Blåljus</span>
+      </summary>
+      <div class="panelDetailsBody">
+        <div class="miniCard">
+          <details data-section="bus" open>
+            <summary class="panel-title">Närmsta busshållplats</summary>
+            <div class="panel-body">
+              <div id="nearHint">Klicka på kartan för att mäta</div>
+              <div id="nearResult" style="font-size:13px;color:#0f172a;"></div>
+              <div id="nearMeta" style="font-size:12px;color:#64748b;margin-top:4px;"></div>
+              <div class="field-row button-row" style="margin-top:8px;">
+                <button id="nearMeasureBtn" type="button">Mät avstånd</button>
+                <button id="nearResetBtn" type="button">Nollställ</button>
               </div>
-            </details>
-            <details data-section="safety">
-              <summary class="panel-title">Trygg resa med bil</summary>
-              <div class="panel-body">
-                <div class="muted" style="margin-bottom:6px;">Om du behöver skjuts / bil</div>
-                <div id="safeHint">Välj trygghet och klicka Mät avstånd</div>
-                <div class="field-row" style="margin-top:6px;">
-                  <select id="safeSelect"></select>
-                </div>
-                <div class="field-row" style="margin-top:6px;">
-                  <button id="safeMeasureBtn" type="button">Mät avstånd</button>
-                  <button id="safeResetBtn" type="button">Nollställ</button>
-                </div>
-                <div class="field-row" style="margin-top:6px;">
-                  <button id="safeRouteBtn" type="button">Visa körväg</button>
-                  <button id="safeClearRouteBtn" type="button">Rensa rutt</button>
-                </div>
-                <div id="safeList" style="font-size:13px;color:#0f172a;"></div>
+              <div class="field-row button-row" style="margin-top:6px;">
+                <button id="nearRouteBtn" type="button">Visa gångväg</button>
+                <button id="nearClearRouteBtn" type="button">Rensa rutt</button>
               </div>
-            </details>
-            <details data-section="blue">
-              <summary class="panel-title">Blåljus &amp; framkomst</summary>
-              <div class="panel-body">
-                <div class="muted" style="margin-bottom:6px;">Ambulans, räddningstjänst och polis.</div>
-                <div id="blueHint" class="muted">Välj trygghet och mät för att se beräknad framkomst.</div>
-                <div id="blueList" style="font-size:13px;color:#0f172a;"></div>
-                <div class="muted" style="margin-top:6px;">Isochroner visas inte i denna vy ännu.</div>
-              </div>
-            </details>
-          </div>
+            </div>
+          </details>
         </div>
-      </details>
-    </div>
+        <div class="miniCard">
+          <details data-section="departures" open>
+            <summary class="panel-title">Avgångar (busshållplats)</summary>
+            <div class="panel-body">
+              <div id="depHint">Klicka på en busshållplats</div>
+              <div id="depMeta" style="font-size:12px;color:#64748b;margin-top:6px;"></div>
+              <div style="margin-top:6px;">
+                <a id="depLink" href="https://www.jlt.se/tidtabeller/" target="_blank" rel="noopener"
+                   style="font-size:12px;color:#2563eb;text-decoration:none;">Öppna tidtabell online</a>
+              </div>
+              <ul id="depList"></ul>
+            </div>
+          </details>
+        </div>
+        <div class="miniCard">
+          <details data-section="safety" open>
+            <summary class="panel-title">Trygg resa med bil</summary>
+            <div class="panel-body">
+              <div class="muted" style="margin-bottom:6px;">Om du behöver skjuts / bil</div>
+              <div id="safeHint">Välj trygghet och klicka Mät avstånd</div>
+              <div class="field-row" style="margin-top:6px;">
+                <select id="safeSelect"></select>
+              </div>
+              <div class="field-row button-row" style="margin-top:6px;">
+                <button id="safeMeasureBtn" type="button">Mät avstånd</button>
+                <button id="safeResetBtn" type="button">Nollställ</button>
+              </div>
+              <div class="field-row button-row" style="margin-top:6px;">
+                <button id="safeRouteBtn" type="button">Visa körväg</button>
+                <button id="safeClearRouteBtn" type="button">Rensa rutt</button>
+              </div>
+              <div id="safeList" style="font-size:13px;color:#0f172a;"></div>
+            </div>
+          </details>
+        </div>
+        <div class="miniCard">
+          <details data-section="blue" open>
+            <summary class="panel-title">Blåljus &amp; framkomst</summary>
+            <div class="panel-body">
+              <div class="muted" style="margin-bottom:6px;">Ambulans, räddningstjänst och polis.</div>
+              <div id="blueHint" class="muted">Välj trygghet och mät för att se beräknad framkomst.</div>
+              <div id="blueList" style="font-size:13px;color:#0f172a;"></div>
+              <div class="muted" style="margin-top:6px;">Isochroner visas inte i denna vy ännu.</div>
+            </div>
+          </details>
+        </div>
+      </div>
+    </details>
 
     <div class="panel-section" id="seniorModeRow" data-role="senior-toggle">
       <div class="panel-body" style="margin-top:0;">
@@ -721,22 +801,6 @@
       </details>
     </div>
 
-    <div class="panel-section" id="uniqueAttributesSection" data-section="unika-attribut">
-      <details>
-        <summary class="panel-title">Unika attribut</summary>
-        <div class="panel-body">
-          <div class="field-row">
-            <select id="uniqueLayer"></select>
-            <select id="uniqueField"></select>
-          </div>
-          <div class="field-row">
-            <button id="loadUnique" type="button">Hämta</button>
-            <span id="uniqueMeta" style="font-size:12px;color:#64748b;"></span>
-          </div>
-          <ul id="uniqueList"></ul>
-        </div>
-      </details>
-    </div>
   </aside>
 
   <!-- MAP -->
@@ -3238,6 +3302,7 @@ Maintain safe distance
       const uniqueList = document.getElementById("uniqueList");
       const uniqueMeta = document.getElementById("uniqueMeta");
       const loadUnique = document.getElementById("loadUnique");
+      const hasUniqueUI = !!(uniqueLayer && uniqueField && uniqueList && uniqueMeta && loadUnique);
       const buildingTypeFilter = document.getElementById("buildingTypeFilter");
       const buildingTypeApply = document.getElementById("buildingTypeApply");
       const buildingTypeClear = document.getElementById("buildingTypeClear");
@@ -3264,6 +3329,7 @@ Maintain safe distance
       }
 
       function fillLayerSelect() {
+        if (!hasUniqueUI) return;
         uniqueLayer.innerHTML = "";
         layerOptions.forEach((opt) => {
           const el = document.createElement("option");
@@ -3274,6 +3340,7 @@ Maintain safe distance
       }
 
       function fillFieldSelect(layer) {
+        if (!hasUniqueUI) return;
         uniqueField.innerHTML = "";
         const fields = (layer.fields || []).filter(isFieldUsable);
         fields.forEach((f) => {
@@ -3319,7 +3386,6 @@ Maintain safe distance
 
       const seniorToggle = document.getElementById("seniorModeToggle");
       const seniorDetails = Array.from(document.querySelectorAll("#info-panel details[data-section]"));
-      const supportDetails = Array.from(document.querySelectorAll("#supportGroup details[data-section]"));
 
       function setSeniorMode(on) {
         isSeniorMode = !!on;
@@ -3444,14 +3510,6 @@ Maintain safe distance
         });
       });
 
-      supportDetails.forEach((detail) => {
-        detail.addEventListener("toggle", () => {
-          if (!detail.open) return;
-          supportDetails.forEach((d) => {
-            if (d !== detail) d.open = false;
-          });
-        });
-      });
 
       if (seniorToggle) {
         let stored = null;
@@ -4953,6 +5011,7 @@ Maintain safe distance
       }
 
       async function loadUniqueValues() {
+        if (!hasUniqueUI) return;
         const layer = getLayerById(uniqueLayer.value);
         const field = uniqueField.value;
         if (!layer || !field) return;
@@ -4992,17 +5051,19 @@ Maintain safe distance
         }
       }
 
-      // init unique panel
-      fillLayerSelect();
-      const firstLayer = getLayerById(uniqueLayer.value);
-      if (firstLayer) {
-        firstLayer.when(() => fillFieldSelect(firstLayer));
+      // init unique panel (if present)
+      if (hasUniqueUI) {
+        fillLayerSelect();
+        const firstLayer = getLayerById(uniqueLayer.value);
+        if (firstLayer) {
+          firstLayer.when(() => fillFieldSelect(firstLayer));
+        }
+        uniqueLayer.addEventListener("change", () => {
+          const layer = getLayerById(uniqueLayer.value);
+          if (layer) layer.when(() => fillFieldSelect(layer));
+        });
+        loadUnique.addEventListener("click", loadUniqueValues);
       }
-      uniqueLayer.addEventListener("change", () => {
-        const layer = getLayerById(uniqueLayer.value);
-        if (layer) layer.when(() => fillFieldSelect(layer));
-      });
-      loadUnique.addEventListener("click", loadUniqueValues);
     });
   </script>
 
