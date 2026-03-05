@@ -76,7 +76,7 @@
 #bus15Widget {
   position: absolute;
   left: 290px;
-  top: 110px;
+  top: var(--header-height, 64px);
   z-index: 1002;
   pointer-events: none;
   padding: 6px 10px;
@@ -93,18 +93,18 @@
 
 /* Force map to full size (override ui-2026 defaults) */
 #sceneView {
-  top: 110px !important;
-  left: 0 !important;
+  top: var(--header-height, 64px) !important;
+  left: 56px !important;
   right: 0 !important;
   margin: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-  height: calc(100% - 110px) !important;
+  height: calc(100% - var(--header-height, 64px)) !important;
 }
 
 .wind-blue-tint {
   position: fixed;
-  inset: 110px 0 0 0;
+  inset: var(--header-height, 64px) 0 0 0;
   background: rgba(0, 110, 175, 0.55);
   pointer-events: none;
   z-index: 300;
@@ -297,7 +297,7 @@ html, body, body.app {
 #sidebar,
 #info-panel {
   position: fixed;
-  top: 110px;
+  top: var(--header-height, 64px);
   bottom: 0;
   transition: transform 0.25s ease;
   z-index: 1000;
@@ -323,7 +323,7 @@ html, body, body.app {
 
 .left-rail {
   position: fixed;
-  top: 110px;
+  top: var(--header-height, 64px);
   bottom: 0;
   left: 0;
   width: 56px;
@@ -374,7 +374,7 @@ html, body, body.app {
 /* Digital panel + tabs */
 #digitalPanel {
   position: fixed;
-  top: 110px;
+  top: var(--header-height, 64px);
   bottom: 0;
   left: 0;
   width: 440px;
@@ -454,6 +454,58 @@ html, body, body.app {
 }
 .panel-tab-offset-2 {
   top: calc(50% - 90px);
+}
+
+/* ArcGIS-style sidebar surface */
+#sidebar {
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+#sidebar h2 {
+  font-size: 18px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #111827;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 10px;
+}
+.sidebar-scroll {
+  color: #111827;
+}
+
+/* Map toolbar (right) */
+.map-toolbar {
+  position: fixed;
+  right: 16px;
+  bottom: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+  padding: 6px;
+  z-index: 1200;
+}
+.map-toolbar button {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.map-toolbar button:hover {
+  background: #f3f4f6;
+}
+
+@media (max-width: 900px) {
+  #sceneView { left: 0 !important; }
 }
 
 /* Simulation time bar */

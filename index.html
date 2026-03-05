@@ -114,7 +114,7 @@
 
     /* ===== Right Panel ===== */
     #info-panel {
-      position:fixed; top:110px; left:0; right:auto; width:320px; height:calc(100% - 110px);
+      position:fixed; top:var(--header-height, 64px); left:0; right:auto; width:320px; height:calc(100% - var(--header-height, 64px));
       background:var(--bg, #f7f9fb); border-right:1px solid var(--stroke, #d7dee6); padding:16px; box-sizing:border-box; overflow-y:auto; z-index:10;
     }
     #info-panel h2 { margin:0 0 10px 0; font-size:16px; color:#1f2937; }
@@ -229,7 +229,7 @@
 
     /* ===== Map ===== */
     #sceneView {
-      position:absolute; top:110px; left:56px; right:0; bottom:0; width:100%; height:auto; z-index:1;
+      position:absolute; top:var(--header-height, 64px); left:56px; right:0; bottom:0; width:100%; height:auto; z-index:1;
     }
 
     @media (max-width: 900px) {
@@ -806,6 +806,21 @@
 
   <!-- MAP -->
   <div id="sceneView" role="main" aria-label="3D‑karta"></div>
+  <div class="map-toolbar" aria-label="Kartverktyg">
+    <button id="mapHomeBtn" type="button" aria-label="Hem">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M8 3.293l6 6V14a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1V10H7v4a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V9.293l6-6z"/>
+        <path d="M7.293 1.5a1 1 0 0 1 1.414 0l6.5 6.5-1.414 1.414L8 3.328 2.207 9.414.793 8l6.5-6.5z"/>
+      </svg>
+    </button>
+    <button id="mapLocateBtn" type="button" aria-label="Min position">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M8 1a.5.5 0 0 1 .5.5v1.02a5.5 5.5 0 0 1 4.48 4.48H14.5a.5.5 0 0 1 0 1h-1.02a5.5 5.5 0 0 1-4.48 4.48V14.5a.5.5 0 0 1-1 0v-1.02a5.5 5.5 0 0 1-4.48-4.48H1.5a.5.5 0 0 1 0-1h1.02a5.5 5.5 0 0 1 4.48-4.48V1.5A.5.5 0 0 1 8 1zm0 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/>
+      </svg>
+    </button>
+    <button id="mapZoomInBtn" type="button" aria-label="Zooma in">+</button>
+    <button id="mapZoomOutBtn" type="button" aria-label="Zooma ut">−</button>
+  </div>
   <div id="windBlueTint" class="wind-blue-tint hidden" aria-hidden="true"></div>
   <div id="bus15Widget" aria-live="polite">Bus simulation: init...</div>
   <div id="iotContainer" style="display:none;"></div>
@@ -1175,10 +1190,37 @@ Maintain safe distance
         camera: { position: { latitude: 57.762686206841096, longitude: 14.187974955833315, z: 7500 }, tilt: 0 }
       });
       window.view = view;
+      const homeCamera = view.camera.clone();
       console.log("devicePixelRatio", window.devicePixelRatio);
       view.popup.dockEnabled = true;
       view.popup.dockOptions = { position: "top-right", breakpoint: false };
       view.popup.highlightEnabled = false;
+
+      const mapHomeBtn = document.getElementById("mapHomeBtn");
+      const mapLocateBtn = document.getElementById("mapLocateBtn");
+      const mapZoomInBtn = document.getElementById("mapZoomInBtn");
+      const mapZoomOutBtn = document.getElementById("mapZoomOutBtn");
+
+      mapHomeBtn?.addEventListener("click", () => {
+        if (homeCamera) view.goTo(homeCamera);
+      });
+      mapZoomInBtn?.addEventListener("click", () => {
+        const z = typeof view.zoom === "number" ? view.zoom + 1 : null;
+        if (z !== null) view.goTo({ zoom: z });
+      });
+      mapZoomOutBtn?.addEventListener("click", () => {
+        const z = typeof view.zoom === "number" ? view.zoom - 1 : null;
+        if (z !== null) view.goTo({ zoom: z });
+      });
+      mapLocateBtn?.addEventListener("click", () => {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition((pos) => {
+          const { latitude, longitude } = pos.coords || {};
+          if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+            view.goTo({ center: [longitude, latitude], zoom: 16 });
+          }
+        });
+      });
 
       function syncLighting() {
         if (!view?.environment?.lighting) return;

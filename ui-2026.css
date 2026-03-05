@@ -1,4 +1,5 @@
 :root {
+  --header-height: 64px;
   --app-bg: #eef2f5;
   --app-surface: #f7f8fa;
   --app-surface-soft: #fbfcfd;
@@ -31,27 +32,27 @@
 }
 
 #header {
-  height: 88px;
+  height: var(--header-height);
   background: var(--app-surface);
   border-bottom: 1px solid var(--app-border);
   box-shadow: var(--app-shadow-sm);
-  padding: 0 var(--app-spacing-5);
+  padding: 0 var(--app-spacing-4);
 }
 
 #header-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.01em;
 }
 
 #header-clock {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--app-text);
 }
 
 #header-info {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--app-text-muted);
 }
 
@@ -423,12 +424,12 @@ button.ghost:hover {
 
 @media (max-width: 640px) {
   #header {
-    height: 72px;
+    height: 56px;
     padding: 0 var(--app-spacing-3);
   }
   #sceneView {
-    top: 72px;
-    height: calc(100% - 72px - (2 * var(--app-spacing-3)));
+    top: 56px;
+    height: calc(100% - 56px - (2 * var(--app-spacing-3)));
   }
 }
 #info-panel {
