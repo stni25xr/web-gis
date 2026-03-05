@@ -646,6 +646,9 @@
             <button id="svcRouteBtn" type="button">Visa gångväg</button>
             <button id="svcClearRouteBtn" type="button">Rensa rutt</button>
           </div>
+          <div class="field-row" style="margin-top:6px;">
+            <button id="svcTestRadarBtn" type="button">Test radar</button>
+          </div>
           <div id="svcList" style="font-size:13px;color:#0f172a;"></div>
         </div>
       </details>
@@ -3195,6 +3198,7 @@ Maintain safe distance
       const svcResetBtn = document.getElementById("svcResetBtn");
       const svcRouteBtn = document.getElementById("svcRouteBtn");
       const svcClearRouteBtn = document.getElementById("svcClearRouteBtn");
+      const svcTestRadarBtn = document.getElementById("svcTestRadarBtn");
       const uniqueLayer = document.getElementById("uniqueLayer");
       const uniqueField = document.getElementById("uniqueField");
       const uniqueList = document.getElementById("uniqueList");
@@ -4595,37 +4599,15 @@ Maintain safe distance
         clearRoute();
       });
       nearRouteBtn.addEventListener("click", async () => {
-        if (typeof window.startRadarBeam === "function" && lastMeasurePoint) {
-          window.startRadarBeam({
-            view,
-            externalRenderers,
-            webMercatorUtils,
-            Point,
-            center: lastMeasurePoint,
-            radius: 500
-          });
-        }
         const summary = await drawWalkingRouteToFeature(lastNearestFeature, (msg) => { nearMeta.textContent = msg; });
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistanceColored(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
           const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
           nearMeta.innerHTML = `${dist} • ca ${mins} min (gångväg)${elevLine}`;
-            const path = lastRouteGeometry?.paths?.[0];
-            if (typeof window.startRadarAlongRoute === "function" && Array.isArray(path) && path.length > 1) {
-              window.startRadarAlongRoute({
-                view,
-                externalRenderers,
-                webMercatorUtils,
-                Point,
-                path,
-                durationSec: summary.duration,
-                radius: 500
-              });
-            }
-          }
-          updateSeniorRouteButtons();
-        });
+        }
+        updateSeniorRouteButtons();
+      });
       nearClearRouteBtn.addEventListener("click", () => {
         clearRoute();
         updateSeniorRouteButtons();
@@ -4677,6 +4659,7 @@ Maintain safe distance
           return;
         }
         window.infoFlowController?.activateFlow?.("CAR");
+        window.Radar?.stop?.();
         if (isSeniorMode && lastSafetyClickPoint) {
           updateSelectedSafetyDistance(lastSafetyClickPoint);
         }
@@ -4708,42 +4691,28 @@ Maintain safe distance
           svcHint.textContent = "Mät först en punkt på kartan";
           return;
         }
-        if (typeof window.startRadarBeam === "function") {
-          window.startRadarBeam({
-            view,
-            externalRenderers,
-            webMercatorUtils,
-            Point,
-            center: lastSvcMeasurePoint,
-            radius: 500
-          });
-        }
+        console.log("[radar] start from service click");
+        window.Radar?.start?.({ view, externalRenderers, centerPoint: lastSvcMeasurePoint });
         lastMeasurePoint = lastSvcMeasurePoint;
         const header = `<div><b>${labelForService(selected.key)}</b> – ${selected.name}</div>`;
         const summary = await drawWalkingRouteToFeature(selected.feature, (msg) => { svcList.innerHTML = `${header}<div>${msg}</div>`; });
-          if (summary?.distance != null && summary?.duration != null) {
-            const dist = formatDistanceColored(summary.distance);
-            const mins = Math.max(1, Math.round(summary.duration / 60));
-            const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
-            svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>${elevLine}`;
-            const path = lastRouteGeometry?.paths?.[0];
-            if (typeof window.startRadarAlongRoute === "function" && Array.isArray(path) && path.length > 1) {
-              window.startRadarAlongRoute({
-                view,
-                externalRenderers,
-                webMercatorUtils,
-                Point,
-                path,
-                durationSec: summary.duration,
-                radius: 500
-              });
-            }
-          }
+        if (summary?.distance != null && summary?.duration != null) {
+          const dist = formatDistanceColored(summary.distance);
+          const mins = Math.max(1, Math.round(summary.duration / 60));
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
+          svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>${elevLine}`;
+        }
           updateSeniorRouteButtons();
         });
       svcClearRouteBtn.addEventListener("click", () => {
         clearRoute();
+        window.Radar?.stop?.();
         updateSeniorRouteButtons();
+      });
+      svcTestRadarBtn?.addEventListener("click", () => {
+        console.log("[radar] test button fired");
+        const cp = view?.center?.clone ? view.center.clone() : view?.center;
+        if (cp) window.Radar?.start?.({ view, externalRenderers, centerPoint: cp });
       });
 
       safeMeasureBtn.addEventListener("click", () => {
@@ -4767,6 +4736,7 @@ Maintain safe distance
       });
       safeRouteBtn.addEventListener("click", async () => {
         window.infoFlowController?.activateFlow?.("CAR");
+        window.Radar?.stop?.();
         if (!safeSelect.value) {
           safeHint.textContent = "Välj trygghet i listan";
           return;

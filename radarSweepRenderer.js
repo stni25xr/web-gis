@@ -1,57 +1,53 @@
 (() => {
   const DEG2RAD = Math.PI / 180;
-  const DEFAULT_COLOR = [255, 140, 0, 0.8];
+  const COLOR = [255, 140, 0, 0.85];
+  const RADIUS = 500;
+  const BEAM_WIDTH_DEG = 10;
+  const Z_OFFSET = 15; // temporary, visible above ground
 
-  let radarInstance = null;
+  let rendererInstance = null;
+  let activeView = null;
 
-  function normalizeCenter(center, view, webMercatorUtils) {
-    if (!center) return null;
-    const sr = center.spatialReference || view?.spatialReference || null;
-    const isWgs = sr && (sr.isWGS84 || sr.wkid === 4326);
-    const isWebMerc = sr && (sr.isWebMercator || sr.wkid === 3857 || sr.wkid === 102100);
-    let x = center.x ?? center.longitude;
-    let y = center.y ?? center.latitude;
-    let spatialReference = sr || { wkid: 4326 };
-
-    if (isWgs && view?.spatialReference?.isWebMercator && webMercatorUtils?.geographicToWebMercator) {
-      const wm = webMercatorUtils.geographicToWebMercator(center?.type === "point"
-        ? center
-        : { type: "point", x, y, spatialReference });
-      return { x: wm.x, y: wm.y, spatialReference: view.spatialReference };
+  function ensureRadarBadge() {
+    let badge = document.getElementById("radarStatusBadge");
+    if (!badge) {
+      badge = document.createElement("div");
+      badge.id = "radarStatusBadge";
+      badge.style.cssText = "position:fixed;top:90px;left:16px;z-index:9999;background:#0f172a;color:#fff;padding:6px 10px;border-radius:8px;font:600 12px/1.2 system-ui, sans-serif;box-shadow:0 4px 10px rgba(0,0,0,0.2);";
+      document.body.appendChild(badge);
     }
-
-    if (isWebMerc && view?.spatialReference?.isWebMercator) {
-      return { x, y, spatialReference: view.spatialReference };
-    }
-
-    return { x, y, spatialReference: spatialReference };
+    return badge;
   }
 
-  function haversineMeters(a, b) {
-    const R = 6371000;
-    const lat1 = (a.y ?? a.latitude) * DEG2RAD;
-    const lat2 = (b.y ?? b.latitude) * DEG2RAD;
-    const dLat = lat2 - lat1;
-    const dLon = ((b.x ?? b.longitude) - (a.x ?? a.longitude)) * DEG2RAD;
-    const sinDLat = Math.sin(dLat / 2);
-    const sinDLon = Math.sin(dLon / 2);
-    const h = sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLon * sinDLon;
-    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  function setRadarBadge(state) {
+    const badge = ensureRadarBadge();
+    if (!badge) return;
+    badge.textContent = state ? "RADAR: ON" : "RADAR: OFF";
+    badge.style.background = state ? "#ff8c00" : "#0f172a";
   }
 
-  class RadarSweepRenderer {
-    constructor(opts) {
-      this.view = opts.view;
-      this.externalRenderers = opts.externalRenderers;
-      this.webMercatorUtils = opts.webMercatorUtils;
-      this.Point = opts.Point;
-      this.radius = opts.radius ?? 500;
-      this.beamWidthDeg = 10; // 10-degree beam
-      this.sweepAngle = 0;
+  function showRadarToast(message) {
+    let toast = document.getElementById("radarToast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "radarToast";
+      toast.style.cssText = "position:fixed;top:130px;left:16px;z-index:9999;background:#fff3cd;color:#7c2d12;padding:8px 10px;border-radius:8px;font:600 12px/1.2 system-ui, sans-serif;border:1px solid rgba(124,45,18,0.25);box-shadow:0 4px 10px rgba(0,0,0,0.15);";
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.style.opacity = "1";
+    clearTimeout(toast.__timer);
+    toast.__timer = setTimeout(() => {
+      toast.style.opacity = "0";
+    }, 2500);
+  }
+
+  class RadarRenderer {
+    constructor(view, externalRenderers) {
+      this.view = view;
+      this.externalRenderers = externalRenderers;
       this.center = null;
-      this.beamZ = 1.7;
-      this.vertexCount = 0;
-
+      this.sweepAngle = 0;
       this._gl = null;
       this._program = null;
       this._buffer = null;
@@ -61,50 +57,11 @@
       this._uColor = null;
       this._renderPositions = null;
       this._localPositions = null;
-
-      this._pathPoints = null;
-      this._pathCum = null;
-      this._pathTotal = 0;
-      this._pathActive = false;
-      this._pathStepIdx = 0;
-      this._pathStepCount = 0;
-      this._snapMeters = 50; // move every 50m
-      this._lastZSampleMs = 0;
+      this._vertexCount = 0;
     }
 
-    updateCenter(center, beamZ, radius) {
-      this.radius = radius ?? this.radius;
-      this.center = normalizeCenter(center, this.view, this.webMercatorUtils);
-      if (Number.isFinite(beamZ)) this.beamZ = beamZ;
-    }
-
-    setPath(points) {
-      if (!Array.isArray(points) || points.length < 2) return;
-      const pts = points.map((p) => {
-        if (Array.isArray(p)) {
-          return { x: p[0], y: p[1], spatialReference: { wkid: 4326 } };
-        }
-        if (p?.longitude != null || p?.latitude != null) {
-          return { x: p.longitude ?? p.x, y: p.latitude ?? p.y, spatialReference: p.spatialReference || { wkid: 4326 } };
-        }
-        return { x: p.x, y: p.y, spatialReference: p.spatialReference || { wkid: 4326 } };
-      });
-
-      const cum = new Float64Array(pts.length);
-      let total = 0;
-      for (let i = 1; i < pts.length; i++) {
-        const seg = haversineMeters(pts[i - 1], pts[i]);
-        total += seg;
-        cum[i] = total;
-      }
-
-      this._pathPoints = pts;
-      this._pathCum = cum;
-      this._pathTotal = total;
-      this._pathStepIdx = 0;
-      this._pathStepCount = Math.max(1, Math.ceil(total / this._snapMeters));
-      this._pathActive = true;
-      this.center = pts[0];
+    setCenter(point) {
+      this.center = point;
     }
 
     setup(context) {
@@ -147,13 +104,12 @@
       this._uView = gl.getUniformLocation(program, "u_view");
       this._uProj = gl.getUniformLocation(program, "u_proj");
       this._uColor = gl.getUniformLocation(program, "u_color");
-
       this._buffer = gl.createBuffer();
     }
 
     _buildLocalGeometry() {
       if (!this.center) return false;
-      const halfWidth = (this.beamWidthDeg * DEG2RAD) / 2;
+      const halfWidth = (BEAM_WIDTH_DEG * DEG2RAD) / 2;
       const angleStart = this.sweepAngle - halfWidth;
       const angleEnd = this.sweepAngle + halfWidth;
       const segments = 16;
@@ -168,13 +124,13 @@
         const t = i / segments;
         const ang = angleStart + (angleEnd - angleStart) * t;
         const idx = (i + 1) * 3;
-        positions[idx] = Math.cos(ang) * this.radius;
-        positions[idx + 1] = Math.sin(ang) * this.radius;
+        positions[idx] = Math.cos(ang) * RADIUS;
+        positions[idx + 1] = Math.sin(ang) * RADIUS;
         positions[idx + 2] = 0;
       }
 
       this._localPositions = positions;
-      this.vertexCount = vertexCount;
+      this._vertexCount = vertexCount;
       return true;
     }
 
@@ -188,69 +144,12 @@
       out[offset + 2] = rz;
     }
 
-    _sampleBeamZ(center) {
-      const now = performance.now();
-      if (now - this._lastZSampleMs < 500) return;
-      this._lastZSampleMs = now;
-
-      const view = this.view;
-      const sampler = view?.groundView?.elevationSampler;
-      if (!sampler || typeof sampler.sample !== "function") return;
-
-      let pt = center;
-      const sr = center?.spatialReference;
-      if (view?.spatialReference?.isWebMercator && sr && (sr.isWGS84 || sr.wkid === 4326) && this.webMercatorUtils?.geographicToWebMercator) {
-        pt = this.webMercatorUtils.geographicToWebMercator({
-          type: "point",
-          x: center.x,
-          y: center.y,
-          spatialReference: sr
-        });
-      }
-
-      try {
-        const res = sampler.sample(pt);
-        const z = res?.z ?? res?.geometry?.z;
-        if (Number.isFinite(z)) this.beamZ = z + 1.7;
-      } catch (e) {
-        // ignore sampling errors
-      }
-    }
-
-    _updatePathCenter() {
-      if (!this._pathActive || !this._pathPoints || !this._pathCum) return;
-      if (this._pathStepIdx >= this._pathStepCount) {
-        this.center = this._pathPoints[this._pathPoints.length - 1];
-        this._pathActive = false;
-        return;
-      }
-
-      const targetDist = Math.min(this._pathTotal, this._pathStepIdx * this._snapMeters);
-      const cum = this._pathCum;
-      let idx = 1;
-      while (idx < cum.length && cum[idx] < targetDist) idx++;
-      const prev = this._pathPoints[idx - 1];
-      const next = this._pathPoints[idx] || prev;
-      const segStart = cum[idx - 1];
-      const segEnd = cum[idx] || segStart + 1;
-      const segT = segEnd === segStart ? 0 : (targetDist - segStart) / (segEnd - segStart);
-      this.center = {
-        x: prev.x + (next.x - prev.x) * segT,
-        y: prev.y + (next.y - prev.y) * segT,
-        spatialReference: prev.spatialReference || { wkid: 4326 }
-      };
-      this._pathStepIdx += 1;
-    }
-
     render(context) {
       const gl = context.gl;
       if (!this.center) return;
 
-      this._updatePathCenter();
-      this._sampleBeamZ(this.center);
-
-      // advance sweep by 10 degrees per frame (no time-based rotation)
-      this.sweepAngle = (this.sweepAngle + 10 * DEG2RAD) % (2 * Math.PI);
+      // simple rotation: 2 deg per frame
+      this.sweepAngle = (this.sweepAngle + 2 * DEG2RAD) % (2 * Math.PI);
 
       if (!this._buildLocalGeometry()) return;
 
@@ -258,14 +157,12 @@
         this._renderPositions = new Float32Array(this._localPositions.length);
       }
 
-      const view = this.view;
-      const center = this.center;
-      const origin = [center.x, center.y, this.beamZ];
+      const origin = [this.center.x, this.center.y, (this.center.z || 0) + Z_OFFSET];
       const transform = new Float32Array(16);
       this.externalRenderers.renderCoordinateTransformAt(
-        view,
+        this.view,
         origin,
-        center.spatialReference || view.spatialReference,
+        this.center.spatialReference || this.view.spatialReference,
         transform
       );
 
@@ -289,12 +186,7 @@
 
       gl.uniformMatrix4fv(this._uView, false, context.camera.viewMatrix);
       gl.uniformMatrix4fv(this._uProj, false, context.camera.projectionMatrix);
-      gl.uniform4fv(this._uColor, [
-        DEFAULT_COLOR[0] / 255,
-        DEFAULT_COLOR[1] / 255,
-        DEFAULT_COLOR[2] / 255,
-        DEFAULT_COLOR[3]
-      ]);
+      gl.uniform4fv(this._uColor, [COLOR[0] / 255, COLOR[1] / 255, COLOR[2] / 255, COLOR[3]]);
 
       gl.enable(gl.DEPTH_TEST);
       gl.depthFunc(gl.LEQUAL);
@@ -303,7 +195,7 @@
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.depthMask(false);
 
-      gl.drawArrays(gl.TRIANGLE_FAN, 0, this.vertexCount);
+      gl.drawArrays(gl.TRIANGLE_FAN, 0, this._vertexCount);
 
       gl.depthMask(true);
       context.resetWebGLState();
@@ -318,92 +210,57 @@
     }
   }
 
-  async function resolveBeamZ(view, center, PointCtor) {
-    if (!center) return 1.7;
-    try {
-      const geom = PointCtor
-        ? new PointCtor({ x: center.x, y: center.y, spatialReference: center.spatialReference || view.spatialReference })
-        : { type: "point", x: center.x, y: center.y, spatialReference: center.spatialReference || view.spatialReference };
+  function startRadar({ view, externalRenderers, centerPoint }) {
+    console.log(`[radar] start called`);
+    console.log(`[radar] view type = ${view?.type}`);
 
-      if (view?.ground && typeof view.ground.queryElevation === "function") {
-        const res = await view.ground.queryElevation(geom);
-        const z = res?.geometry?.z ?? res?.z;
-        if (Number.isFinite(z)) return z + 1.7;
-      }
-
-      const sampler = view?.groundView?.elevationSampler;
-      if (sampler) {
-        if (typeof sampler.queryElevation === "function") {
-          const res = sampler.queryElevation(geom);
-          const z = res?.z ?? res?.geometry?.z;
-          if (Number.isFinite(z)) return z + 1.7;
-        }
-        if (typeof sampler.sample === "function") {
-          const res = sampler.sample(geom);
-          const z = res?.z ?? res?.geometry?.z;
-          if (Number.isFinite(z)) return z + 1.7;
-        }
-      }
-    } catch (e) {
-      // ignore elevation failures
+    if (!view || view.type !== "3d") {
+      showRadarToast("Radar kräver 3D (SceneView) — kan inte visas i 2D-läge.");
+      setRadarBadge(false);
+      return;
     }
-    return 1.7;
+
+    if (!centerPoint) return;
+
+    activeView = view;
+
+    if (!rendererInstance) {
+      rendererInstance = new RadarRenderer(view, externalRenderers);
+      externalRenderers.add(view, rendererInstance);
+      console.log("[radar] renderer added");
+    }
+
+    rendererInstance.setCenter(centerPoint);
+    console.log(`[radar] center = ${centerPoint.x},${centerPoint.y},${centerPoint.z ?? 0}`);
+    setRadarBadge(true);
+    externalRenderers.requestRender(view);
   }
 
-  window.startRadarBeam = async function (opts) {
-    const view = opts?.view;
-    const externalRenderers = opts?.externalRenderers;
-    const webMercatorUtils = opts?.webMercatorUtils;
-    const Point = opts?.Point;
-    const centerRaw = opts?.center;
-    const radius = opts?.radius ?? 500;
-
-    if (!view || !externalRenderers || !centerRaw) return;
-
-    const center = normalizeCenter(centerRaw, view, webMercatorUtils);
-    if (!center) return;
-    const beamZ = await resolveBeamZ(view, center, Point);
-
-    if (!radarInstance) {
-      radarInstance = new RadarSweepRenderer({ view, externalRenderers, webMercatorUtils, Point, radius });
-      radarInstance.updateCenter(center, beamZ, radius);
-      externalRenderers.add(view, radarInstance);
-    } else {
-      radarInstance.updateCenter(center, beamZ, radius);
+  function stopRadar() {
+    if (!rendererInstance || !activeView) {
+      setRadarBadge(false);
+      return;
     }
-    externalRenderers.requestRender(view);
-  };
-
-  window.startRadarAlongRoute = async function (opts) {
-    const view = opts?.view;
-    const externalRenderers = opts?.externalRenderers;
-    const webMercatorUtils = opts?.webMercatorUtils;
-    const Point = opts?.Point;
-    const radius = opts?.radius ?? 500;
-    const path = opts?.path;
-
-    if (!view || !externalRenderers || !Array.isArray(path) || path.length < 2) return;
-
-    if (!radarInstance) {
-      const first = Array.isArray(path[0]) ? { x: path[0][0], y: path[0][1], spatialReference: { wkid: 4326 } } : path[0];
-      const beamZ = await resolveBeamZ(view, first, Point);
-      radarInstance = new RadarSweepRenderer({ view, externalRenderers, webMercatorUtils, Point, radius });
-      radarInstance.updateCenter(first, beamZ, radius);
-      externalRenderers.add(view, radarInstance);
-    }
-    radarInstance.radius = radius;
-    radarInstance.setPath(path);
-    externalRenderers.requestRender(view);
-  };
-
-  window.stopRadarBeam = function () {
-    if (!radarInstance) return;
     try {
-      radarInstance.externalRenderers.remove(radarInstance.view, radarInstance);
+      rendererInstance.externalRenderers.remove(activeView, rendererInstance);
     } catch (e) {
-      // ignore remove errors
+      // ignore
     }
-    radarInstance.dispose();
-    radarInstance = null;
+    rendererInstance.dispose();
+    rendererInstance = null;
+    activeView = null;
+    setRadarBadge(false);
+  }
+
+  function setCenter(point) {
+    if (rendererInstance && point) {
+      rendererInstance.setCenter(point);
+    }
+  }
+
+  window.Radar = {
+    start: startRadar,
+    stop: stopRadar,
+    setCenter
   };
 })();
