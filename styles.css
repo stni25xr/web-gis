@@ -1,4 +1,5 @@
 :root {
+  --header-height: 110px;
   --el-bg: #0b1220;
   --el-panel: #0f172a;
   --el-panel-soft: #111b30;

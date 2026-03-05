@@ -4067,16 +4067,18 @@ Maintain safe distance
           }
 
           await view.when();
+          let zFromSampler = null;
           if (view?.groundView?.elevationSampler) {
             const sampled = view.groundView.elevationSampler.sample(pt);
             const z = sampled?.z ?? sampled?.geometry?.z;
-            return Number.isFinite(z) ? z : null;
+            if (Number.isFinite(z)) zFromSampler = z;
           }
           if (view?.ground?.queryElevation) {
             const res = await view.ground.queryElevation(pt);
             const z = res?.geometry?.z ?? res?.z;
-            return Number.isFinite(z) ? z : null;
+            if (Number.isFinite(z)) return z;
           }
+          if (Number.isFinite(zFromSampler)) return zFromSampler;
           return null;
         } catch (e) {
           console.warn("[ALT] failed", e);

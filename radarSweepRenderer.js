@@ -18,7 +18,7 @@
     if (!badge) {
       badge = document.createElement("div");
       badge.id = "radarStatusBadge";
-      badge.style.cssText = "position:fixed;top:90px;left:16px;z-index:9999;background:#0f172a;color:#fff;padding:6px 10px;border-radius:8px;font:600 12px/1.2 system-ui, sans-serif;box-shadow:0 4px 10px rgba(0,0,0,0.2);";
+      badge.style.cssText = "position:fixed;top:12px;left:16px;z-index:9999;background:#0f172a;color:#fff;padding:6px 10px;border-radius:8px;font:600 12px/1.2 system-ui, sans-serif;box-shadow:0 4px 10px rgba(0,0,0,0.2);";
       document.body.appendChild(badge);
     }
     return badge;
@@ -36,7 +36,7 @@
     if (!toast) {
       toast = document.createElement("div");
       toast.id = "radarToast";
-      toast.style.cssText = "position:fixed;top:130px;left:16px;z-index:9999;background:#fff3cd;color:#7c2d12;padding:8px 10px;border-radius:8px;font:600 12px/1.2 system-ui, sans-serif;border:1px solid rgba(124,45,18,0.25);box-shadow:0 4px 10px rgba(0,0,0,0.15);";
+      toast.style.cssText = "position:fixed;top:52px;left:16px;z-index:9999;background:#fff3cd;color:#7c2d12;padding:8px 10px;border-radius:8px;font:600 12px/1.2 system-ui, sans-serif;border:1px solid rgba(124,45,18,0.25);box-shadow:0 4px 10px rgba(0,0,0,0.15);";
       document.body.appendChild(toast);
     }
     toast.textContent = message;
