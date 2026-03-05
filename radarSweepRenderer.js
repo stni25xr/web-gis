@@ -51,12 +51,14 @@
     try {
       if (typeof window.__getGroundAltitudeMeters === "function") {
         const gz = await window.__getGroundAltitudeMeters(pointLike);
-        if (Number.isFinite(gz)) return gz + RADAR_CENTER_OFFSET_M;
+        if (Number.isFinite(gz)) {
+          return { beamZ: gz + RADAR_CENTER_OFFSET_M, groundZ: gz };
+        }
       }
     } catch (e) {
       // ignore callback errors
     }
-    return fallbackZ;
+    return { beamZ: fallbackZ, groundZ: null };
   }
 
   function distanceMeters(a, b) {
@@ -371,13 +373,12 @@
     _updateBeamZ() {
       const current = this.center;
       if (!current) return;
-      getBeamZ(current, RADAR_CENTER_OFFSET_M).then((z) => {
-        this.centerZ = z;
-        this.zMin = z - RADAR_THICKNESS_HALF;
-        this.zMax = z + RADAR_THICKNESS_HALF;
-        const groundZ = Number.isFinite(z) ? z - RADAR_CENTER_OFFSET_M : null;
-        window.__radarUpdateDebug?.(groundZ, z);
-        console.log(`[RADAR] station ${this._stationIndex} groundZ ${groundZ} beamZ ${z}`);
+      getBeamZ(current, RADAR_CENTER_OFFSET_M).then(({ beamZ, groundZ }) => {
+        this.centerZ = beamZ;
+        this.zMin = beamZ - RADAR_THICKNESS_HALF;
+        this.zMax = beamZ + RADAR_THICKNESS_HALF;
+        window.__radarUpdateDebug?.(groundZ, beamZ);
+        console.log(`[RADAR] station ${this._stationIndex} groundZ ${groundZ} beamZ ${beamZ}`);
       }).catch(() => {});
     }
   }

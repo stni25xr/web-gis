@@ -3940,9 +3940,7 @@ Maintain safe distance
             pt.spatialReference = srView;
           }
 
-          if (!view?.groundView) {
-            await view.when();
-          }
+          await view.when();
           if (view?.groundView?.elevationSampler) {
             const sampled = view.groundView.elevationSampler.sample(pt);
             const z = sampled?.z ?? sampled?.geometry?.z;
