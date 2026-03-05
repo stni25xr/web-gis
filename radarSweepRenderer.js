@@ -72,6 +72,9 @@
       this._pathDurationMs = 0;
       this._pathActive = false;
       this._lastZSampleMs = 0;
+      this._snapMeters = 20;
+      this._stepDurationMs = 0;
+      this._stepCount = 0;
     }
 
     updateCenter(center, beamZ, radius) {
@@ -108,6 +111,9 @@
         ? durationSec * 1000
         : (total / DEFAULT_WALK_SPEED_MPS) * 1000;
       this._pathDurationMs = Math.max(1000, duration);
+      const snapMeters = Math.max(1, this._snapMeters);
+      this._stepCount = Math.max(1, Math.ceil(total / snapMeters));
+      this._stepDurationMs = this._pathDurationMs / this._stepCount;
       this._pathActive = true;
       this.center = pts[0];
     }
@@ -225,13 +231,14 @@
     _updatePathCenter() {
       if (!this._pathActive || !this._pathPoints || !this._pathCum) return;
       const now = performance.now();
-      const t = (now - this._pathStartMs) / this._pathDurationMs;
-      if (t >= 1) {
+      const elapsed = now - this._pathStartMs;
+      if (elapsed >= this._pathDurationMs) {
         this.center = this._pathPoints[this._pathPoints.length - 1];
         this._pathActive = false;
         return;
       }
-      const targetDist = t * this._pathTotal;
+      const stepIdx = Math.min(this._stepCount, Math.floor(elapsed / this._stepDurationMs));
+      const targetDist = Math.min(this._pathTotal, stepIdx * this._snapMeters);
       const cum = this._pathCum;
       let idx = 1;
       while (idx < cum.length && cum[idx] < targetDist) idx++;
