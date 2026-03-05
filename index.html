@@ -3383,7 +3383,7 @@ Maintain safe distance
       let lastSafetyClickPoint = null;
 
       const seniorToggle = document.getElementById("seniorModeToggle");
-      const seniorDetails = Array.from(document.querySelectorAll("#info-panel details[data-section]"));
+      const seniorDetails = Array.from(document.querySelectorAll("#info-panel > .panel-section > details[data-section]"));
 
       function setSeniorMode(on) {
         isSeniorMode = !!on;
