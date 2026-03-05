@@ -456,13 +456,17 @@ html, body, body.app {
   top: calc(50% - 90px);
 }
 
-/* ArcGIS-style sidebar surface */
-#sidebar {
+/* ArcGIS-style panel surface */
+#sidebar,
+#info-panel,
+#digitalPanel {
   background: #ffffff;
   border-right: 1px solid #e5e7eb;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
 }
-#sidebar h2 {
+#sidebar h2,
+#info-panel h2,
+#digitalPanel h2 {
   font-size: 18px;
   letter-spacing: 0;
   text-transform: none;
@@ -472,36 +476,6 @@ html, body, body.app {
 }
 .sidebar-scroll {
   color: #111827;
-}
-
-/* Map toolbar (right) */
-.map-toolbar {
-  position: fixed;
-  right: 16px;
-  bottom: 120px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
-  padding: 6px;
-  z-index: 1200;
-}
-.map-toolbar button {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  color: #111827;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-}
-.map-toolbar button:hover {
-  background: #f3f4f6;
 }
 
 @media (max-width: 900px) {
