@@ -105,18 +105,23 @@
   overflow: hidden;
 }
 
-#info-panel {
-  width: 320px;
+#info-panel,
+#digitalPanel {
   background: var(--app-surface);
-  border-left: 1px solid var(--app-border);
+  color: var(--app-text);
   padding: var(--app-spacing-4);
+  border-right: 1px solid var(--app-border);
   box-shadow: var(--app-shadow-sm);
 }
 
-#info-panel h2 {
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 12px;
+#info-panel h2,
+#digitalPanel h2 {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  border-bottom: 1px solid var(--app-border);
+  padding-bottom: var(--app-spacing-2);
 }
 
 .panel-section {
@@ -432,18 +437,21 @@ button.ghost:hover {
     height: calc(100% - 56px - (2 * var(--app-spacing-3)));
   }
 }
-#info-panel {
-  font-size: 15px;
+#info-panel,
+#digitalPanel {
+  font-size: 13px;
 }
 
-#info-panel .panel-title {
-  font-size: 18px;
+#info-panel .panel-title,
+#digitalPanel .panel-title {
+  font-size: 11px;
 }
 
-#info-panel button {
-  font-size: 16px;
-  padding: 12px 14px;
-  min-height: 44px;
+#info-panel button,
+#digitalPanel button {
+  font-size: 12px;
+  padding: 8px 10px;
+  min-height: 36px;
 }
 
 #seniorModeRow,
