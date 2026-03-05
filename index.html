@@ -222,8 +222,10 @@
       padding:12px;
     }
     .infoPanel .miniCard details { margin:0; }
-    .infoPanel .miniCard summary { list-style:none; cursor:default; }
+    .infoPanel .miniCard summary { list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:8px; }
     .infoPanel .miniCard summary::-webkit-details-marker { display:none; }
+    .infoPanel .miniCard summary::after { content:"▸"; color:var(--muted); transition:transform .2s ease; font-size:14px; }
+    .infoPanel .miniCard details[open] summary::after { transform:rotate(90deg); }
 
     /* ===== Map ===== */
     #sceneView {
@@ -702,7 +704,7 @@
           <div class="muted" style="margin-bottom:8px;">Buss • Bil • Blåljus</div>
           <div class="panelDetailsBody" style="padding:0;border:0;">
             <div class="miniCard">
-              <details data-section="bus" open>
+              <details data-section="bus">
                 <summary class="panel-title">Närmsta busshållplats</summary>
                 <div class="panel-body">
                   <div id="nearHint">Klicka på kartan för att mäta</div>
@@ -720,7 +722,7 @@
               </details>
             </div>
             <div class="miniCard">
-              <details data-section="departures" open>
+              <details data-section="departures">
                 <summary class="panel-title">Avgångar (busshållplats)</summary>
                 <div class="panel-body">
                   <div id="depHint">Klicka på en busshållplats</div>
@@ -734,7 +736,7 @@
               </details>
             </div>
             <div class="miniCard">
-              <details data-section="safety" open>
+              <details data-section="safety">
                 <summary class="panel-title">Trygg resa med bil</summary>
                 <div class="panel-body">
                   <div class="muted" style="margin-bottom:6px;">Om du behöver skjuts / bil</div>
@@ -755,7 +757,7 @@
               </details>
             </div>
             <div class="miniCard">
-              <details data-section="blue" open>
+              <details data-section="blue">
                 <summary class="panel-title">Blåljus &amp; framkomst</summary>
                 <div class="panel-body">
                   <div class="muted" style="margin-bottom:6px;">Ambulans, räddningstjänst och polis.</div>
