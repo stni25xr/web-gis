@@ -4,8 +4,9 @@
   const RADIUS = 500;
   const BEAM_WIDTH_DEG = 10;
   const STEP_METERS_DEFAULT = 50;
-  const ROTATION_PERIOD_SEC = 1;
   const EYE_OFFSET = 1.7;
+  const SWEEP_STEP_DEG = 10;
+  const SWEEP_STEPS_PER_ROTATION = Math.round(360 / SWEEP_STEP_DEG);
 
   let rendererInstance = null;
   let activeView = null;
@@ -44,10 +45,10 @@
     }, 2500);
   }
 
-  async function getEyeZ(view, point, fallbackZ = EYE_OFFSET) {
+  async function getBeamZ(pointLike, fallbackZ = EYE_OFFSET) {
     try {
-      if (typeof window.__radarGetGroundZ === "function") {
-        const gz = await window.__radarGetGroundZ(point);
+      if (typeof window.__getGroundAltitudeMeters === "function") {
+        const gz = await window.__getGroundAltitudeMeters(pointLike);
         if (Number.isFinite(gz)) return gz + EYE_OFFSET;
       }
     } catch (e) {
@@ -127,7 +128,8 @@
       this._stationIndex = 0;
       this._stepMode = false;
       this._lastTimeMs = null;
-      this._debugBoostUntil = 0;
+      this._stationSweepStep = 0;
+      this.beamZ = EYE_OFFSET;
     }
 
     setCenter(point) {
@@ -137,10 +139,11 @@
     setStations(stations) {
       this._stations = Array.isArray(stations) ? stations : [];
       this._stationIndex = 0;
+      this._stationSweepStep = 0;
       if (this._stations.length) {
         this.center = this._stations[0];
         this.sweepAngle = 0;
-        this._updateZ();
+        this._updateBeamZ();
       }
     }
 
@@ -150,7 +153,6 @@
 
     start() {
       this._running = true;
-      this._lastTimeMs = null;
     }
 
     stop() {
@@ -241,27 +243,29 @@
       const gl = context.gl;
       if (!this.center || !this._running) return;
 
-      const now = performance.now();
-      if (this._lastTimeMs == null) this._lastTimeMs = now;
-      const dt = (now - this._lastTimeMs) / 1000;
-      this._lastTimeMs = now;
-
-      const angularSpeed = (2 * Math.PI) / ROTATION_PERIOD_SEC;
-      this.sweepAngle += angularSpeed * dt;
-      if (this.sweepAngle >= 2 * Math.PI) {
-        this.sweepAngle = this.sweepAngle % (2 * Math.PI);
-        if (this._stepMode && this._stations.length) {
-          if (this._stationIndex < this._stations.length - 1) {
-            this._stationIndex += 1;
-            this.center = this._stations[this._stationIndex];
-            this._updateZ();
-            this.sweepAngle = 0;
-          } else {
-            // stop only after final full rotation at last station
+      if (this._stepMode && this._stations.length) {
+        if (this._stationIndex >= this._stations.length) {
+          this._running = false;
+          setRadarBadge(false);
+          return;
+        }
+        if (this._stationSweepStep === 0) {
+          this.center = this._stations[this._stationIndex];
+          this._updateBeamZ();
+        }
+        this.sweepAngle = (this.sweepAngle + SWEEP_STEP_DEG * DEG2RAD) % (2 * Math.PI);
+        this._stationSweepStep += 1;
+        if (this._stationSweepStep >= SWEEP_STEPS_PER_ROTATION) {
+          this._stationSweepStep = 0;
+          this._stationIndex += 1;
+          if (this._stationIndex >= this._stations.length) {
             this._running = false;
             setRadarBadge(false);
+            return;
           }
         }
+      } else {
+        this.sweepAngle = (this.sweepAngle + SWEEP_STEP_DEG * DEG2RAD) % (2 * Math.PI);
       }
 
       if (!this._buildLocalGeometry()) return;
@@ -270,7 +274,7 @@
         this._renderPositions = new Float32Array(this._localPositions.length);
       }
 
-      const origin = [this.center.x, this.center.y, this.center.z || 0];
+      const origin = [this.center.x, this.center.y, this.beamZ || this.center.z || 0];
       const transform = new Float32Array(16);
       this.externalRenderers.renderCoordinateTransformAt(
         this.view,
@@ -299,9 +303,7 @@
 
       gl.uniformMatrix4fv(this._uView, false, context.camera.viewMatrix);
       gl.uniformMatrix4fv(this._uProj, false, context.camera.projectionMatrix);
-      const debugActive = this._debugBoostUntil && performance.now() < this._debugBoostUntil;
-      const alpha = debugActive ? 0.9 : COLOR[3];
-      gl.uniform4fv(this._uColor, [COLOR[0] / 255, COLOR[1] / 255, COLOR[2] / 255, alpha]);
+      gl.uniform4fv(this._uColor, [COLOR[0] / 255, COLOR[1] / 255, COLOR[2] / 255, COLOR[3]]);
 
       gl.enable(gl.DEPTH_TEST);
       gl.depthFunc(gl.LEQUAL);
@@ -324,12 +326,14 @@
       if (this._program) gl.deleteProgram(this._program);
     }
 
-    _updateZ() {
+    _updateBeamZ() {
       const current = this.center;
       if (!current) return;
-      getEyeZ(this.view, current, EYE_OFFSET).then((z) => {
-        this.center = { ...current, z };
-        console.log(`[RADAR] station ${this._stationIndex} groundZ ${z - EYE_OFFSET} beamZ ${z}`);
+      getBeamZ(current, EYE_OFFSET).then((z) => {
+        this.beamZ = z;
+        const groundZ = Number.isFinite(z) ? z - EYE_OFFSET : null;
+        window.__radarUpdateDebug?.(groundZ, z);
+        console.log(`[RADAR] station ${this._stationIndex} groundZ ${groundZ} beamZ ${z}`);
       }).catch(() => {});
     }
   }
@@ -355,10 +359,9 @@
     }
 
     rendererInstance.setCenter(centerPoint);
-    rendererInstance._updateZ();
+    rendererInstance._updateBeamZ();
     setRadarBadge(true);
     rendererInstance.start();
-    rendererInstance._debugBoostUntil = performance.now() + 5000;
     externalRenderers.requestRender(view);
   }
 
@@ -382,7 +385,7 @@
   function setCenter(point) {
     if (rendererInstance && point) {
       rendererInstance.setCenter(point);
-      rendererInstance._updateZ();
+      rendererInstance._updateBeamZ();
     }
   }
 

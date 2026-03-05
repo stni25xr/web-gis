@@ -649,6 +649,7 @@
           <div class="field-row" style="margin-top:6px;">
             <button id="svcTestRadarBtn" type="button">Test radar</button>
           </div>
+          <div id="svcRadarDebug" style="font-size:12px;color:#64748b;margin-top:6px;"></div>
           <div id="svcList" style="font-size:13px;color:#0f172a;"></div>
         </div>
       </details>
@@ -3913,24 +3914,58 @@ Maintain safe distance
         return null;
       }
 
-      window.__radarGetGroundZ = async function (point) {
+      window.__getGroundAltitudeMeters = async function (pointLike) {
         try {
-          if (!view?.ground?.queryElevation || !point) return null;
-          const x = point.x ?? point.longitude;
-          const y = point.y ?? point.latitude;
-          if (!isFinite(x) || !isFinite(y)) return null;
-          const geom = {
-            type: "point",
-            x,
-            y,
-            spatialReference: point.spatialReference || view.spatialReference
-          };
-          const res = await view.ground.queryElevation(geom);
-          const z = res?.geometry?.z ?? res?.z;
-          return Number.isFinite(z) ? z : null;
+          if (!pointLike) return null;
+          const srView = view?.spatialReference;
+          let pt = null;
+          if (Array.isArray(pointLike)) {
+            pt = new Point({ longitude: pointLike[0], latitude: pointLike[1], spatialReference: { wkid: 4326 } });
+          } else if ("longitude" in pointLike || "latitude" in pointLike) {
+            pt = new Point({
+              longitude: pointLike.longitude ?? pointLike.x,
+              latitude: pointLike.latitude ?? pointLike.y,
+              spatialReference: pointLike.spatialReference || { wkid: 4326 }
+            });
+          } else {
+            pt = new Point({
+              x: pointLike.x,
+              y: pointLike.y,
+              spatialReference: pointLike.spatialReference || srView
+            });
+          }
+
+          if (srView?.isWebMercator && (pt.spatialReference?.wkid === 4326 || pt.spatialReference?.isWGS84)) {
+            pt = webMercatorUtils.geographicToWebMercator(pt);
+            pt.spatialReference = srView;
+          }
+
+          if (!view?.groundView) {
+            await view.when();
+          }
+          if (view?.groundView?.elevationSampler) {
+            const sampled = view.groundView.elevationSampler.sample(pt);
+            const z = sampled?.z ?? sampled?.geometry?.z;
+            return Number.isFinite(z) ? z : null;
+          }
+          if (view?.ground?.queryElevation) {
+            const res = await view.ground.queryElevation(pt);
+            const z = res?.geometry?.z ?? res?.z;
+            return Number.isFinite(z) ? z : null;
+          }
+          return null;
         } catch (e) {
+          console.warn("[ALT] failed", e);
           return null;
         }
+      };
+
+      window.__radarUpdateDebug = function (groundZ, beamZ) {
+        const el = document.getElementById("svcRadarDebug");
+        if (!el) return;
+        const g = Number.isFinite(groundZ) ? groundZ.toFixed(1) : "–";
+        const b = Number.isFinite(beamZ) ? beamZ.toFixed(1) : "–";
+        el.textContent = `Markhöjd: ${g} m • Radar Z: ${b} m`;
       };
       function formatDistanceColored(meters) {
         const color = distanceColor(meters);
