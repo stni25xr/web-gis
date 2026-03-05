@@ -3,7 +3,9 @@
   const COLOR = [255, 140, 0, 0.85];
   const RADIUS = 500;
   const BEAM_WIDTH_DEG = 10;
-  const Z_OFFSET = 15; // temporary, visible above ground
+  const STEP_METERS_DEFAULT = 50;
+  const ROTATION_PERIOD_SEC = 1;
+  const EYE_OFFSET = 1.7;
 
   let rendererInstance = null;
   let activeView = null;
@@ -42,6 +44,82 @@
     }, 2500);
   }
 
+  function groundPlusEye(view, webMercatorUtils, point) {
+    if (!point) return EYE_OFFSET;
+    const sampler = view?.groundView?.elevationSampler;
+    if (!sampler) return EYE_OFFSET;
+    let samplePoint = point;
+    const viewSr = view?.spatialReference;
+    const sr = point?.spatialReference;
+    if (viewSr?.isWebMercator && sr && (sr.isWGS84 || sr.wkid === 4326) && webMercatorUtils?.geographicToWebMercator) {
+      samplePoint = webMercatorUtils.geographicToWebMercator({
+        type: "point",
+        x: point.x,
+        y: point.y,
+        spatialReference: sr
+      });
+    }
+    try {
+      let res = null;
+      if (typeof sampler.queryElevation === "function") {
+        res = sampler.queryElevation(samplePoint);
+      } else if (typeof sampler.sample === "function") {
+        res = sampler.sample(samplePoint);
+      }
+      const z = res?.z ?? res?.geometry?.z;
+      if (Number.isFinite(z)) return z + EYE_OFFSET;
+    } catch (e) {
+      // ignore sampling errors
+    }
+    return EYE_OFFSET;
+  }
+
+  function distanceMeters(a, b) {
+    const R = 6371000;
+    const lat1 = (a.y ?? a.latitude) * DEG2RAD;
+    const lat2 = (b.y ?? b.latitude) * DEG2RAD;
+    const dLat = lat2 - lat1;
+    const dLon = ((b.x ?? b.longitude) - (a.x ?? a.longitude)) * DEG2RAD;
+    const sinDLat = Math.sin(dLat / 2);
+    const sinDLon = Math.sin(dLon / 2);
+    const h = sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLon * sinDLon;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+
+  function buildStationsFromPolyline(view, webMercatorUtils, polyline, stepMeters) {
+    if (!polyline?.paths?.length) return [];
+    const step = Math.max(1, stepMeters || STEP_METERS_DEFAULT);
+    const path = polyline.paths[0];
+    if (!path || path.length < 2) return [];
+
+    const stations = [];
+    let carry = 0;
+    let prev = { x: path[0][0], y: path[0][1], spatialReference: polyline.spatialReference || view.spatialReference };
+    stations.push(prev);
+
+    for (let i = 1; i < path.length; i++) {
+      const next = { x: path[i][0], y: path[i][1], spatialReference: polyline.spatialReference || view.spatialReference };
+      let seg = distanceMeters(prev, next);
+      if (!isFinite(seg) || seg <= 0) {
+        prev = next;
+        continue;
+      }
+      while (carry + seg >= step) {
+        const t = (step - carry) / seg;
+        const x = prev.x + (next.x - prev.x) * t;
+        const y = prev.y + (next.y - prev.y) * t;
+        const pt = { x, y, spatialReference: prev.spatialReference };
+        stations.push(pt);
+        seg -= (step - carry);
+        prev = pt;
+        carry = 0;
+      }
+      carry += seg;
+      prev = next;
+    }
+    return stations;
+  }
+
   class RadarRenderer {
     constructor(view, externalRenderers) {
       this.view = view;
@@ -58,10 +136,38 @@
       this._renderPositions = null;
       this._localPositions = null;
       this._vertexCount = 0;
+      this._running = false;
+      this._stations = [];
+      this._stationIndex = 0;
+      this._stepMode = false;
+      this._lastTimeMs = null;
     }
 
     setCenter(point) {
       this.center = point;
+    }
+
+    setStations(stations) {
+      this._stations = Array.isArray(stations) ? stations : [];
+      this._stationIndex = 0;
+      if (this._stations.length) {
+        this.center = this._stations[0];
+        this.sweepAngle = 0;
+        this._updateZ();
+      }
+    }
+
+    enableStepScan(enabled) {
+      this._stepMode = !!enabled;
+    }
+
+    start() {
+      this._running = true;
+      this._lastTimeMs = null;
+    }
+
+    stop() {
+      this._running = false;
     }
 
     setup(context) {
@@ -146,10 +252,29 @@
 
     render(context) {
       const gl = context.gl;
-      if (!this.center) return;
+      if (!this.center || !this._running) return;
 
-      // simple rotation: 2 deg per frame
-      this.sweepAngle = (this.sweepAngle + 2 * DEG2RAD) % (2 * Math.PI);
+      const now = performance.now();
+      if (this._lastTimeMs == null) this._lastTimeMs = now;
+      const dt = (now - this._lastTimeMs) / 1000;
+      this._lastTimeMs = now;
+
+      const angularSpeed = (2 * Math.PI) / ROTATION_PERIOD_SEC;
+      this.sweepAngle += angularSpeed * dt;
+      if (this.sweepAngle >= 2 * Math.PI) {
+        this.sweepAngle = this.sweepAngle % (2 * Math.PI);
+        if (this._stepMode && this._stations.length) {
+          if (this._stationIndex < this._stations.length - 1) {
+            this._stationIndex += 1;
+            this.center = this._stations[this._stationIndex];
+            this._updateZ();
+            this.sweepAngle = 0;
+          } else {
+            this._running = false;
+            setRadarBadge(false);
+          }
+        }
+      }
 
       if (!this._buildLocalGeometry()) return;
 
@@ -157,7 +282,7 @@
         this._renderPositions = new Float32Array(this._localPositions.length);
       }
 
-      const origin = [this.center.x, this.center.y, (this.center.z || 0) + Z_OFFSET];
+      const origin = [this.center.x, this.center.y, this.center.z || 0];
       const transform = new Float32Array(16);
       this.externalRenderers.renderCoordinateTransformAt(
         this.view,
@@ -208,6 +333,12 @@
       if (this._buffer) gl.deleteBuffer(this._buffer);
       if (this._program) gl.deleteProgram(this._program);
     }
+
+    _updateZ() {
+      const z = groundPlusEye(this.view, this.externalRenderers?.webMercatorUtils || window.webMercatorUtils, this.center);
+      this.center = { ...this.center, z };
+      console.log(`[radar] center = ${this.center.x},${this.center.y},${this.center.z}`);
+    }
   }
 
   function startRadar({ view, externalRenderers, centerPoint }) {
@@ -231,8 +362,9 @@
     }
 
     rendererInstance.setCenter(centerPoint);
-    console.log(`[radar] center = ${centerPoint.x},${centerPoint.y},${centerPoint.z ?? 0}`);
+    rendererInstance._updateZ();
     setRadarBadge(true);
+    rendererInstance.start();
     externalRenderers.requestRender(view);
   }
 
@@ -246,6 +378,7 @@
     } catch (e) {
       // ignore
     }
+    rendererInstance.stop();
     rendererInstance.dispose();
     rendererInstance = null;
     activeView = null;
@@ -255,12 +388,25 @@
   function setCenter(point) {
     if (rendererInstance && point) {
       rendererInstance.setCenter(point);
+      rendererInstance._updateZ();
     }
+  }
+
+  function setRouteStationsFromPolyline(polyline, stepMeters) {
+    if (!rendererInstance || !activeView) return;
+    const stations = buildStationsFromPolyline(activeView, rendererInstance.externalRenderers?.webMercatorUtils || window.webMercatorUtils, polyline, stepMeters);
+    rendererInstance.setStations(stations);
+    rendererInstance.enableStepScan(true);
+    rendererInstance.start();
   }
 
   window.Radar = {
     start: startRadar,
     stop: stopRadar,
-    setCenter
+    setCenter,
+    setRouteStationsFromPolyline,
+    enableStepScan(enabled) {
+      if (rendererInstance) rendererInstance.enableStepScan(enabled);
+    }
   };
 })();
