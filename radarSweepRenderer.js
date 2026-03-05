@@ -373,12 +373,23 @@
     _updateBeamZ() {
       const current = this.center;
       if (!current) return;
+      if (Number.isFinite(current.z) && Number.isFinite(current.__groundZ)) {
+        const beamZ = current.z;
+        const groundZ = current.__groundZ;
+        this.centerZ = beamZ;
+        this.zMin = beamZ - RADAR_THICKNESS_HALF;
+        this.zMax = beamZ + RADAR_THICKNESS_HALF;
+        window.__radarUpdateDebug?.(groundZ, beamZ);
+        console.log(`[RADAR] station ${this._stationIndex} groundZ ${groundZ} beamZ ${beamZ}`);
+        return;
+      }
       getBeamZ(current, RADAR_CENTER_OFFSET_M).then(({ beamZ, groundZ }) => {
         this.centerZ = beamZ;
         this.zMin = beamZ - RADAR_THICKNESS_HALF;
         this.zMax = beamZ + RADAR_THICKNESS_HALF;
         if (this.center) {
           this.center.z = beamZ;
+          if (Number.isFinite(groundZ)) this.center.__groundZ = groundZ;
         }
         window.__radarUpdateDebug?.(groundZ, beamZ);
         console.log(`[RADAR] station ${this._stationIndex} groundZ ${groundZ} beamZ ${beamZ}`);
@@ -440,9 +451,28 @@
   function setRouteStationsFromPolyline(polyline, stepMeters) {
     if (!rendererInstance || !activeView) return;
     const stations = buildStationsFromPolyline(activeView, rendererInstance.externalRenderers?.webMercatorUtils || window.webMercatorUtils, polyline, stepMeters);
-    rendererInstance.setStations(stations);
-    rendererInstance.enableStepScan(true);
-    rendererInstance.start();
+    if (!stations.length || typeof window.__getGroundAltitudeMeters !== "function") {
+      rendererInstance.setStations(stations);
+      rendererInstance.enableStepScan(true);
+      rendererInstance.start();
+      return;
+    }
+    (async () => {
+      for (const pt of stations) {
+        try {
+          const gz = await window.__getGroundAltitudeMeters(pt);
+          if (Number.isFinite(gz)) {
+            pt.__groundZ = gz;
+            pt.z = gz + RADAR_CENTER_OFFSET_M;
+          }
+        } catch (e) {
+          // ignore per-point errors
+        }
+      }
+      rendererInstance.setStations(stations);
+      rendererInstance.enableStepScan(true);
+      rendererInstance.start();
+    })();
   }
 
   window.Radar = {
