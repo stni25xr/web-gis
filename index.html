@@ -4473,7 +4473,7 @@ Maintain safe distance
               name: "route_created",
               timestamp: new Date().toISOString()
             });
-            window.Radar?.setRouteStationsFromPolyline?.(route, 50);
+            window.Radar?.setRouteStationsFromPolyline?.(route, 10);
             const elevation = await getElevationStats(route);
             return elevation;
           };

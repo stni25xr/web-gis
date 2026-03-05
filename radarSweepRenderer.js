@@ -2,7 +2,7 @@
   const DEG2RAD = Math.PI / 180;
   const COLOR = [255, 140, 0, 0.85];
   const RADIUS = 500;
-  const BEAM_WIDTH_DEG = 10;
+  const BEAM_WIDTH_DEG = 270;
   const STEP_METERS_DEFAULT = 50;
   const RADAR_CENTER_OFFSET_M = 200;
   const RADAR_THICKNESS_M = 3.0;
