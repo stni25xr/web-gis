@@ -1184,14 +1184,14 @@ Maintain safe distance
       view.popup.highlightEnabled = false;
 
       try {
-        view.ui.move("zoom", "bottom-right");
-        view.ui.move("compass", "bottom-right");
+        view.ui.move("zoom", "top-left");
+        view.ui.move("compass", "top-left");
       } catch (e) {
         // ignore ui move errors
       }
       const homeWidget = new Home({ view });
       const locateWidget = new Locate({ view });
-      view.ui.add([homeWidget, locateWidget], "bottom-right");
+      view.ui.add([homeWidget, locateWidget], "top-left");
 
       function syncLighting() {
         if (!view?.environment?.lighting) return;
