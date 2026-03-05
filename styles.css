@@ -94,7 +94,7 @@
 /* Force map to full size (override ui-2026 defaults) */
 #sceneView {
   top: var(--header-height, 64px) !important;
-  left: 56px !important;
+  left: 0 !important;
   right: 0 !important;
   margin: 0 !important;
   border-radius: 0 !important;
@@ -304,12 +304,12 @@ html, body, body.app {
 }
 
 #sidebar {
-  left: 56px;
+  left: 0;
   transform: translateX(-100%);
 }
 
 #info-panel {
-  left: 56px;
+  left: 0;
   transform: translateX(-100%);
 }
 
@@ -321,28 +321,13 @@ html, body, body.app {
   transform: translateX(0);
 }
 
-.left-rail {
-  position: fixed;
-  top: var(--header-height, 64px);
-  bottom: 0;
-  left: 0;
-  width: 56px;
-  background: #2b2b2b;
-  border-right: 1px solid rgba(255,255,255,0.08);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 10px 0;
-  gap: 8px;
-  z-index: 1100;
-}
 .panel-tab {
-  position: static;
-  transform: none;
+  position: fixed;
+  left: 8px;
   width: 40px;
   height: 40px;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   background: #2f2f2f;
   color: #e2e8f0;
   font-size: 18px;
@@ -450,19 +435,26 @@ html, body, body.app {
 }
 
 .panel-tab-offset {
-  top: calc(50% + 90px);
+  top: calc(var(--header-height, 64px) + 64px);
 }
 .panel-tab-offset-2 {
-  top: calc(50% - 90px);
+  top: calc(var(--header-height, 64px) + 116px);
+}
+.panel-tab-home {
+  top: calc(var(--header-height, 64px) + 12px);
 }
 
-/* ArcGIS-style sidebar surface */
-#sidebar {
+/* ArcGIS-style panel surface */
+#sidebar,
+#info-panel,
+#digitalPanel {
   background: #ffffff;
   border-right: 1px solid #e5e7eb;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
 }
-#sidebar h2 {
+#sidebar h2,
+#info-panel h2,
+#digitalPanel h2 {
   font-size: 18px;
   letter-spacing: 0;
   text-transform: none;
