@@ -377,6 +377,9 @@
         this.centerZ = beamZ;
         this.zMin = beamZ - RADAR_THICKNESS_HALF;
         this.zMax = beamZ + RADAR_THICKNESS_HALF;
+        if (this.center) {
+          this.center.z = beamZ;
+        }
         window.__radarUpdateDebug?.(groundZ, beamZ);
         console.log(`[RADAR] station ${this._stationIndex} groundZ ${groundZ} beamZ ${beamZ}`);
       }).catch(() => {});
