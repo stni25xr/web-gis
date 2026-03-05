@@ -4,7 +4,9 @@
   const RADIUS = 500;
   const BEAM_WIDTH_DEG = 10;
   const STEP_METERS_DEFAULT = 50;
-  const EYE_OFFSET = 1.7;
+  const RADAR_CENTER_OFFSET_M = 1.7;
+  const RADAR_THICKNESS_M = 3.0;
+  const RADAR_THICKNESS_HALF = RADAR_THICKNESS_M / 2;
   const SWEEP_STEP_DEG = 10;
   const SWEEP_STEPS_PER_ROTATION = Math.round(360 / SWEEP_STEP_DEG);
 
@@ -45,11 +47,11 @@
     }, 2500);
   }
 
-  async function getBeamZ(pointLike, fallbackZ = EYE_OFFSET) {
+  async function getBeamZ(pointLike, fallbackZ = RADAR_CENTER_OFFSET_M) {
     try {
       if (typeof window.__getGroundAltitudeMeters === "function") {
         const gz = await window.__getGroundAltitudeMeters(pointLike);
-        if (Number.isFinite(gz)) return gz + EYE_OFFSET;
+        if (Number.isFinite(gz)) return gz + RADAR_CENTER_OFFSET_M;
       }
     } catch (e) {
       // ignore callback errors
@@ -129,7 +131,9 @@
       this._stepMode = false;
       this._lastTimeMs = null;
       this._stationSweepStep = 0;
-      this.beamZ = EYE_OFFSET;
+      this.centerZ = RADAR_CENTER_OFFSET_M;
+      this.zMin = RADAR_CENTER_OFFSET_M - RADAR_THICKNESS_HALF;
+      this.zMax = RADAR_CENTER_OFFSET_M + RADAR_THICKNESS_HALF;
     }
 
     setCenter(point) {
@@ -207,25 +211,63 @@
       const halfWidth = (BEAM_WIDTH_DEG * DEG2RAD) / 2;
       const angleStart = this.sweepAngle - halfWidth;
       const angleEnd = this.sweepAngle + halfWidth;
-      const segments = 16;
-      const vertexCount = segments + 2;
-      const positions = new Float32Array(vertexCount * 3);
+      const segments = 24;
 
-      positions[0] = 0;
-      positions[1] = 0;
-      positions[2] = 0;
-
+      const arcTop = [];
+      const arcBot = [];
       for (let i = 0; i <= segments; i++) {
         const t = i / segments;
         const ang = angleStart + (angleEnd - angleStart) * t;
-        const idx = (i + 1) * 3;
-        positions[idx] = Math.cos(ang) * RADIUS;
-        positions[idx + 1] = Math.sin(ang) * RADIUS;
-        positions[idx + 2] = 0;
+        const x = Math.cos(ang) * RADIUS;
+        const y = Math.sin(ang) * RADIUS;
+        arcTop.push([x, y, RADAR_THICKNESS_HALF]);
+        arcBot.push([x, y, -RADAR_THICKNESS_HALF]);
       }
 
-      this._localPositions = positions;
-      this._vertexCount = vertexCount;
+      const verts = [];
+      const push = (v) => { verts.push(v[0], v[1], v[2]); };
+      const centerTop = [0, 0, RADAR_THICKNESS_HALF];
+      const centerBot = [0, 0, -RADAR_THICKNESS_HALF];
+
+      // Top face
+      for (let i = 0; i < segments; i++) {
+        push(centerTop);
+        push(arcTop[i]);
+        push(arcTop[i + 1]);
+      }
+      // Bottom face (reverse winding)
+      for (let i = 0; i < segments; i++) {
+        push(centerBot);
+        push(arcBot[i + 1]);
+        push(arcBot[i]);
+      }
+      // Outer wall
+      for (let i = 0; i < segments; i++) {
+        push(arcTop[i]);
+        push(arcTop[i + 1]);
+        push(arcBot[i + 1]);
+        push(arcTop[i]);
+        push(arcBot[i + 1]);
+        push(arcBot[i]);
+      }
+      // Side wall at start edge
+      push(centerTop);
+      push(arcTop[0]);
+      push(arcBot[0]);
+      push(centerTop);
+      push(arcBot[0]);
+      push(centerBot);
+      // Side wall at end edge
+      const last = arcTop.length - 1;
+      push(centerTop);
+      push(arcBot[last]);
+      push(arcTop[last]);
+      push(centerTop);
+      push(centerBot);
+      push(arcBot[last]);
+
+      this._localPositions = new Float32Array(verts);
+      this._vertexCount = this._localPositions.length / 3;
       return true;
     }
 
@@ -274,7 +316,7 @@
         this._renderPositions = new Float32Array(this._localPositions.length);
       }
 
-      const origin = [this.center.x, this.center.y, this.beamZ || this.center.z || 0];
+      const origin = [this.center.x, this.center.y, this.centerZ || this.center.z || 0];
       const transform = new Float32Array(16);
       this.externalRenderers.renderCoordinateTransformAt(
         this.view,
@@ -312,7 +354,7 @@
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.depthMask(false);
 
-      gl.drawArrays(gl.TRIANGLE_FAN, 0, this._vertexCount);
+      gl.drawArrays(gl.TRIANGLES, 0, this._vertexCount);
 
       gl.depthMask(true);
       context.resetWebGLState();
@@ -329,9 +371,11 @@
     _updateBeamZ() {
       const current = this.center;
       if (!current) return;
-      getBeamZ(current, EYE_OFFSET).then((z) => {
-        this.beamZ = z;
-        const groundZ = Number.isFinite(z) ? z - EYE_OFFSET : null;
+      getBeamZ(current, RADAR_CENTER_OFFSET_M).then((z) => {
+        this.centerZ = z;
+        this.zMin = z - RADAR_THICKNESS_HALF;
+        this.zMax = z + RADAR_THICKNESS_HALF;
+        const groundZ = Number.isFinite(z) ? z - RADAR_CENTER_OFFSET_M : null;
         window.__radarUpdateDebug?.(groundZ, z);
         console.log(`[RADAR] station ${this._stationIndex} groundZ ${groundZ} beamZ ${z}`);
       }).catch(() => {});
