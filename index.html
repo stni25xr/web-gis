@@ -4093,65 +4093,6 @@ Maintain safe distance
         const b = Number.isFinite(beamZ) ? beamZ.toFixed(1) : "–";
         el.textContent = `Markhöjd: ${g} m • Radar Z: ${b} m`;
       };
-      window.__getRadarStopRadius = async function (center, angleRad, maxRadius) {
-        try {
-          if (!center || !buildingFootprints || !geometryEngine) return null;
-          const origin = toGeographic(center);
-          if (!origin) return null;
-          const lat1 = origin.latitude ?? origin.y;
-          const lon1 = origin.longitude ?? origin.x;
-          if (!isFinite(lat1) || !isFinite(lon1)) return null;
-
-          const dist = Math.max(1, maxRadius || 1);
-          const R = 6371000;
-          const brng = Number(angleRad) || 0;
-          const lat1r = (lat1 * Math.PI) / 180;
-          const lon1r = (lon1 * Math.PI) / 180;
-          const lat2r = Math.asin(Math.sin(lat1r) * Math.cos(dist / R) + Math.cos(lat1r) * Math.sin(dist / R) * Math.cos(brng));
-          const lon2r = lon1r + Math.atan2(Math.sin(brng) * Math.sin(dist / R) * Math.cos(lat1r), Math.cos(dist / R) - Math.sin(lat1r) * Math.sin(lat2r));
-          const lat2 = (lat2r * 180) / Math.PI;
-          const lon2 = (lon2r * 180) / Math.PI;
-          const ray = new Polyline({
-            paths: [[[lon1, lat1], [lon2, lat2]]],
-            spatialReference: { wkid: 4326 }
-          });
-          const results = await buildingFootprints.queryFeatures({
-            geometry: ray,
-            spatialRelationship: "intersects",
-            returnGeometry: true,
-            outFields: []
-          });
-          const candidates = results?.features || [];
-          if (!candidates.length) return null;
-
-          const step = 10;
-          const steps = Math.ceil(dist / step);
-          let prevLat = lat1;
-          let prevLon = lon1;
-          for (let i = 1; i <= steps; i++) {
-            const d = Math.min(dist, i * step);
-            const latR = Math.asin(Math.sin(lat1r) * Math.cos(d / R) + Math.cos(lat1r) * Math.sin(d / R) * Math.cos(brng));
-            const lonR = lon1r + Math.atan2(Math.sin(brng) * Math.sin(d / R) * Math.cos(lat1r), Math.cos(d / R) - Math.sin(lat1r) * Math.sin(latR));
-            const lat = (latR * 180) / Math.PI;
-            const lon = (lonR * 180) / Math.PI;
-            const seg = new Polyline({
-              paths: [[[prevLon, prevLat], [lon, lat]]],
-              spatialReference: { wkid: 4326 }
-            });
-            for (const f of candidates) {
-              if (geometryEngine.intersects(seg, f.geometry)) {
-                return d;
-              }
-            }
-            prevLat = lat;
-            prevLon = lon;
-          }
-          return null;
-        } catch (e) {
-          console.warn("[RADAR] stop radius failed", e);
-          return null;
-        }
-      };
       function formatDistanceColored(meters) {
         const color = distanceColor(meters);
         return `<span style="color:${color};font-weight:600;">${formatDistance(meters)}</span>`;

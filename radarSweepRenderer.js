@@ -136,9 +136,6 @@
       this.centerZ = RADAR_CENTER_OFFSET_M;
       this.zMin = RADAR_CENTER_OFFSET_M - RADAR_THICKNESS_HALF;
       this.zMax = RADAR_CENTER_OFFSET_M + RADAR_THICKNESS_HALF;
-      this._hitRadius = null;
-      this._hitPending = false;
-      this._lastHitAngle = null;
     }
 
     setCenter(point) {
@@ -211,9 +208,8 @@
       this._buffer = gl.createBuffer();
     }
 
-    _buildLocalGeometry(radius) {
+    _buildLocalGeometry() {
       if (!this.center) return false;
-      const beamRadius = Math.max(1, radius || RADIUS);
       const halfWidth = (BEAM_WIDTH_DEG * DEG2RAD) / 2;
       const angleStart = this.sweepAngle - halfWidth;
       const angleEnd = this.sweepAngle + halfWidth;
@@ -224,8 +220,8 @@
       for (let i = 0; i <= segments; i++) {
         const t = i / segments;
         const ang = angleStart + (angleEnd - angleStart) * t;
-        const x = Math.cos(ang) * beamRadius;
-        const y = Math.sin(ang) * beamRadius;
+        const x = Math.cos(ang) * RADIUS;
+        const y = Math.sin(ang) * RADIUS;
         arcTop.push([x, y, RADAR_THICKNESS_HALF]);
         arcBot.push([x, y, -RADAR_THICKNESS_HALF]);
       }
@@ -316,10 +312,7 @@
         this.sweepAngle = (this.sweepAngle + SWEEP_STEP_DEG * DEG2RAD) % (2 * Math.PI);
       }
 
-      const effectiveRadius = (Number.isFinite(this._hitRadius) && this._hitRadius > 1)
-        ? Math.min(RADIUS, this._hitRadius)
-        : RADIUS;
-      if (!this._buildLocalGeometry(effectiveRadius)) return;
+      if (!this._buildLocalGeometry()) return;
 
       if (!this._renderPositions || this._renderPositions.length !== this._localPositions.length) {
         this._renderPositions = new Float32Array(this._localPositions.length);
@@ -367,7 +360,6 @@
 
       gl.depthMask(true);
       context.resetWebGLState();
-      this._updateHitRadius();
       this.externalRenderers.requestRender(this.view);
     }
 
@@ -493,18 +485,3 @@
     }
   };
 })();
-    _updateHitRadius() {
-      if (this._hitPending || !this.center) return;
-      if (typeof window.__getRadarStopRadius !== "function") return;
-      if (this._lastHitAngle === this.sweepAngle) return;
-      this._lastHitAngle = this.sweepAngle;
-      this._hitPending = true;
-      window.__getRadarStopRadius(this.center, this.sweepAngle, RADIUS)
-        .then((radius) => {
-          this._hitRadius = Number.isFinite(radius) ? Math.max(10, radius) : null;
-        })
-        .catch(() => {})
-        .finally(() => {
-          this._hitPending = false;
-        });
-    }
