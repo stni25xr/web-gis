@@ -124,6 +124,43 @@
   padding-bottom: var(--app-spacing-2);
 }
 
+/* Ensure info panel theme matches menu panel */
+#info-panel.infoPanel {
+  --bg: var(--app-surface);
+  --card: var(--app-surface);
+  --stroke: var(--app-border);
+  --text: var(--app-text);
+  --muted: var(--app-text-muted);
+  --primary: var(--app-accent);
+  --primaryHover: var(--app-accent-strong);
+  --primarySoft: rgba(51, 93, 255, 0.12);
+  --danger: var(--app-danger);
+  --shadow: var(--app-shadow-sm);
+}
+#info-panel .panel-section {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  box-shadow: var(--app-shadow-sm);
+}
+
+/* Close button style consistency */
+.panel-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid var(--app-border);
+  background: #ffffff;
+  color: var(--app-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  cursor: pointer;
+}
+.panel-close:hover {
+  background: var(--app-surface-soft);
+}
+
 .panel-section {
   background: var(--app-surface);
   border: 1px solid var(--app-border);
@@ -452,6 +489,15 @@ button.ghost:hover {
   font-size: 12px;
   padding: 8px 10px;
   min-height: 36px;
+}
+
+/* Popup placement so it doesn't clip under header */
+.esri-popup--is-docked {
+  top: calc(var(--header-height, 64px) + 8px) !important;
+  right: 16px !important;
+}
+.esri-popup--is-docked .esri-popup__main-container {
+  max-height: calc(100vh - var(--header-height, 64px) - 24px);
 }
 
 #seniorModeRow,
