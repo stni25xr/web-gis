@@ -3912,6 +3912,26 @@ Maintain safe distance
         }
         return null;
       }
+
+      window.__radarGetGroundZ = async function (point) {
+        try {
+          if (!view?.ground?.queryElevation || !point) return null;
+          const x = point.x ?? point.longitude;
+          const y = point.y ?? point.latitude;
+          if (!isFinite(x) || !isFinite(y)) return null;
+          const geom = {
+            type: "point",
+            x,
+            y,
+            spatialReference: point.spatialReference || view.spatialReference
+          };
+          const res = await view.ground.queryElevation(geom);
+          const z = res?.geometry?.z ?? res?.z;
+          return Number.isFinite(z) ? z : null;
+        } catch (e) {
+          return null;
+        }
+      };
       function formatDistanceColored(meters) {
         const color = distanceColor(meters);
         return `<span style="color:${color};font-weight:600;">${formatDistance(meters)}</span>`;

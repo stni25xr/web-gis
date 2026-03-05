@@ -44,34 +44,16 @@
     }, 2500);
   }
 
-  function groundPlusEye(view, webMercatorUtils, point) {
-    if (!point) return EYE_OFFSET;
-    const sampler = view?.groundView?.elevationSampler;
-    if (!sampler) return EYE_OFFSET;
-    let samplePoint = point;
-    const viewSr = view?.spatialReference;
-    const sr = point?.spatialReference;
-    if (viewSr?.isWebMercator && sr && (sr.isWGS84 || sr.wkid === 4326) && webMercatorUtils?.geographicToWebMercator) {
-      samplePoint = webMercatorUtils.geographicToWebMercator({
-        type: "point",
-        x: point.x,
-        y: point.y,
-        spatialReference: sr
-      });
-    }
+  async function getEyeZ(view, point, fallbackZ = EYE_OFFSET) {
     try {
-      let res = null;
-      if (typeof sampler.queryElevation === "function") {
-        res = sampler.queryElevation(samplePoint);
-      } else if (typeof sampler.sample === "function") {
-        res = sampler.sample(samplePoint);
+      if (typeof window.__radarGetGroundZ === "function") {
+        const gz = await window.__radarGetGroundZ(point);
+        if (Number.isFinite(gz)) return gz + EYE_OFFSET;
       }
-      const z = res?.z ?? res?.geometry?.z;
-      if (Number.isFinite(z)) return z + EYE_OFFSET;
     } catch (e) {
-      // ignore sampling errors
+      // ignore callback errors
     }
-    return EYE_OFFSET;
+    return fallbackZ;
   }
 
   function distanceMeters(a, b) {
@@ -117,6 +99,10 @@
       carry += seg;
       prev = next;
     }
+    if (stations.length === 1) {
+      const last = { x: path[path.length - 1][0], y: path[path.length - 1][1], spatialReference: polyline.spatialReference || view.spatialReference };
+      stations.push(last);
+    }
     return stations;
   }
 
@@ -141,6 +127,7 @@
       this._stationIndex = 0;
       this._stepMode = false;
       this._lastTimeMs = null;
+      this._debugBoostUntil = 0;
     }
 
     setCenter(point) {
@@ -270,6 +257,7 @@
             this._updateZ();
             this.sweepAngle = 0;
           } else {
+            // stop only after final full rotation at last station
             this._running = false;
             setRadarBadge(false);
           }
@@ -311,7 +299,9 @@
 
       gl.uniformMatrix4fv(this._uView, false, context.camera.viewMatrix);
       gl.uniformMatrix4fv(this._uProj, false, context.camera.projectionMatrix);
-      gl.uniform4fv(this._uColor, [COLOR[0] / 255, COLOR[1] / 255, COLOR[2] / 255, COLOR[3]]);
+      const debugActive = this._debugBoostUntil && performance.now() < this._debugBoostUntil;
+      const alpha = debugActive ? 0.9 : COLOR[3];
+      gl.uniform4fv(this._uColor, [COLOR[0] / 255, COLOR[1] / 255, COLOR[2] / 255, alpha]);
 
       gl.enable(gl.DEPTH_TEST);
       gl.depthFunc(gl.LEQUAL);
@@ -335,9 +325,12 @@
     }
 
     _updateZ() {
-      const z = groundPlusEye(this.view, this.externalRenderers?.webMercatorUtils || window.webMercatorUtils, this.center);
-      this.center = { ...this.center, z };
-      console.log(`[radar] center = ${this.center.x},${this.center.y},${this.center.z}`);
+      const current = this.center;
+      if (!current) return;
+      getEyeZ(this.view, current, EYE_OFFSET).then((z) => {
+        this.center = { ...current, z };
+        console.log(`[RADAR] station ${this._stationIndex} groundZ ${z - EYE_OFFSET} beamZ ${z}`);
+      }).catch(() => {});
     }
   }
 
@@ -365,6 +358,7 @@
     rendererInstance._updateZ();
     setRadarBadge(true);
     rendererInstance.start();
+    rendererInstance._debugBoostUntil = performance.now() + 5000;
     externalRenderers.requestRender(view);
   }
 
