@@ -4595,12 +4595,22 @@ Maintain safe distance
         clearRoute();
       });
       nearRouteBtn.addEventListener("click", async () => {
+        if (typeof window.startRadarBeam === "function" && lastMeasurePoint) {
+          window.startRadarBeam({
+            view,
+            externalRenderers,
+            webMercatorUtils,
+            Point,
+            center: lastMeasurePoint,
+            radius: 500
+          });
+        }
         const summary = await drawWalkingRouteToFeature(lastNearestFeature, (msg) => { nearMeta.textContent = msg; });
-          if (summary?.distance != null && summary?.duration != null) {
-            const dist = formatDistanceColored(summary.distance);
-            const mins = Math.max(1, Math.round(summary.duration / 60));
-            const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
-            nearMeta.innerHTML = `${dist} • ca ${mins} min (gångväg)${elevLine}`;
+        if (summary?.distance != null && summary?.duration != null) {
+          const dist = formatDistanceColored(summary.distance);
+          const mins = Math.max(1, Math.round(summary.duration / 60));
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
+          nearMeta.innerHTML = `${dist} • ca ${mins} min (gångväg)${elevLine}`;
             const path = lastRouteGeometry?.paths?.[0];
             if (typeof window.startRadarAlongRoute === "function" && Array.isArray(path) && path.length > 1) {
               window.startRadarAlongRoute({
@@ -4697,6 +4707,16 @@ Maintain safe distance
         if (!lastSvcMeasurePoint) {
           svcHint.textContent = "Mät först en punkt på kartan";
           return;
+        }
+        if (typeof window.startRadarBeam === "function") {
+          window.startRadarBeam({
+            view,
+            externalRenderers,
+            webMercatorUtils,
+            Point,
+            center: lastSvcMeasurePoint,
+            radius: 500
+          });
         }
         lastMeasurePoint = lastSvcMeasurePoint;
         const header = `<div><b>${labelForService(selected.key)}</b> – ${selected.name}</div>`;
