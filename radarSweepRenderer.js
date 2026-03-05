@@ -1,7 +1,6 @@
 (() => {
   const DEG2RAD = Math.PI / 180;
-  const DEFAULT_COLOR = [255, 140, 0, 0.8]; // opaque orange
-  const DEFAULT_WALK_SPEED_MPS = 1.4;
+  const DEFAULT_COLOR = [255, 140, 0, 0.8];
 
   let radarInstance = null;
 
@@ -47,10 +46,8 @@
       this.webMercatorUtils = opts.webMercatorUtils;
       this.Point = opts.Point;
       this.radius = opts.radius ?? 500;
-      this.beamWidthDeg = 1;
-      this.rotationPeriodSec = 1;
+      this.beamWidthDeg = 10; // 10-degree beam
       this.sweepAngle = 0;
-      this.lastTimeMs = null;
       this.center = null;
       this.beamZ = 1.7;
       this.vertexCount = 0;
@@ -68,13 +65,11 @@
       this._pathPoints = null;
       this._pathCum = null;
       this._pathTotal = 0;
-      this._pathStartMs = 0;
-      this._pathDurationMs = 0;
       this._pathActive = false;
+      this._pathStepIdx = 0;
+      this._pathStepCount = 0;
+      this._snapMeters = 50; // move every 50m
       this._lastZSampleMs = 0;
-      this._snapMeters = 20;
-      this._stepDurationMs = 0;
-      this._stepCount = 0;
     }
 
     updateCenter(center, beamZ, radius) {
@@ -83,7 +78,7 @@
       if (Number.isFinite(beamZ)) this.beamZ = beamZ;
     }
 
-    setPath(points, durationSec) {
+    setPath(points) {
       if (!Array.isArray(points) || points.length < 2) return;
       const pts = points.map((p) => {
         if (Array.isArray(p)) {
@@ -106,14 +101,8 @@
       this._pathPoints = pts;
       this._pathCum = cum;
       this._pathTotal = total;
-      this._pathStartMs = performance.now();
-      const duration = Number.isFinite(durationSec) && durationSec > 0
-        ? durationSec * 1000
-        : (total / DEFAULT_WALK_SPEED_MPS) * 1000;
-      this._pathDurationMs = Math.max(1000, duration);
-      const snapMeters = Math.max(1, this._snapMeters);
-      this._stepCount = Math.max(1, Math.ceil(total / snapMeters));
-      this._stepDurationMs = this._pathDurationMs / this._stepCount;
+      this._pathStepIdx = 0;
+      this._pathStepCount = Math.max(1, Math.ceil(total / this._snapMeters));
       this._pathActive = true;
       this.center = pts[0];
     }
@@ -230,15 +219,13 @@
 
     _updatePathCenter() {
       if (!this._pathActive || !this._pathPoints || !this._pathCum) return;
-      const now = performance.now();
-      const elapsed = now - this._pathStartMs;
-      if (elapsed >= this._pathDurationMs) {
+      if (this._pathStepIdx >= this._pathStepCount) {
         this.center = this._pathPoints[this._pathPoints.length - 1];
         this._pathActive = false;
         return;
       }
-      const stepIdx = Math.min(this._stepCount, Math.floor(elapsed / this._stepDurationMs));
-      const targetDist = Math.min(this._pathTotal, stepIdx * this._snapMeters);
+
+      const targetDist = Math.min(this._pathTotal, this._pathStepIdx * this._snapMeters);
       const cum = this._pathCum;
       let idx = 1;
       while (idx < cum.length && cum[idx] < targetDist) idx++;
@@ -252,6 +239,7 @@
         y: prev.y + (next.y - prev.y) * segT,
         spatialReference: prev.spatialReference || { wkid: 4326 }
       };
+      this._pathStepIdx += 1;
     }
 
     render(context) {
@@ -261,13 +249,8 @@
       this._updatePathCenter();
       this._sampleBeamZ(this.center);
 
-      const now = performance.now();
-      if (this.lastTimeMs == null) this.lastTimeMs = now;
-      const dt = (now - this.lastTimeMs) / 1000;
-      this.lastTimeMs = now;
-
-      const angularSpeed = (2 * Math.PI) / this.rotationPeriodSec;
-      this.sweepAngle = (this.sweepAngle + angularSpeed * dt) % (2 * Math.PI);
+      // advance sweep by 10 degrees per frame (no time-based rotation)
+      this.sweepAngle = (this.sweepAngle + 10 * DEG2RAD) % (2 * Math.PI);
 
       if (!this._buildLocalGeometry()) return;
 
@@ -398,7 +381,6 @@
     const Point = opts?.Point;
     const radius = opts?.radius ?? 500;
     const path = opts?.path;
-    const durationSec = opts?.durationSec;
 
     if (!view || !externalRenderers || !Array.isArray(path) || path.length < 2) return;
 
@@ -410,7 +392,7 @@
       externalRenderers.add(view, radarInstance);
     }
     radarInstance.radius = radius;
-    radarInstance.setPath(path, durationSec);
+    radarInstance.setPath(path);
     externalRenderers.requestRender(view);
   };
 
