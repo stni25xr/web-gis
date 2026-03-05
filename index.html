@@ -697,82 +697,78 @@
           </div>
           <div id="svcRadarDebug" style="font-size:12px;color:#64748b;margin-top:6px;"></div>
           <div id="svcList" style="font-size:13px;color:#0f172a;"></div>
+
+          <div class="sectionTitle" style="margin-top:14px;">Alternativ &amp; Trygghet</div>
+          <div class="muted" style="margin-bottom:8px;">Buss • Bil • Blåljus</div>
+          <div class="panelDetailsBody" style="padding:0;border:0;">
+            <div class="miniCard">
+              <details data-section="bus" open>
+                <summary class="panel-title">Närmsta busshållplats</summary>
+                <div class="panel-body">
+                  <div id="nearHint">Klicka på kartan för att mäta</div>
+                  <div id="nearResult" style="font-size:13px;color:#0f172a;"></div>
+                  <div id="nearMeta" style="font-size:12px;color:#64748b;margin-top:4px;"></div>
+                  <div class="field-row button-row" style="margin-top:8px;">
+                    <button id="nearMeasureBtn" type="button">Mät avstånd</button>
+                    <button id="nearResetBtn" type="button">Nollställ</button>
+                  </div>
+                  <div class="field-row button-row" style="margin-top:6px;">
+                    <button id="nearRouteBtn" type="button">Visa gångväg</button>
+                    <button id="nearClearRouteBtn" type="button">Rensa rutt</button>
+                  </div>
+                </div>
+              </details>
+            </div>
+            <div class="miniCard">
+              <details data-section="departures" open>
+                <summary class="panel-title">Avgångar (busshållplats)</summary>
+                <div class="panel-body">
+                  <div id="depHint">Klicka på en busshållplats</div>
+                  <div id="depMeta" style="font-size:12px;color:#64748b;margin-top:6px;"></div>
+                  <div style="margin-top:6px;">
+                    <a id="depLink" href="https://www.jlt.se/tidtabeller/" target="_blank" rel="noopener"
+                       style="font-size:12px;color:#2563eb;text-decoration:none;">Öppna tidtabell online</a>
+                  </div>
+                  <ul id="depList"></ul>
+                </div>
+              </details>
+            </div>
+            <div class="miniCard">
+              <details data-section="safety" open>
+                <summary class="panel-title">Trygg resa med bil</summary>
+                <div class="panel-body">
+                  <div class="muted" style="margin-bottom:6px;">Om du behöver skjuts / bil</div>
+                  <div id="safeHint">Välj trygghet och klicka Mät avstånd</div>
+                  <div class="field-row" style="margin-top:6px;">
+                    <select id="safeSelect"></select>
+                  </div>
+                  <div class="field-row button-row" style="margin-top:6px;">
+                    <button id="safeMeasureBtn" type="button">Mät avstånd</button>
+                    <button id="safeResetBtn" type="button">Nollställ</button>
+                  </div>
+                  <div class="field-row button-row" style="margin-top:6px;">
+                    <button id="safeRouteBtn" type="button">Visa körväg</button>
+                    <button id="safeClearRouteBtn" type="button">Rensa rutt</button>
+                  </div>
+                  <div id="safeList" style="font-size:13px;color:#0f172a;"></div>
+                </div>
+              </details>
+            </div>
+            <div class="miniCard">
+              <details data-section="blue" open>
+                <summary class="panel-title">Blåljus &amp; framkomst</summary>
+                <div class="panel-body">
+                  <div class="muted" style="margin-bottom:6px;">Ambulans, räddningstjänst och polis.</div>
+                  <div id="blueHint" class="muted">Välj trygghet och mät för att se beräknad framkomst.</div>
+                  <div id="blueList" style="font-size:13px;color:#0f172a;"></div>
+                  <div class="muted" style="margin-top:6px;">Isochroner visas inte i denna vy ännu.</div>
+                </div>
+              </details>
+            </div>
+          </div>
         </div>
       </details>
     </div>
-
-    <details id="altTryggDetails" class="panelDetails">
-      <summary class="panelSummary">
-        <span class="summaryTitle">Alternativ &amp; Trygghet</span>
-        <span class="summaryHint">Buss • Bil • Blåljus</span>
-      </summary>
-      <div class="panelDetailsBody">
-        <div class="miniCard">
-          <details data-section="bus" open>
-            <summary class="panel-title">Närmsta busshållplats</summary>
-            <div class="panel-body">
-              <div id="nearHint">Klicka på kartan för att mäta</div>
-              <div id="nearResult" style="font-size:13px;color:#0f172a;"></div>
-              <div id="nearMeta" style="font-size:12px;color:#64748b;margin-top:4px;"></div>
-              <div class="field-row button-row" style="margin-top:8px;">
-                <button id="nearMeasureBtn" type="button">Mät avstånd</button>
-                <button id="nearResetBtn" type="button">Nollställ</button>
-              </div>
-              <div class="field-row button-row" style="margin-top:6px;">
-                <button id="nearRouteBtn" type="button">Visa gångväg</button>
-                <button id="nearClearRouteBtn" type="button">Rensa rutt</button>
-              </div>
-            </div>
-          </details>
-        </div>
-        <div class="miniCard">
-          <details data-section="departures" open>
-            <summary class="panel-title">Avgångar (busshållplats)</summary>
-            <div class="panel-body">
-              <div id="depHint">Klicka på en busshållplats</div>
-              <div id="depMeta" style="font-size:12px;color:#64748b;margin-top:6px;"></div>
-              <div style="margin-top:6px;">
-                <a id="depLink" href="https://www.jlt.se/tidtabeller/" target="_blank" rel="noopener"
-                   style="font-size:12px;color:#2563eb;text-decoration:none;">Öppna tidtabell online</a>
-              </div>
-              <ul id="depList"></ul>
-            </div>
-          </details>
-        </div>
-        <div class="miniCard">
-          <details data-section="safety" open>
-            <summary class="panel-title">Trygg resa med bil</summary>
-            <div class="panel-body">
-              <div class="muted" style="margin-bottom:6px;">Om du behöver skjuts / bil</div>
-              <div id="safeHint">Välj trygghet och klicka Mät avstånd</div>
-              <div class="field-row" style="margin-top:6px;">
-                <select id="safeSelect"></select>
-              </div>
-              <div class="field-row button-row" style="margin-top:6px;">
-                <button id="safeMeasureBtn" type="button">Mät avstånd</button>
-                <button id="safeResetBtn" type="button">Nollställ</button>
-              </div>
-              <div class="field-row button-row" style="margin-top:6px;">
-                <button id="safeRouteBtn" type="button">Visa körväg</button>
-                <button id="safeClearRouteBtn" type="button">Rensa rutt</button>
-              </div>
-              <div id="safeList" style="font-size:13px;color:#0f172a;"></div>
-            </div>
-          </details>
-        </div>
-        <div class="miniCard">
-          <details data-section="blue" open>
-            <summary class="panel-title">Blåljus &amp; framkomst</summary>
-            <div class="panel-body">
-              <div class="muted" style="margin-bottom:6px;">Ambulans, räddningstjänst och polis.</div>
-              <div id="blueHint" class="muted">Välj trygghet och mät för att se beräknad framkomst.</div>
-              <div id="blueList" style="font-size:13px;color:#0f172a;"></div>
-              <div class="muted" style="margin-top:6px;">Isochroner visas inte i denna vy ännu.</div>
-            </div>
-          </details>
-        </div>
-      </div>
-    </details>
 
     <div class="panel-section" id="seniorModeRow" data-role="senior-toggle">
       <div class="panel-body" style="margin-top:0;">
