@@ -43,7 +43,7 @@
   }
 
   const GEOJSON_URL = window.ELEVATION_GEOJSON_URL || "";
-  const GEOJSON_PRECISION = 6;
+  const GEOJSON_PRECISION = 5;
   const GEOJSON_STEP = 1 / 10 ** GEOJSON_PRECISION;
   let geoIndex = null;
   let geoIndexReady = null;
