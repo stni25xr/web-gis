@@ -409,22 +409,8 @@
 
     async _getGroundZForPoint(pointLike) {
       if (!pointLike) return null;
-      if (this.view?.groundView?.elevationSampler && this._Point) {
-        let pt = new this._Point({
-          longitude: pointLike.longitude ?? pointLike.x,
-          latitude: pointLike.latitude ?? pointLike.y,
-          spatialReference: { wkid: 4326 }
-        });
-        if (this._webMercatorUtils && this.view?.spatialReference?.isWebMercator) {
-          pt = this._webMercatorUtils.geographicToWebMercator(pt);
-          pt.spatialReference = this.view.spatialReference;
-        }
-        const sampled = this.view.groundView.elevationSampler.sample(pt);
-        const z = sampled?.z ?? sampled?.geometry?.z;
-        if (Number.isFinite(z)) return z;
-      }
-      if (typeof window.__getGroundAltitudeMeters === "function") {
-        const z = await window.__getGroundAltitudeMeters(pointLike);
+      if (typeof window.__getRadarGroundZ === "function") {
+        const z = await window.__getRadarGroundZ(pointLike);
         return Number.isFinite(z) ? z : null;
       }
       return null;
@@ -439,8 +425,6 @@
 
       const maxDist = this._maxRayDistance || DEFAULT_MAX_RAY_DISTANCE;
       const step = Math.max(1, this._rayStepMeters || DEFAULT_RAY_STEP_METERS);
-      const useSampler = !!(this.view?.groundView?.elevationSampler && this._Point);
-
       for (let i = 0; i < this._rayAnglesDeg.length; i++) {
         const angleDeg = this._rayAnglesDeg[i];
         const angleRad = angleDeg * DEG2RAD;
@@ -448,16 +432,8 @@
         for (let d = step; d <= maxDist; d += step) {
           const pos = destinationLatLon(originLat, originLon, angleRad, d);
           let terrainZ = null;
-          if (useSampler) {
-            let pt = new this._Point({ longitude: pos.lon, latitude: pos.lat, spatialReference: { wkid: 4326 } });
-            if (this._webMercatorUtils && this.view?.spatialReference?.isWebMercator) {
-              pt = this._webMercatorUtils.geographicToWebMercator(pt);
-              pt.spatialReference = this.view.spatialReference;
-            }
-            const sampled = this.view.groundView.elevationSampler.sample(pt);
-            terrainZ = sampled?.z ?? sampled?.geometry?.z;
-          } else if (typeof window.__getGroundAltitudeMeters === "function") {
-            terrainZ = await window.__getGroundAltitudeMeters({ longitude: pos.lon, latitude: pos.lat, spatialReference: { wkid: 4326 } });
+          if (typeof window.__getRadarGroundZ === "function") {
+            terrainZ = await window.__getRadarGroundZ({ longitude: pos.lon, latitude: pos.lat, spatialReference: { wkid: 4326 } });
           }
           if (Number.isFinite(terrainZ) && terrainZ > eyeZ) {
             hitDist = d;

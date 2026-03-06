@@ -4094,6 +4094,30 @@ Maintain safe distance
         const e = Number.isFinite(beamZ) ? beamZ.toFixed(1) : "–";
         el.innerHTML = `Markhöjd: ${g} m<br>Ögonhöjd: ${e} m`;
       };
+      const radarElevationCache = new Map();
+      function radarKey(lat, lon) {
+        const r = (v) => Math.round(v * 1e5) / 1e5;
+        return `${r(lat)},${r(lon)}`;
+      }
+      window.__getRadarGroundZ = async function (pointLike) {
+        try {
+          const geo = toGeographic(pointLike);
+          if (!geo) return null;
+          const lat = geo.latitude ?? geo.y;
+          const lon = geo.longitude ?? geo.x;
+          if (!isFinite(lat) || !isFinite(lon)) return null;
+          const key = radarKey(lat, lon);
+          if (radarElevationCache.has(key)) return radarElevationCache.get(key);
+          const elev = await window.ElevationProvider?.getElevation?.(lat, lon);
+          if (Number.isFinite(elev)) {
+            radarElevationCache.set(key, elev);
+            return elev;
+          }
+          return null;
+        } catch (e) {
+          return null;
+        }
+      };
       let fixedVisibilityLastGroundZ = null;
       function destinationLatLon(lat, lon, bearingDeg, distanceMetersValue) {
         const R = 6371000;
@@ -4115,7 +4139,7 @@ Maintain safe distance
 
           let groundZ = null;
           try {
-            groundZ = await window.__getGroundAltitudeMeters(origin);
+            groundZ = await window.__getRadarGroundZ(origin);
           } catch (e) {
             groundZ = null;
           }
@@ -4130,7 +4154,7 @@ Maintain safe distance
               const pt = new Point({ longitude: pos.lon, latitude: pos.lat, spatialReference: { wkid: 4326 } });
               let terrainZ = null;
               try {
-                terrainZ = await window.__getGroundAltitudeMeters(pt);
+                terrainZ = await window.__getRadarGroundZ(pt);
               } catch (e) {
                 terrainZ = null;
               }
