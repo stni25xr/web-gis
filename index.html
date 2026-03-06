@@ -4154,14 +4154,15 @@ Maintain safe distance
       }
 
       async function getSurfaceZ(mapPoint) {
-        let z = await getGroundZ(mapPoint);
+        const mapPtWgs = toGeographic(mapPoint) || mapPoint;
+        const lon = mapPtWgs?.longitude ?? mapPtWgs?.x;
+        const lat = mapPtWgs?.latitude ?? mapPtWgs?.y;
+        let z = null;
+        if (isFinite(lat) && isFinite(lon) && window.ElevationProvider?.getElevation) {
+          z = await window.ElevationProvider.getElevation(lat, lon);
+        }
         if (!isFinite(z)) {
-          const mapPtWgs = toGeographic(mapPoint) || mapPoint;
-          const lon = mapPtWgs?.longitude ?? mapPtWgs?.x;
-          const lat = mapPtWgs?.latitude ?? mapPtWgs?.y;
-          if (isFinite(lat) && isFinite(lon) && window.ElevationProvider?.getElevation) {
-            z = await window.ElevationProvider.getElevation(lat, lon);
-          }
+          z = await getGroundZ(mapPoint);
         }
         return isFinite(z) ? z : null;
       }
@@ -4174,7 +4175,7 @@ Maintain safe distance
         let z = await getSurfaceZ(mapPoint);
         const coord = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
         if (isFinite(z)) return `${coord} • Z: ${Number(z).toFixed(1)} m`;
-        return `${coord} • Z: —`;
+        return `${coord} • Z: ej tillgänglig`;
       }
 
       async function updateNearestStop(mapPoint) {
