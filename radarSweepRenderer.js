@@ -1,6 +1,6 @@
 (() => {
   const DEG2RAD = Math.PI / 180;
-  const COLOR = [255, 140, 0, 0.22];
+  const COLOR = [255, 140, 0, 0.55];
   const DEFAULT_MAX_RAY_DISTANCE = 200;
   const DEFAULT_RAY_STEP_METERS = 2;
   const DEFAULT_RAY_ANGLE_STEP_DEG = 5;
@@ -530,7 +530,7 @@
       if (!this.lengths) return false;
       const width = 3;
       const half = width / 2;
-      const z = 0;
+      const z = 0.3;
       const n = Math.max(1, this.lengths.N || 0);
       const e = Math.max(1, this.lengths.E || 0);
       const s = Math.max(1, this.lengths.S || 0);
@@ -746,7 +746,7 @@
 
   function stopFixedVisibilityCross() {
     if (!fixedRendererInstance || !fixedActiveView) {
-      setRadarBadge(false);
+      if (!rendererInstance) setRadarBadge(false);
       return;
     }
     try {
@@ -758,7 +758,8 @@
     fixedRendererInstance.dispose();
     fixedRendererInstance = null;
     fixedActiveView = null;
-    setRadarBadge(false);
+    if (!rendererInstance) setRadarBadge(false);
+    if (typeof window !== "undefined") window.__fixedVisibilityActive = false;
   }
 
   window.Visibility = {

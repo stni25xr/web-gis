@@ -4663,7 +4663,7 @@ Maintain safe distance
         if (svcMeasureBtn) svcMeasureBtn.textContent = "Mät avstånd";
         svcHint.textContent = "Klicka på kartan för att räkna avstånd";
         svcList.innerHTML = "";
-        if (svcRadarDebug) svcRadarDebug.textContent = "";
+        if (svcRadarDebug && !window.__fixedVisibilityActive) svcRadarDebug.textContent = "";
         lastSvcMeasurePoint = null;
       }
       function clearSupportFlows(except = null) {
@@ -4849,6 +4849,7 @@ Maintain safe distance
             point: event.mapPoint,
             externalRenderers
           });
+          window.__fixedVisibilityActive = true;
         }
         if (measureEnabled && event.mapPoint) {
           updateNearestStop(event.mapPoint);
