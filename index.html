@@ -4158,13 +4158,17 @@ Maintain safe distance
         const lon = mapPtWgs?.longitude ?? mapPtWgs?.x;
         const lat = mapPtWgs?.latitude ?? mapPtWgs?.y;
         let z = null;
+        let source = null;
         if (isFinite(lat) && isFinite(lon) && window.ElevationProvider?.getElevation) {
           z = await window.ElevationProvider.getElevation(lat, lon);
+          if (isFinite(z)) source = "ElevationProvider";
         }
         if (!isFinite(z)) {
           z = await getGroundZ(mapPoint);
+          if (isFinite(z)) source = "Ground";
         }
-        return isFinite(z) ? z : null;
+        if (!isFinite(z)) return { z: null, source: null };
+        return { z, source };
       }
 
       async function formatCoordWithZ(mapPoint) {
@@ -4172,9 +4176,14 @@ Maintain safe distance
         const lon = mapPtWgs?.longitude ?? mapPtWgs?.x;
         const lat = mapPtWgs?.latitude ?? mapPtWgs?.y;
         if (!isFinite(lon) || !isFinite(lat)) return null;
-        let z = await getSurfaceZ(mapPoint);
+        const surface = await getSurfaceZ(mapPoint);
+        const z = surface?.z;
+        const source = surface?.source;
         const coord = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
-        if (isFinite(z)) return `${coord} • Z: ${Number(z).toFixed(1)} m`;
+        if (isFinite(z)) {
+          const srcLabel = source ? ` • Källa: ${source}` : "";
+          return `${coord} • Z: ${Number(z).toFixed(1)} m${srcLabel}`;
+        }
         return `${coord} • Z: ej tillgänglig`;
       }
 
@@ -4779,7 +4788,8 @@ Maintain safe distance
         const coord = await formatCoordWithZ(event.mapPoint);
         if (!coord) return;
         coordLayer.removeAll();
-        const groundZ = await getSurfaceZ(event.mapPoint);
+        const surface = await getSurfaceZ(event.mapPoint);
+        const groundZ = surface?.z;
         const srView = view?.spatialReference || event.mapPoint.spatialReference;
         const pointWithZ = new Point({
           x: event.mapPoint.x,
