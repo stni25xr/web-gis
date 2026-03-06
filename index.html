@@ -1176,6 +1176,7 @@ Maintain safe distance
         // Start at LOD1 camera to avoid post-load rescale
         camera: { position: { latitude: 57.762686206841096, longitude: 14.187974955833315, z: 7500 }, tilt: 0 }
       });
+      window.__externalRenderers = externalRenderers;
       window.view = view;
       const homeCamera = view.camera.clone();
       console.log("devicePixelRatio", window.devicePixelRatio);
@@ -4093,6 +4094,83 @@ Maintain safe distance
         const e = Number.isFinite(beamZ) ? beamZ.toFixed(1) : "–";
         el.innerHTML = `Markhöjd: ${g} m<br>Ögonhöjd: ${e} m`;
       };
+      let fixedVisibilityLastGroundZ = null;
+      function destinationLatLon(lat, lon, bearingDeg, distanceMetersValue) {
+        const R = 6371000;
+        const brng = (bearingDeg * Math.PI) / 180;
+        const lat1r = (lat * Math.PI) / 180;
+        const lon1r = (lon * Math.PI) / 180;
+        const dr = distanceMetersValue / R;
+        const lat2r = Math.asin(Math.sin(lat1r) * Math.cos(dr) + Math.cos(lat1r) * Math.sin(dr) * Math.cos(brng));
+        const lon2r = lon1r + Math.atan2(Math.sin(brng) * Math.sin(dr) * Math.cos(lat1r), Math.cos(dr) - Math.sin(lat1r) * Math.sin(lat2r));
+        return { lat: (lat2r * 180) / Math.PI, lon: (lon2r * 180) / Math.PI };
+      }
+      window.__fixedVisibilityCompute = async function (pointLike, { maxDist = 200, step = 2, eyeOffset = 1.7 } = {}) {
+        try {
+          const origin = toGeographic(pointLike);
+          if (!origin) return null;
+          const lat1 = origin.latitude ?? origin.y;
+          const lon1 = origin.longitude ?? origin.x;
+          if (!isFinite(lat1) || !isFinite(lon1)) return null;
+
+          let groundZ = null;
+          try {
+            groundZ = await window.__getGroundAltitudeMeters(origin);
+          } catch (e) {
+            groundZ = null;
+          }
+          if (Number.isFinite(groundZ)) fixedVisibilityLastGroundZ = groundZ;
+          const baseGround = Number.isFinite(fixedVisibilityLastGroundZ) ? fixedVisibilityLastGroundZ : null;
+          const eyeZ = Number.isFinite(baseGround) ? baseGround + eyeOffset : eyeOffset;
+          console.log(`[VIS] groundZ=${baseGround} eyeZ=${eyeZ}`);
+
+          async function rayHit(bearingDeg) {
+            for (let d = step; d <= maxDist; d += step) {
+              const pos = destinationLatLon(lat1, lon1, bearingDeg, d);
+              const pt = new Point({ longitude: pos.lon, latitude: pos.lat, spatialReference: { wkid: 4326 } });
+              let terrainZ = null;
+              try {
+                terrainZ = await window.__getGroundAltitudeMeters(pt);
+              } catch (e) {
+                terrainZ = null;
+              }
+              if (Number.isFinite(terrainZ) && terrainZ > eyeZ) return d;
+
+              try {
+                const res = await buildingFootprints.queryFeatures({
+                  geometry: pt,
+                  spatialRelationship: "intersects",
+                  returnGeometry: false,
+                  outFields: ["*"]
+                });
+                if ((res?.features || []).length) return d;
+              } catch (e) {
+                // ignore building errors
+              }
+            }
+            return maxDist;
+          }
+
+          const [n, e, s, w] = await Promise.all([
+            rayHit(0),
+            rayHit(90),
+            rayHit(180),
+            rayHit(270)
+          ]);
+
+          const lengths = { N: n, E: e, S: s, W: w };
+          const el = document.getElementById("svcRadarDebug");
+          if (el) {
+            const g = Number.isFinite(baseGround) ? baseGround.toFixed(1) : "–";
+            const ez = Number.isFinite(eyeZ) ? eyeZ.toFixed(1) : "–";
+            el.innerHTML = `Markhöjd: ${g} m<br>Ögonhöjd: ${ez} m<br>N: ${Math.round(n)} m • E: ${Math.round(e)} m<br>S: ${Math.round(s)} m • W: ${Math.round(w)} m`;
+          }
+          return { groundZ: baseGround, eyeZ, lengths };
+        } catch (e) {
+          console.warn("[VIS] compute failed", e);
+          return null;
+        }
+      };
       function formatDistanceColored(meters) {
         const color = distanceColor(meters);
         return `<span style="color:${color};font-weight:600;">${formatDistance(meters)}</span>`;
@@ -4739,6 +4817,11 @@ Maintain safe distance
             latitude: event.mapPoint.latitude,
             longitude: event.mapPoint.longitude,
             timestamp: new Date().toISOString()
+          });
+          window.FixedVisibility?.stopFixedVisibilityCross?.();
+          window.FixedVisibility?.startFixedVisibilityCross?.({
+            view,
+            point: event.mapPoint
           });
         }
         if (measureEnabled && event.mapPoint) {

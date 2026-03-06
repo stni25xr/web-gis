@@ -10,6 +10,8 @@
 
   let rendererInstance = null;
   let activeView = null;
+  let fixedRendererInstance = null;
+  let fixedActiveView = null;
 
   function ensureRadarBadge() {
     let badge = document.getElementById("radarStatusBadge");
@@ -468,6 +470,182 @@
     }
   }
 
+  class FixedVisibilityRenderer {
+    constructor(view, externalRenderers) {
+      this.view = view;
+      this.externalRenderers = externalRenderers;
+      this.center = null;
+      this.eyeZ = RADAR_CENTER_OFFSET_M;
+      this.lengths = null;
+      this._gl = null;
+      this._program = null;
+      this._buffer = null;
+      this._aPos = -1;
+      this._uView = null;
+      this._uProj = null;
+      this._uColor = null;
+      this._renderPositions = null;
+      this._localPositions = null;
+      this._vertexCount = 0;
+    }
+
+    setup(context) {
+      const gl = context.gl;
+      this._gl = gl;
+
+      const vsSource = `
+        precision mediump float;
+        attribute vec3 a_position;
+        uniform mat4 u_view;
+        uniform mat4 u_proj;
+        void main() {
+          gl_Position = u_proj * u_view * vec4(a_position, 1.0);
+        }
+      `;
+      const fsSource = `
+        precision mediump float;
+        uniform vec4 u_color;
+        void main() {
+          gl_FragColor = u_color;
+        }
+      `;
+
+      const compile = (type, source) => {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        return shader;
+      };
+
+      const vs = compile(gl.VERTEX_SHADER, vsSource);
+      const fs = compile(gl.FRAGMENT_SHADER, fsSource);
+      const program = gl.createProgram();
+      gl.attachShader(program, vs);
+      gl.attachShader(program, fs);
+      gl.linkProgram(program);
+
+      this._program = program;
+      this._aPos = gl.getAttribLocation(program, "a_position");
+      this._uView = gl.getUniformLocation(program, "u_view");
+      this._uProj = gl.getUniformLocation(program, "u_proj");
+      this._uColor = gl.getUniformLocation(program, "u_color");
+      this._buffer = gl.createBuffer();
+    }
+
+    setData({ center, eyeZ, lengths }) {
+      this.center = center;
+      this.eyeZ = eyeZ;
+      this.lengths = lengths;
+      this._buildLocalGeometry();
+    }
+
+    _buildBeamRect(x1, y1, x2, y2, z) {
+      return [
+        x1, y1, z,
+        x2, y1, z,
+        x2, y2, z,
+        x1, y1, z,
+        x2, y2, z,
+        x1, y2, z
+      ];
+    }
+
+    _buildLocalGeometry() {
+      if (!this.lengths) return false;
+      const width = 3;
+      const half = width / 2;
+      const z = 0;
+      const n = Math.max(1, this.lengths.N || 0);
+      const e = Math.max(1, this.lengths.E || 0);
+      const s = Math.max(1, this.lengths.S || 0);
+      const w = Math.max(1, this.lengths.W || 0);
+
+      const verts = [];
+      // North (+Y)
+      verts.push(...this._buildBeamRect(-half, 0, half, n, z));
+      // East (+X)
+      verts.push(...this._buildBeamRect(0, -half, e, half, z));
+      // South (-Y)
+      verts.push(...this._buildBeamRect(-half, -s, half, 0, z));
+      // West (-X)
+      verts.push(...this._buildBeamRect(-w, -half, 0, half, z));
+
+      this._localPositions = new Float32Array(verts);
+      this._vertexCount = this._localPositions.length / 3;
+      return true;
+    }
+
+    _transformLocalToRender(matrix, x, y, z, out, offset) {
+      const m = matrix;
+      const rx = m[0] * x + m[4] * y + m[8] * z + m[12];
+      const ry = m[1] * x + m[5] * y + m[9] * z + m[13];
+      const rz = m[2] * x + m[6] * y + m[10] * z + m[14];
+      out[offset] = rx;
+      out[offset + 1] = ry;
+      out[offset + 2] = rz;
+    }
+
+    render(context) {
+      const gl = context.gl;
+      if (!this.center || !this._localPositions) return;
+
+      if (!this._renderPositions || this._renderPositions.length !== this._localPositions.length) {
+        this._renderPositions = new Float32Array(this._localPositions.length);
+      }
+
+      const origin = [this.center.x, this.center.y, this.eyeZ || this.center.z || 0];
+      const transform = new Float32Array(16);
+      this.externalRenderers.renderCoordinateTransformAt(
+        this.view,
+        origin,
+        this.center.spatialReference || this.view.spatialReference,
+        transform
+      );
+
+      for (let i = 0; i < this._localPositions.length; i += 3) {
+        this._transformLocalToRender(
+          transform,
+          this._localPositions[i],
+          this._localPositions[i + 1],
+          this._localPositions[i + 2],
+          this._renderPositions,
+          i
+        );
+      }
+
+      gl.useProgram(this._program);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this._buffer);
+      gl.bufferData(gl.ARRAY_BUFFER, this._renderPositions, gl.DYNAMIC_DRAW);
+
+      gl.enableVertexAttribArray(this._aPos);
+      gl.vertexAttribPointer(this._aPos, 3, gl.FLOAT, false, 0, 0);
+
+      gl.uniformMatrix4fv(this._uView, false, context.camera.viewMatrix);
+      gl.uniformMatrix4fv(this._uProj, false, context.camera.projectionMatrix);
+      gl.uniform4fv(this._uColor, [COLOR[0] / 255, COLOR[1] / 255, COLOR[2] / 255, COLOR[3]]);
+
+      gl.enable(gl.DEPTH_TEST);
+      gl.depthFunc(gl.LEQUAL);
+      gl.disable(gl.CULL_FACE);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.depthMask(false);
+
+      gl.drawArrays(gl.TRIANGLES, 0, this._vertexCount);
+
+      gl.depthMask(true);
+      context.resetWebGLState();
+      this.externalRenderers.requestRender(this.view);
+    }
+
+    dispose() {
+      const gl = this._gl;
+      if (!gl) return;
+      if (this._buffer) gl.deleteBuffer(this._buffer);
+      if (this._program) gl.deleteProgram(this._program);
+    }
+  }
+
   function startVisibilityAlongRoute({ view, externalRenderers, webMercatorUtils, Point, path, stepMeters, eyeOffsetMeters, maxRayDistanceMeters, rayStepMeters, rayAngleStepDeg }) {
     if (!view || view.type !== "3d") {
       showRadarToast("Radar kräver 3D (SceneView) — kan inte visas i 2D-läge.");
@@ -554,6 +732,59 @@
     }
   }
 
+  async function startFixedVisibilityCross({ view, point }) {
+    if (!view || view.type !== "3d") {
+      showRadarToast("Radar kräver 3D (SceneView) — kan inte visas i 2D-läge.");
+      setRadarBadge(false);
+      return;
+    }
+    if (!point) return;
+
+    fixedActiveView = view;
+
+    const ext = rendererInstance?.externalRenderers || window.__externalRenderers;
+    if (!ext) {
+      showRadarToast("Radar kan inte starta (externa renderare saknas).");
+      return;
+    }
+    if (!fixedRendererInstance) {
+      fixedRendererInstance = new FixedVisibilityRenderer(view, ext);
+      ext.add(view, fixedRendererInstance);
+    }
+
+    let info = null;
+    if (typeof window.__fixedVisibilityCompute === "function") {
+      info = await window.__fixedVisibilityCompute(point, {
+        maxDist: 200,
+        step: 2,
+        eyeOffset: 1.7
+      });
+    }
+
+    const lengths = info?.lengths || { N: 200, E: 200, S: 200, W: 200 };
+    const eyeZ = Number.isFinite(info?.eyeZ) ? info.eyeZ : RADAR_CENTER_OFFSET_M;
+    fixedRendererInstance.setData({ center: point, eyeZ, lengths });
+    setRadarBadge(true);
+    ext.requestRender(view);
+  }
+
+  function stopFixedVisibilityCross() {
+    if (!fixedRendererInstance || !fixedActiveView) {
+      setRadarBadge(false);
+      return;
+    }
+    try {
+      const ext = rendererInstance?.externalRenderers || window.__externalRenderers;
+      ext?.remove(fixedActiveView, fixedRendererInstance);
+    } catch (e) {
+      // ignore
+    }
+    fixedRendererInstance.dispose();
+    fixedRendererInstance = null;
+    fixedActiveView = null;
+    setRadarBadge(false);
+  }
+
   window.Visibility = {
     startVisibilityAlongRoute,
     stopVisibility
@@ -563,5 +794,10 @@
     start: startRadar,
     stop: stopRadar,
     setCenter
+  };
+
+  window.FixedVisibility = {
+    startFixedVisibilityCross,
+    stopFixedVisibilityCross
   };
 })();
