@@ -698,9 +698,7 @@
             <button id="svcClearRouteBtn" type="button">Ta bort vägen</button>
           </div>
           <div class="field-row" style="margin-top:6px;">
-            <button id="svcTestRadarBtn" type="button">Test radar</button>
           </div>
-          <div id="svcRadarDebug" style="font-size:12px;color:#64748b;margin-top:6px;"></div>
           <div id="svcList" style="font-size:13px;color:#0f172a;"></div>
 
           <div class="sectionTitle" style="margin-top:14px;">Alternativ &amp; Trygghet</div>
@@ -1070,7 +1068,6 @@ Maintain safe distance
   <script type="module" src="./cloudWms.js"></script>
   <script type="module" src="./windLive.js"></script>
   <script type="module" src="./bimViewer.js"></script>
-  <script src="./radarSweepRenderer.js"></script>
 
   <!-- ARCGIS (3D) -->
   <script>
@@ -1177,7 +1174,6 @@ Maintain safe distance
         // Start at LOD1 camera to avoid post-load rescale
         camera: { position: { latitude: 57.762686206841096, longitude: 14.187974955833315, z: 7500 }, tilt: 0 }
       });
-      window.__externalRenderers = externalRenderers;
       window.view = view;
       const homeCamera = view.camera.clone();
       console.log("devicePixelRatio", window.devicePixelRatio);
@@ -3311,8 +3307,6 @@ Maintain safe distance
       const svcResetBtn = document.getElementById("svcResetBtn");
       const svcRouteBtn = document.getElementById("svcRouteBtn");
       const svcClearRouteBtn = document.getElementById("svcClearRouteBtn");
-      const svcTestRadarBtn = document.getElementById("svcTestRadarBtn");
-      const svcRadarDebug = document.getElementById("svcRadarDebug");
       const uniqueLayer = document.getElementById("uniqueLayer");
       const uniqueField = document.getElementById("uniqueField");
       const uniqueList = document.getElementById("uniqueList");
@@ -4088,113 +4082,6 @@ Maintain safe distance
         }
       };
 
-      window.__radarUpdateDebug = function (groundZ, beamZ) {
-        const el = document.getElementById("svcRadarDebug");
-        if (!el) return;
-        const g = Number.isFinite(groundZ) ? groundZ.toFixed(1) : "–";
-        const e = Number.isFinite(beamZ) ? beamZ.toFixed(1) : "–";
-        el.innerHTML = `Markhöjd: ${g} m<br>Ögonhöjd: ${e} m`;
-      };
-      const radarElevationCache = new Map();
-      function radarKey(lat, lon) {
-        const r = (v) => Math.round(v * 1e5) / 1e5;
-        return `${r(lat)},${r(lon)}`;
-      }
-      window.__getRadarGroundZCached = function (lat, lon) {
-        const key = radarKey(lat, lon);
-        return radarElevationCache.has(key) ? radarElevationCache.get(key) : null;
-      };
-      window.__getRadarGroundZ = async function (pointLike) {
-        try {
-          const geo = toGeographic(pointLike);
-          if (!geo) return null;
-          const lat = geo.latitude ?? geo.y;
-          const lon = geo.longitude ?? geo.x;
-          if (!isFinite(lat) || !isFinite(lon)) return null;
-          const key = radarKey(lat, lon);
-          if (radarElevationCache.has(key)) return radarElevationCache.get(key);
-          const elev = await window.ElevationProvider?.getElevation?.(lat, lon);
-          if (Number.isFinite(elev)) {
-            radarElevationCache.set(key, elev);
-            return elev;
-          }
-          return null;
-        } catch (e) {
-          return null;
-        }
-      };
-      let fixedVisibilityLastGroundZ = null;
-      function destinationLatLon(lat, lon, bearingDeg, distanceMetersValue) {
-        const R = 6371000;
-        const brng = (bearingDeg * Math.PI) / 180;
-        const lat1r = (lat * Math.PI) / 180;
-        const lon1r = (lon * Math.PI) / 180;
-        const dr = distanceMetersValue / R;
-        const lat2r = Math.asin(Math.sin(lat1r) * Math.cos(dr) + Math.cos(lat1r) * Math.sin(dr) * Math.cos(brng));
-        const lon2r = lon1r + Math.atan2(Math.sin(brng) * Math.sin(dr) * Math.cos(lat1r), Math.cos(dr) - Math.sin(lat1r) * Math.sin(lat2r));
-        return { lat: (lat2r * 180) / Math.PI, lon: (lon2r * 180) / Math.PI };
-      }
-      window.__fixedVisibilityCompute = async function (pointLike, { maxDist = 200, step = 2, eyeOffset = (window.__routeEyeOffset ?? 1.7) } = {}) {
-        try {
-          const origin = toGeographic(pointLike);
-          if (!origin) return null;
-          const lat1 = origin.latitude ?? origin.y;
-          const lon1 = origin.longitude ?? origin.x;
-          if (!isFinite(lat1) || !isFinite(lon1)) return null;
-
-          let groundZ = null;
-          try {
-            groundZ = await window.__getRadarGroundZ(origin);
-          } catch (e) {
-            groundZ = null;
-          }
-          if (Number.isFinite(groundZ)) fixedVisibilityLastGroundZ = groundZ;
-          const baseGround = Number.isFinite(fixedVisibilityLastGroundZ) ? fixedVisibilityLastGroundZ : null;
-          const eyeZ = Number.isFinite(baseGround) ? baseGround + eyeOffset : eyeOffset;
-          console.log(`[VIS] groundZ=${baseGround} eyeZ=${eyeZ}`);
-
-          async function rayHit(bearingDeg) {
-            for (let d = step; d <= maxDist; d += step) {
-              const pos = destinationLatLon(lat1, lon1, bearingDeg, d);
-              const pt = new Point({ longitude: pos.lon, latitude: pos.lat, spatialReference: { wkid: 4326 } });
-              const terrainZ = window.__getRadarGroundZCached(pos.lat, pos.lon);
-              if (Number.isFinite(terrainZ) && terrainZ > eyeZ) return d;
-
-              try {
-                const res = await buildingFootprints.queryFeatures({
-                  geometry: pt,
-                  spatialRelationship: "intersects",
-                  returnGeometry: false,
-                  outFields: ["*"]
-                });
-                if ((res?.features || []).length) return d;
-              } catch (e) {
-                // ignore building errors
-              }
-            }
-            return maxDist;
-          }
-
-          const [n, e, s, w] = await Promise.all([
-            rayHit(0),
-            rayHit(90),
-            rayHit(180),
-            rayHit(270)
-          ]);
-
-          const lengths = { N: n, E: e, S: s, W: w };
-          const el = document.getElementById("svcRadarDebug");
-          if (el) {
-            const g = Number.isFinite(baseGround) ? baseGround.toFixed(1) : "–";
-            const ez = Number.isFinite(eyeZ) ? eyeZ.toFixed(1) : "–";
-            el.innerHTML = `Markhöjd: ${g} m<br>Ögonhöjd: ${ez} m<br>N: ${Math.round(n)} m • E: ${Math.round(e)} m<br>S: ${Math.round(s)} m • W: ${Math.round(w)} m`;
-          }
-          return { groundZ: baseGround, eyeZ, lengths };
-        } catch (e) {
-          console.warn("[VIS] compute failed", e);
-          return null;
-        }
-      };
       function formatDistanceColored(meters) {
         const color = distanceColor(meters);
         return `<span style="color:${color};font-weight:600;">${formatDistance(meters)}</span>`;
@@ -4575,18 +4462,6 @@ Maintain safe distance
               name: "route_created",
               timestamp: new Date().toISOString()
             });
-            window.Visibility?.startVisibilityAlongRoute?.({
-              view,
-              externalRenderers,
-              webMercatorUtils,
-              Point,
-              path: coords,
-              stepMeters: 50,
-              eyeOffsetMeters: 1.7,
-              maxRayDistanceMeters: 200,
-              rayStepMeters: 2,
-              rayAngleStepDeg: 5
-            });
             const elevation = await getElevationStats(route);
             return elevation;
           };
@@ -4629,7 +4504,6 @@ Maintain safe distance
         lastRouteGeometry = null;
         lastWalkRoute = null;
         if (typeof window.stopRadarBeam === "function") window.stopRadarBeam();
-        window.Visibility?.stopVisibility?.();
         updateRouteColorButton();
         updateSeniorRouteButtons();
         saveClick({
@@ -4656,13 +4530,10 @@ Maintain safe distance
 
       function clearServiceFlow() {
         clearRoute();
-        window.Radar?.stop?.();
-        window.Visibility?.stopVisibility?.();
         svcMeasureEnabled = false;
         if (svcMeasureBtn) svcMeasureBtn.textContent = "Mät avstånd";
         svcHint.textContent = "Klicka på kartan för att räkna avstånd";
         svcList.innerHTML = "";
-        if (svcRadarDebug && !window.__fixedVisibilityActive) svcRadarDebug.textContent = "";
         lastSvcMeasurePoint = null;
       }
       function clearSupportFlows(except = null) {
@@ -4842,13 +4713,6 @@ Maintain safe distance
             longitude: event.mapPoint.longitude,
             timestamp: new Date().toISOString()
           });
-          window.FixedVisibility?.stopFixedVisibilityCross?.();
-          window.FixedVisibility?.startFixedVisibilityCross?.({
-            view,
-            point: event.mapPoint,
-            externalRenderers
-          });
-          window.__fixedVisibilityActive = true;
         }
         if (measureEnabled && event.mapPoint) {
           updateNearestStop(event.mapPoint);
@@ -4999,8 +4863,6 @@ Maintain safe distance
         clearServiceFlow();
         clearSupportFlows("blue");
         window.infoFlowController?.activateFlow?.("CAR");
-        window.Radar?.stop?.();
-        window.Visibility?.stopVisibility?.();
         if (isSeniorMode && lastSafetyClickPoint) {
           updateSelectedSafetyDistance(lastSafetyClickPoint);
         }
@@ -5046,15 +4908,9 @@ Maintain safe distance
         });
       svcClearRouteBtn.addEventListener("click", () => {
         clearRoute();
-        window.Radar?.stop?.();
-        window.Visibility?.stopVisibility?.();
         updateSeniorRouteButtons();
       });
-      svcTestRadarBtn?.addEventListener("click", () => {
-        console.log("[radar] test button fired");
-        const cp = view?.center?.clone ? view.center.clone() : view?.center;
-        if (cp) window.Radar?.start?.({ view, externalRenderers, centerPoint: cp });
-      });
+      // radar removed
 
       safeMeasureBtn.addEventListener("click", () => {
         if (!safeSelect.value) {
@@ -5081,8 +4937,6 @@ Maintain safe distance
         window.infoFlowController?.activateFlow?.("CAR");
         clearServiceFlow();
         clearSupportFlows("car");
-        window.Radar?.stop?.();
-        window.Visibility?.stopVisibility?.();
         if (!safeSelect.value) {
           setSafeHintText("Välj trygghet i listan");
           return;
