@@ -4153,15 +4153,25 @@ Maintain safe distance
         return null;
       }
 
+      async function getSurfaceZ(mapPoint) {
+        let z = await getGroundZ(mapPoint);
+        if (!isFinite(z)) {
+          const mapPtWgs = toGeographic(mapPoint) || mapPoint;
+          const lon = mapPtWgs?.longitude ?? mapPtWgs?.x;
+          const lat = mapPtWgs?.latitude ?? mapPtWgs?.y;
+          if (isFinite(lat) && isFinite(lon) && window.ElevationProvider?.getElevation) {
+            z = await window.ElevationProvider.getElevation(lat, lon);
+          }
+        }
+        return isFinite(z) ? z : null;
+      }
+
       async function formatCoordWithZ(mapPoint) {
         const mapPtWgs = toGeographic(mapPoint) || mapPoint;
         const lon = mapPtWgs?.longitude ?? mapPtWgs?.x;
         const lat = mapPtWgs?.latitude ?? mapPtWgs?.y;
         if (!isFinite(lon) || !isFinite(lat)) return null;
-        let z = await getGroundZ(mapPoint);
-        if (!isFinite(z) && typeof window.__getGroundAltitudeMeters === "function") {
-          z = await window.__getGroundAltitudeMeters(mapPtWgs);
-        }
+        let z = await getSurfaceZ(mapPoint);
         const coord = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
         if (isFinite(z)) return `${coord} • Z: ${Number(z).toFixed(1)} m`;
         return `${coord} • Z: —`;
@@ -4768,7 +4778,7 @@ Maintain safe distance
         const coord = await formatCoordWithZ(event.mapPoint);
         if (!coord) return;
         coordLayer.removeAll();
-        const groundZ = await getGroundZ(event.mapPoint);
+        const groundZ = await getSurfaceZ(event.mapPoint);
         const srView = view?.spatialReference || event.mapPoint.spatialReference;
         const pointWithZ = new Point({
           x: event.mapPoint.x,
