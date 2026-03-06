@@ -117,8 +117,12 @@ async function initThree() {
   resize();
   animate();
 
-  const modelUrl = viewEl.dataset.model || "./data/model.glb";
-  loadModel(modelUrl);
+  const modelUrl = window.BIM_MODEL_URL || viewEl.dataset.model;
+  if (!modelUrl) {
+    setStatus("Ingen standardmodell hittad. Ladda upp en .glb-fil.");
+  } else {
+    loadModel(modelUrl);
+  }
 }
 
 function setClipEnabled(enabled) {

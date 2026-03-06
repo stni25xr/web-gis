@@ -42,6 +42,79 @@
     }
   }
 
+  const GEOJSON_URL = window.ELEVATION_GEOJSON_URL || "";
+  const GEOJSON_PRECISION = 6;
+  const GEOJSON_STEP = 1 / 10 ** GEOJSON_PRECISION;
+  let geoIndex = null;
+  let geoIndexReady = null;
+
+  function roundCoordPrec(value, precision) {
+    return Math.round(value * 10 ** precision) / 10 ** precision;
+  }
+
+  function makeGeoKey(lat, lon) {
+    const rLat = roundCoordPrec(lat, GEOJSON_PRECISION);
+    const rLon = roundCoordPrec(lon, GEOJSON_PRECISION);
+    return `${rLat},${rLon}`;
+  }
+
+  async function ensureGeoIndex() {
+    if (!GEOJSON_URL) return null;
+    if (geoIndexReady) return geoIndexReady;
+    geoIndexReady = (async () => {
+      try {
+        const res = await fetch(GEOJSON_URL);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const features = data?.features || [];
+        geoIndex = new Map();
+        for (let i = 0; i < features.length; i++) {
+          const feat = features[i];
+          const coords = feat?.geometry?.coordinates;
+          if (!coords || coords.length < 2) continue;
+          const lon = coords[0];
+          const lat = coords[1];
+          const z = feat?.properties?.grid_code;
+          if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(z)) continue;
+          geoIndex.set(makeGeoKey(lat, lon), z);
+          if (i % 50000 === 0) await delay(0);
+        }
+        return geoIndex;
+      } catch (e) {
+        console.warn("[Elevation] GeoJSON load failed", e);
+        geoIndex = null;
+        return null;
+      }
+    })();
+    return geoIndexReady;
+  }
+
+  async function getElevationFromGeoJSON(lat, lon) {
+    if (!GEOJSON_URL) return null;
+    const index = await ensureGeoIndex();
+    if (!index) return null;
+    const key = makeGeoKey(lat, lon);
+    if (index.has(key)) return index.get(key);
+    // search nearest in a small window (handles rounding mismatch)
+    let best = null;
+    let bestD = Infinity;
+    for (let dy = -2; dy <= 2; dy++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        const candKey = `${roundCoordPrec(lat + dy * GEOJSON_STEP, GEOJSON_PRECISION)},${roundCoordPrec(lon + dx * GEOJSON_STEP, GEOJSON_PRECISION)}`;
+        if (!index.has(candKey)) continue;
+        const z = index.get(candKey);
+        const dLat = (lat - (lat + dy * GEOJSON_STEP));
+        const dLon = (lon - (lon + dx * GEOJSON_STEP));
+        const d = dLat * dLat + dLon * dLon;
+        if (d < bestD) {
+          bestD = d;
+          best = z;
+        }
+      }
+    }
+    return Number.isFinite(best) ? best : null;
+  }
+
   async function getElevation(lat, lon) {
     const key = makeKey(lat, lon);
     if (memoryCache.has(key)) return memoryCache.get(key);
@@ -52,11 +125,17 @@
     }
 
     let elevation = null;
+    if (GEOJSON_URL) {
+      elevation = await getElevationFromGeoJSON(lat, lon);
+      if (elevation === null) return null;
+    }
     const loc = `${lat},${lon}`;
     try {
-      const data = await fetchJson(`https://api.opentopodata.org/v1/srtm90m?locations=${encodeURIComponent(loc)}`);
-      const value = data?.results?.[0]?.elevation;
-      if (Number.isFinite(value)) elevation = value;
+      if (elevation === null) {
+        const data = await fetchJson(`https://api.opentopodata.org/v1/srtm90m?locations=${encodeURIComponent(loc)}`);
+        const value = data?.results?.[0]?.elevation;
+        if (Number.isFinite(value)) elevation = value;
+      }
     } catch (e) {
       elevation = null;
     }

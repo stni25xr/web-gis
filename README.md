@@ -24,3 +24,14 @@ window.GTFS_RT_KEY = "...";
 ```
 
 Only the static key is required for the route shape; realtime is optional.
+
+## Large Project File
+This project uses a large source file that is not stored in the GitHub repository because it exceeds GitHub’s file size limit.
+
+Download the file here:
+https://drive.google.com/uc?export=download&id=1YwybiqvJ4wYybrz2zt1P1Y6nj6kCn0Lf
+
+If needed locally, place it in:
+data/Project3.glb
+
+Please also check whether any scripts, HTML, or JSON config still assume the file is bundled in the repo, and update them safely.
