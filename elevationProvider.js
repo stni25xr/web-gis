@@ -112,7 +112,29 @@
     }
     const key = makeGeoKey(lat, lon);
     if (index.has(key)) return index.get(key);
-    // search nearest in a small window (handles rounding mismatch)
+
+    const scale = 10 ** GEOJSON_PRECISION;
+    const latIdx = Math.floor(lat * scale);
+    const lonIdx = Math.floor(lon * scale);
+    const lat0 = latIdx / scale;
+    const lon0 = lonIdx / scale;
+    const lat1 = (latIdx + 1) / scale;
+    const lon1 = (lonIdx + 1) / scale;
+
+    const z00 = index.get(makeGeoKey(lat0, lon0));
+    const z01 = index.get(makeGeoKey(lat0, lon1));
+    const z10 = index.get(makeGeoKey(lat1, lon0));
+    const z11 = index.get(makeGeoKey(lat1, lon1));
+
+    if ([z00, z01, z10, z11].every((v) => Number.isFinite(v))) {
+      const t = (lon - lon0) / (lon1 - lon0);
+      const u = (lat - lat0) / (lat1 - lat0);
+      const z0 = z00 * (1 - t) + z01 * t;
+      const z1 = z10 * (1 - t) + z11 * t;
+      return z0 * (1 - u) + z1 * u;
+    }
+
+    // search nearest in a small window (handles rounding mismatch / missing neighbors)
     let best = null;
     let bestD = Infinity;
     for (let dy = -2; dy <= 2; dy++) {
