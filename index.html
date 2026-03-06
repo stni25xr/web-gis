@@ -1167,6 +1167,8 @@ Maintain safe distance
       map.add(bimBuildingLayer);
       const busDashLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 4 } });
       map.add(busDashLayer);
+      const coordLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 3 } });
+      map.add(coordLayer);
 
       const view = new SceneView({
         container: "sceneView",
@@ -1230,6 +1232,9 @@ Maintain safe distance
       if (sceneEl && "ResizeObserver" in window) {
         const ro = new ResizeObserver(() => refreshViewSize());
         ro.observe(sceneEl);
+      }
+      if (sceneEl) {
+        sceneEl.addEventListener("contextmenu", (e) => e.preventDefault());
       }
 
       // 3D‑byggnader (globalt)
@@ -4111,6 +4116,40 @@ Maintain safe distance
         return isFinite(d) ? d : null;
       }
 
+      const coordSymbol = {
+        type: "point-3d",
+        symbolLayers: [{
+          type: "object",
+          resource: { primitive: "sphere" },
+          material: { color: [255, 255, 255, 0.95] },
+          height: 8,
+          width: 8,
+          depth: 8
+        }]
+      };
+
+      function formatCoord(pt) {
+        const lon = pt.longitude ?? pt.x;
+        const lat = pt.latitude ?? pt.y;
+        if (!isFinite(lon) || !isFinite(lat)) return null;
+        return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+      }
+
+      async function formatCoordWithZ(mapPoint) {
+        const mapPtWgs = toGeographic(mapPoint) || mapPoint;
+        const lon = mapPtWgs?.longitude ?? mapPtWgs?.x;
+        const lat = mapPtWgs?.latitude ?? mapPtWgs?.y;
+        if (!isFinite(lon) || !isFinite(lat)) return null;
+        let z = null;
+        if (typeof window.__getGroundAltitudeMeters === "function") {
+          z = await window.__getGroundAltitudeMeters(mapPtWgs);
+        }
+        if (!isFinite(z)) z = mapPoint?.z;
+        const coord = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+        if (isFinite(z)) return `${coord} • Z: ${Number(z).toFixed(1)} m`;
+        return `${coord} • Z: —`;
+      }
+
       async function updateNearestStop(mapPoint) {
         try {
           window.infoFlowController?.activateFlow?.("BUS");
@@ -4704,6 +4743,24 @@ Maintain safe distance
           console.warn("Departures error:", e);
         }
       }
+
+      view.on("immediate-click", async (event) => {
+        if (event?.button !== 2) return;
+        if (!event.mapPoint) return;
+        event.stopPropagation();
+        const coord = await formatCoordWithZ(event.mapPoint);
+        if (!coord) return;
+        coordLayer.removeAll();
+        coordLayer.add(new Graphic({
+          geometry: event.mapPoint,
+          symbol: coordSymbol
+        }));
+        view.popup.open({
+          location: event.mapPoint,
+          title: "Koordinat",
+          content: coord
+        });
+      });
 
       view.on("click", (event) => {
         if (event?.mapPoint) {
