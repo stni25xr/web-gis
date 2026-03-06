@@ -708,7 +708,7 @@
     }
   }
 
-  async function startFixedVisibilityCross({ view, point }) {
+  async function startFixedVisibilityCross({ view, point, externalRenderers }) {
     if (!view || view.type !== "3d") {
       showRadarToast("Radar kräver 3D (SceneView) — kan inte visas i 2D-läge.");
       setRadarBadge(false);
@@ -718,7 +718,7 @@
 
     fixedActiveView = view;
 
-    const ext = rendererInstance?.externalRenderers || window.__externalRenderers;
+    const ext = externalRenderers || rendererInstance?.externalRenderers || window.__externalRenderers;
     if (!ext) {
       showRadarToast("Radar kan inte starta (externa renderare saknas).");
       return;
