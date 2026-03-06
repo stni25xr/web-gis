@@ -4100,6 +4100,10 @@ Maintain safe distance
         const r = (v) => Math.round(v * 1e5) / 1e5;
         return `${r(lat)},${r(lon)}`;
       }
+      window.__getRadarGroundZCached = function (lat, lon) {
+        const key = radarKey(lat, lon);
+        return radarElevationCache.has(key) ? radarElevationCache.get(key) : null;
+      };
       window.__getRadarGroundZ = async function (pointLike) {
         try {
           const geo = toGeographic(pointLike);
@@ -4153,12 +4157,7 @@ Maintain safe distance
             for (let d = step; d <= maxDist; d += step) {
               const pos = destinationLatLon(lat1, lon1, bearingDeg, d);
               const pt = new Point({ longitude: pos.lon, latitude: pos.lat, spatialReference: { wkid: 4326 } });
-              let terrainZ = null;
-              try {
-                terrainZ = await window.__getRadarGroundZ(pt);
-              } catch (e) {
-                terrainZ = null;
-              }
+              const terrainZ = window.__getRadarGroundZCached(pos.lat, pos.lon);
               if (Number.isFinite(terrainZ) && terrainZ > eyeZ) return d;
 
               try {

@@ -27,6 +27,8 @@
   function setRadarBadge(state) {
     const badge = ensureRadarBadge();
     if (!badge) return;
+    const fixedActive = typeof window !== "undefined" && window.__fixedVisibilityActive;
+    if (!state && fixedActive) return;
     badge.textContent = state ? "RADAR: ON" : "RADAR: OFF";
     badge.style.background = state ? "#ff8c00" : "#0f172a";
   }
@@ -717,6 +719,7 @@
     if (!point) return;
 
     fixedActiveView = view;
+    if (typeof window !== "undefined") window.__fixedVisibilityActive = true;
 
     const ext = externalRenderers || rendererInstance?.externalRenderers || window.__externalRenderers;
     if (!ext) {
@@ -758,8 +761,8 @@
     fixedRendererInstance.dispose();
     fixedRendererInstance = null;
     fixedActiveView = null;
-    if (!rendererInstance) setRadarBadge(false);
     if (typeof window !== "undefined") window.__fixedVisibilityActive = false;
+    if (!rendererInstance) setRadarBadge(false);
   }
 
   window.Visibility = {
