@@ -47,6 +47,7 @@
   const GEOJSON_STEP = 1 / 10 ** GEOJSON_PRECISION;
   let geoIndex = null;
   let geoIndexReady = null;
+  let geoBounds = null;
 
   function roundCoordPrec(value, precision) {
     return Math.round(value * 10 ** precision) / 10 ** precision;
@@ -68,6 +69,10 @@
         const data = await res.json();
         const features = data?.features || [];
         geoIndex = new Map();
+        let minLon = Infinity;
+        let maxLon = -Infinity;
+        let minLat = Infinity;
+        let maxLat = -Infinity;
         for (let i = 0; i < features.length; i++) {
           const feat = features[i];
           const coords = feat?.geometry?.coordinates;
@@ -77,12 +82,20 @@
           const z = feat?.properties?.grid_code;
           if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(z)) continue;
           geoIndex.set(makeGeoKey(lat, lon), z);
+          if (lon < minLon) minLon = lon;
+          if (lon > maxLon) maxLon = lon;
+          if (lat < minLat) minLat = lat;
+          if (lat > maxLat) maxLat = lat;
           if (i % 50000 === 0) await delay(0);
+        }
+        if (Number.isFinite(minLon) && Number.isFinite(minLat) && Number.isFinite(maxLon) && Number.isFinite(maxLat)) {
+          geoBounds = { minLon, minLat, maxLon, maxLat };
         }
         return geoIndex;
       } catch (e) {
         console.warn("[Elevation] GeoJSON load failed", e);
         geoIndex = null;
+        geoBounds = null;
         return null;
       }
     })();
@@ -93,6 +106,10 @@
     if (!GEOJSON_URL) return null;
     const index = await ensureGeoIndex();
     if (!index) return null;
+    if (geoBounds) {
+      const inBounds = lon >= geoBounds.minLon && lon <= geoBounds.maxLon && lat >= geoBounds.minLat && lat <= geoBounds.maxLat;
+      if (!inBounds) return null;
+    }
     const key = makeGeoKey(lat, lon);
     if (index.has(key)) return index.get(key);
     // search nearest in a small window (handles rounding mismatch)
@@ -262,5 +279,9 @@
     };
   }
 
-  window.ElevationProvider = { getElevation, sampleRouteElevations };
+  function getBounds() {
+    return geoBounds ? { ...geoBounds } : null;
+  }
+
+  window.ElevationProvider = { getElevation, sampleRouteElevations, getBounds };
 })();
