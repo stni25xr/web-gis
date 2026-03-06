@@ -4186,6 +4186,8 @@ Maintain safe distance
         }
         let boundsNote = "";
         const bounds = window.ElevationProvider?.getBounds?.();
+        const status = window.ElevationProvider?.getStatus?.();
+        if (status?.error) boundsNote = ` • Höjddata ej laddad (${status.error})`;
         if (bounds) {
           const inBounds = lon >= bounds.minLon && lon <= bounds.maxLon && lat >= bounds.minLat && lat <= bounds.maxLat;
           if (!inBounds) boundsNote = " • Utanför höjddata";

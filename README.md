@@ -35,3 +35,14 @@ If needed locally, place it in:
 data/Project3.glb
 
 Please also check whether any scripts, HTML, or JSON config still assume the file is bundled in the repo, and update them safely.
+
+## Elevation GeoJSON Hosting (CORS Required)
+The elevation dataset is too large for GitHub and must be hosted on a CORS-enabled public URL.
+
+Recommended (free tier): Cloudflare R2 public bucket.
+
+Steps:
+1. Create an R2 bucket and enable public access.
+2. Upload `Hojder_Oxnehaga_1.geojson`.
+3. Copy the public URL for the file.
+4. Set `window.ELEVATION_GEOJSON_URL` in `config.local.js` to that URL.

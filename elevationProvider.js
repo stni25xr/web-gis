@@ -48,6 +48,8 @@
   let geoIndex = null;
   let geoIndexReady = null;
   let geoBounds = null;
+  let geoCount = 0;
+  let geoIndexError = null;
 
   function roundCoordPrec(value, precision) {
     return Math.round(value * 10 ** precision) / 10 ** precision;
@@ -64,11 +66,13 @@
     if (geoIndexReady) return geoIndexReady;
     geoIndexReady = (async () => {
       try {
+        geoIndexError = null;
         const res = await fetch(GEOJSON_URL);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         const features = data?.features || [];
         geoIndex = new Map();
+        geoCount = 0;
         let minLon = Infinity;
         let maxLon = -Infinity;
         let minLat = Infinity;
@@ -82,6 +86,7 @@
           const z = feat?.properties?.grid_code;
           if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(z)) continue;
           geoIndex.set(makeGeoKey(lat, lon), z);
+          geoCount += 1;
           if (lon < minLon) minLon = lon;
           if (lon > maxLon) maxLon = lon;
           if (lat < minLat) minLat = lat;
@@ -93,9 +98,11 @@
         }
         return geoIndex;
       } catch (e) {
+        geoIndexError = e?.message || String(e);
         console.warn("[Elevation] GeoJSON load failed", e);
         geoIndex = null;
         geoBounds = null;
+        geoCount = 0;
         return null;
       }
     })();
@@ -305,5 +312,14 @@
     return geoBounds ? { ...geoBounds } : null;
   }
 
-  window.ElevationProvider = { getElevation, sampleRouteElevations, getBounds };
+  function getStatus() {
+    return {
+      url: GEOJSON_URL || null,
+      count: geoCount || 0,
+      bounds: geoBounds ? { ...geoBounds } : null,
+      error: geoIndexError || null
+    };
+  }
+
+  window.ElevationProvider = { getElevation, sampleRouteElevations, getBounds, getStatus };
 })();
