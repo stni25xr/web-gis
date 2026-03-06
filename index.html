@@ -1167,7 +1167,7 @@ Maintain safe distance
       map.add(bimBuildingLayer);
       const busDashLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 4 } });
       map.add(busDashLayer);
-      const coordLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 3 } });
+      const coordLayer = new GraphicsLayer({ elevationInfo: { mode: "absolute-height" } });
       map.add(coordLayer);
 
       const view = new SceneView({
@@ -4119,12 +4119,10 @@ Maintain safe distance
       const coordSymbol = {
         type: "point-3d",
         symbolLayers: [{
-          type: "object",
-          resource: { primitive: "sphere" },
+          type: "icon",
+          resource: { primitive: "circle" },
           material: { color: [255, 255, 255, 0.95] },
-          height: 8,
-          width: 8,
-          depth: 8
+          size: 10
         }]
       };
 
@@ -4135,16 +4133,35 @@ Maintain safe distance
         return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
       }
 
+      async function getGroundZ(mapPoint) {
+        if (!mapPoint) return null;
+        try {
+          await view.when();
+          if (view?.groundView?.elevationSampler) {
+            const sampled = view.groundView.elevationSampler.sample(mapPoint);
+            const z = sampled?.z ?? sampled?.geometry?.z;
+            if (Number.isFinite(z)) return z;
+          }
+          if (view?.ground?.queryElevation) {
+            const res = await view.ground.queryElevation(mapPoint);
+            const z = res?.geometry?.z ?? res?.z;
+            if (Number.isFinite(z)) return z;
+          }
+        } catch (e) {
+          console.warn("[GroundZ] failed", e);
+        }
+        return null;
+      }
+
       async function formatCoordWithZ(mapPoint) {
         const mapPtWgs = toGeographic(mapPoint) || mapPoint;
         const lon = mapPtWgs?.longitude ?? mapPtWgs?.x;
         const lat = mapPtWgs?.latitude ?? mapPtWgs?.y;
         if (!isFinite(lon) || !isFinite(lat)) return null;
-        let z = null;
-        if (typeof window.__getGroundAltitudeMeters === "function") {
+        let z = await getGroundZ(mapPoint);
+        if (!isFinite(z) && typeof window.__getGroundAltitudeMeters === "function") {
           z = await window.__getGroundAltitudeMeters(mapPtWgs);
         }
-        if (!isFinite(z)) z = mapPoint?.z;
         const coord = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
         if (isFinite(z)) return `${coord} • Z: ${Number(z).toFixed(1)} m`;
         return `${coord} • Z: —`;
@@ -4751,9 +4768,18 @@ Maintain safe distance
         const coord = await formatCoordWithZ(event.mapPoint);
         if (!coord) return;
         coordLayer.removeAll();
+        const groundZ = await getGroundZ(event.mapPoint);
+        const srView = view?.spatialReference || event.mapPoint.spatialReference;
+        const pointWithZ = new Point({
+          x: event.mapPoint.x,
+          y: event.mapPoint.y,
+          z: isFinite(groundZ) ? groundZ : 0,
+          spatialReference: srView
+        });
         coordLayer.add(new Graphic({
-          geometry: event.mapPoint,
-          symbol: coordSymbol
+          geometry: pointWithZ,
+          symbol: coordSymbol,
+          verticalOffset: { screenLength: 6, maxWorldLength: 20, minWorldLength: 2 }
         }));
         view.popup.open({
           location: event.mapPoint,
