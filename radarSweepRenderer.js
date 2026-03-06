@@ -733,7 +733,7 @@
       info = await window.__fixedVisibilityCompute(point, {
         maxDist: 200,
         step: 2,
-        eyeOffset: 1.7
+        eyeOffset: (window.__routeEyeOffset ?? 1.7)
       });
     }
 

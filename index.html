@@ -1155,6 +1155,7 @@ Maintain safe distance
 
       const routeLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 } });
       map.add(routeLayer);
+      window.__routeEyeOffset = routeLayer?.elevationInfo?.offset ?? 1.7;
       const corridorLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 1 } });
       map.add(corridorLayer);
       const safetyRouteLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 } });
@@ -4129,7 +4130,7 @@ Maintain safe distance
         const lon2r = lon1r + Math.atan2(Math.sin(brng) * Math.sin(dr) * Math.cos(lat1r), Math.cos(dr) - Math.sin(lat1r) * Math.sin(lat2r));
         return { lat: (lat2r * 180) / Math.PI, lon: (lon2r * 180) / Math.PI };
       }
-      window.__fixedVisibilityCompute = async function (pointLike, { maxDist = 200, step = 2, eyeOffset = 1.7 } = {}) {
+      window.__fixedVisibilityCompute = async function (pointLike, { maxDist = 200, step = 2, eyeOffset = (window.__routeEyeOffset ?? 1.7) } = {}) {
         try {
           const origin = toGeographic(pointLike);
           if (!origin) return null;
