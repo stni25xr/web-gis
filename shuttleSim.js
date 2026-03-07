@@ -184,6 +184,7 @@
 
     async requestPickup(pickupPoint) {
       if (this.isBusy()) {
+        this.modalMuted = false;
         this.showModal("Shuttle", "Shuttlen är redan upptagen. Försök igen om en stund.");
         return false;
       }
