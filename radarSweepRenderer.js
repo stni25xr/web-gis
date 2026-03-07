@@ -24,34 +24,19 @@
     el.classList.toggle("is-on", !!on);
   }
 
-  function toGeographic(point) {
-    const utils = window.__webMercatorUtils;
-    if (!utils || typeof utils.webMercatorToGeographic !== "function") return point;
-    try {
-      return utils.webMercatorToGeographic(point);
-    } catch (e) {
-      return point;
-    }
-  }
-
   async function applyGeojsonElevation(point) {
     const provider = window.ElevationProvider;
     if (!provider || typeof provider.getElevation !== "function") return point;
-    const geoPoint = (Number.isFinite(point.latitude) && Number.isFinite(point.longitude))
-      ? point
-      : toGeographic(point);
-    const lat = Number.isFinite(geoPoint.latitude) ? geoPoint.latitude : geoPoint.y;
-    const lon = Number.isFinite(geoPoint.longitude) ? geoPoint.longitude : geoPoint.x;
+    const lat = point.latitude ?? point.y;
+    const lon = point.longitude ?? point.x;
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return point;
     try {
       const elev = await provider.getElevation(lat, lon);
       if (Number.isFinite(elev)) {
         const next = point.clone();
         next.z = elev;
-        console.log(`[radar] elev from GeoJSON = ${elev}`);
         return next;
       }
-      console.log("[radar] elev from GeoJSON = null");
     } catch (e) {
       // ignore elevation errors
     }
