@@ -839,6 +839,9 @@
       <div class="alarm-body">
         <div id="shuttleMessage" class="alarm-message"></div>
       </div>
+      <div class="alarm-actions">
+        <button id="shuttleCancel" type="button">Avbryt transport</button>
+      </div>
     </div>
   </div>
   <div id="routeColorModal" style="display:none;">
@@ -5323,6 +5326,9 @@ Maintain safe distance
     });
     document.getElementById("shuttleClose")?.addEventListener("click", () => {
       window.ShuttleController?.hideModal?.();
+    });
+    document.getElementById("shuttleCancel")?.addEventListener("click", () => {
+      window.ShuttleController?.cancelRequest?.();
     });
     document.getElementById("alarmGoIncident")?.addEventListener("click", () => {
       window.hideAlarmModal();

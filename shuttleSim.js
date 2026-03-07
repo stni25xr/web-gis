@@ -102,6 +102,7 @@
       this.animation = null;
       this.countdownTimer = null;
       this.pauseTimer = null;
+      this.modalMuted = false;
 
       this.initMarker();
 
@@ -133,7 +134,9 @@
       this.shuttleLayer.add(this.shuttleGraphic);
     }
 
-    showModal(title, message) {
+    showModal(title, message, opts = {}) {
+      const { force = false } = opts;
+      if (this.modalMuted && !force) return;
       const modal = document.getElementById("shuttleModal");
       const titleEl = document.getElementById("shuttleTitle");
       const msgEl = document.getElementById("shuttleMessage");
@@ -142,9 +145,16 @@
       if (modal) modal.style.display = "flex";
     }
 
+    updateModal(message) {
+      if (this.modalMuted) return;
+      const msgEl = document.getElementById("shuttleMessage");
+      if (msgEl) msgEl.textContent = message;
+    }
+
     hideModal() {
       const modal = document.getElementById("shuttleModal");
       if (modal) modal.style.display = "none";
+      this.modalMuted = true;
     }
 
     setState(next) {
@@ -163,6 +173,8 @@
       this.countdownTimer = null;
       if (this.pauseTimer) clearTimeout(this.pauseTimer);
       this.pauseTimer = null;
+      if (this.animation) cancelAnimationFrame(this.animation);
+      this.animation = null;
     }
 
     async requestPickup(pickupPoint) {
@@ -170,6 +182,7 @@
         this.showModal("Shuttle", "Shuttlen är redan upptagen. Försök igen om en stund.");
         return false;
       }
+      this.modalMuted = false;
       const geo = toGeoPoint(pickupPoint, this.webMercatorUtils);
       if (!geo) return false;
       this.currentRequest = { pickup: geo };
@@ -185,17 +198,17 @@
         this.resetToStation();
         return;
       }
-      this.showModal("Shuttle bokad", "Din shuttle är på väg till dig.");
+      this.showModal("Shuttle bokad", "Din shuttle är på väg till dig.", { force: true });
       await this.driveRoute(route, "#2563eb", (remainingMeters, remainingSeconds) => {
         const mins = Math.floor(remainingSeconds / 60);
         const secs = Math.max(0, Math.round(remainingSeconds % 60));
         const line1 = "Din shuttle är på väg till dig.";
         const line2 = `Ankomst om ${mins} min ${secs} sek`;
         const line3 = `Avstånd kvar: ${Math.round(remainingMeters)} m`;
-        this.showModal("Shuttle bokad", `${line1}\n${line2}\n${line3}`);
+        this.updateModal(`${line1}\n${line2}\n${line3}`);
       });
       this.setState(STATE.WAIT_PICKUP);
-      this.showModal("Shuttle framme", "Din shuttle har anlänt.");
+      this.showModal("Shuttle framme", "Din shuttle har anlänt.", { force: true });
       await this.pause(2500);
       await this.driveToHealthcare();
     }
@@ -210,7 +223,7 @@
       }
       await this.driveRoute(route, "#22c55e");
       this.setState(STATE.WAIT_HEALTH);
-      this.showModal("Framme vid vårdcentral", "Shuttlen har anlänt till vårdcentralen.");
+      this.showModal("Framme vid vårdcentral", "Shuttlen har anlänt till vårdcentralen.", { force: true });
       await this.pause(2500);
       await this.returnToStation();
     }
@@ -242,6 +255,26 @@
       }
       window.shuttleCurrentRoute = null;
       window.shuttleAnimationState = null;
+      this.modalMuted = false;
+    }
+
+    cancelRequest() {
+      this.clearTimers();
+      this.setState(STATE.IDLE);
+      this.currentRequest = null;
+      if (this.shuttleRouteGraphic) this.shuttleLayer.remove(this.shuttleRouteGraphic);
+      this.shuttleRouteGraphic = null;
+      if (this.shuttleGraphic) {
+        this.shuttleGraphic.geometry = {
+          type: "point",
+          longitude: STATION.longitude,
+          latitude: STATION.latitude,
+          spatialReference: { wkid: 4326 }
+        };
+      }
+      window.shuttleCurrentRoute = null;
+      window.shuttleAnimationState = null;
+      this.hideModal();
     }
 
     pause(ms) {
@@ -338,6 +371,9 @@
               latitude: pt.latitude,
               spatialReference: { wkid: 4326 }
             };
+          }
+          if (this.view && typeof this.view.requestRender === "function") {
+            this.view.requestRender();
           }
           window.shuttleAnimationState.currentMeters = dist;
           if (dist >= totalMeters) {

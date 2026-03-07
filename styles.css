@@ -699,6 +699,22 @@ html, body, body.app {
   white-space: pre-line;
 }
 
+#shuttleModal .alarm-actions {
+  padding: 10px 14px 14px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+#shuttleModal #shuttleCancel {
+  border: none;
+  background: #ef4444;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
 #incidentModal {
   position: fixed;
   inset: 0;
