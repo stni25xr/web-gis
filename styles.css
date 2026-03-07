@@ -644,6 +644,61 @@ html, body, body.app {
   font-size: 13px;
 }
 
+#shuttleModal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 6, 23, 0.55);
+  z-index: 10000;
+  font-family: inherit;
+}
+
+#shuttleModal .alarm-modal {
+  width: min(420px, 90vw);
+  background: #0f172a;
+  border: 1px solid #2b3448;
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(2, 6, 23, 0.55);
+  color: #e2e8f0;
+  overflow: hidden;
+}
+
+#shuttleModal .alarm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: #0f2a3d;
+  border-bottom: 1px solid #1f3b4f;
+}
+
+#shuttleModal .alarm-title {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #bfdbfe;
+}
+
+#shuttleModal #shuttleClose {
+  border: none;
+  background: transparent;
+  color: #bfdbfe;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+#shuttleModal .alarm-body {
+  padding: 16px 14px 16px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+#shuttleModal .alarm-message {
+  color: #f8fafc;
+  white-space: pre-line;
+}
+
 #incidentModal {
   position: fixed;
   inset: 0;
