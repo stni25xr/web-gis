@@ -231,37 +231,6 @@
     #sceneView {
       position:absolute; top:var(--header-height, 64px); left:56px; right:0; bottom:0; width:100%; height:auto; z-index:1;
     }
-    #radarStatus {
-      position:fixed;
-      top:120px;
-      left:70px;
-      z-index:30;
-      background:rgba(15, 23, 42, 0.9);
-      color:#f8fafc;
-      font-size:11px;
-      letter-spacing:.08em;
-      padding:4px 8px;
-      border-radius:999px;
-      text-transform:uppercase;
-      pointer-events:none;
-    }
-    #radarStatus.is-on {
-      background:rgba(234, 88, 12, 0.9);
-    }
-    #radarToast {
-      position:fixed;
-      top:150px;
-      left:70px;
-      z-index:31;
-      background:rgba(15, 23, 42, 0.92);
-      color:#fff7ed;
-      padding:8px 10px;
-      border-radius:8px;
-      font-size:12px;
-      max-width:260px;
-      display:none;
-      box-shadow:0 6px 14px rgba(15, 23, 42, 0.25);
-    }
 
     @media (max-width: 900px) {
       #sidebar { width:220px; }
@@ -729,7 +698,6 @@
             <button id="svcClearRouteBtn" type="button">Ta bort vägen</button>
           </div>
           <div class="field-row" style="margin-top:6px;">
-            <button id="svcTestRadarBtn" class="secondary" type="button">Test radar</button>
           </div>
           <div id="svcList" style="font-size:13px;color:#0f172a;"></div>
 
@@ -836,8 +804,6 @@
 
   <!-- MAP -->
   <div id="sceneView" role="main" aria-label="3D‑karta"></div>
-  <div id="radarStatus">RADAR: OFF</div>
-  <div id="radarToast" role="status" aria-live="polite"></div>
   <div id="windBlueTint" class="wind-blue-tint hidden" aria-hidden="true"></div>
   <div id="bus15Widget" aria-live="polite">Bus simulation: init...</div>
   <div id="iotContainer" style="display:none;"></div>
@@ -1102,7 +1068,6 @@ Maintain safe distance
   <script type="module" src="./cloudWms.js"></script>
   <script type="module" src="./windLive.js"></script>
   <script type="module" src="./bimViewer.js"></script>
-  <script type="module" src="./radarSweepRenderer.js"></script>
 
   <!-- ARCGIS (3D) -->
   <script>
@@ -1212,7 +1177,6 @@ Maintain safe distance
         camera: { position: { latitude: 57.762686206841096, longitude: 14.187974955833315, z: 7500 }, tilt: 0 }
       });
       window.view = view;
-      window.__externalRenderers = externalRenderers;
       const homeCamera = view.camera.clone();
       console.log("devicePixelRatio", window.devicePixelRatio);
       view.popup.dockEnabled = true;
@@ -3348,8 +3312,6 @@ Maintain safe distance
       const svcResetBtn = document.getElementById("svcResetBtn");
       const svcRouteBtn = document.getElementById("svcRouteBtn");
       const svcClearRouteBtn = document.getElementById("svcClearRouteBtn");
-      const svcTestRadarBtn = document.getElementById("svcTestRadarBtn");
-      const radarToast = document.getElementById("radarToast");
       const uniqueLayer = document.getElementById("uniqueLayer");
       const uniqueField = document.getElementById("uniqueField");
       const uniqueList = document.getElementById("uniqueList");
@@ -4683,31 +4645,6 @@ Maintain safe distance
         }
       }
 
-      let radarToastTimer = null;
-      function showRadarToast(message) {
-        if (!radarToast) return;
-        radarToast.textContent = message;
-        radarToast.style.display = "block";
-        if (radarToastTimer) window.clearTimeout(radarToastTimer);
-        radarToastTimer = window.setTimeout(() => {
-          radarToast.style.display = "none";
-        }, 4000);
-      }
-
-      function startRadarAtPoint(centerPoint) {
-        const is3D = view && view.type === "3d";
-        console.log(`[radar] view type = ${view && view.type}`);
-        if (!is3D) {
-          showRadarToast("Radar kräver 3D (SceneView) — kan inte visas i 2D-läge.");
-          return;
-        }
-        if (!window.Radar || typeof window.Radar.start !== "function") {
-          console.warn("[radar] start missing");
-          return;
-        }
-        window.Radar.start({ view, centerPoint });
-      }
-
       function resetNearest() {
         nearHint.textContent = "Klicka på kartan för att mäta";
         nearResult.textContent = "";
@@ -5045,7 +4982,6 @@ Maintain safe distance
           setSafeListHtml("");
           return;
         }
-        window.Radar?.stop?.();
         clearServiceFlow();
         clearSupportFlows("blue");
         window.infoFlowController?.activateFlow?.("CAR");
@@ -5090,19 +5026,10 @@ Maintain safe distance
           const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>${formatElevationSourceNote()}`;
           svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>${elevLine}`;
         }
-        startRadarAtPoint(lastSvcMeasurePoint);
           updateSeniorRouteButtons();
         });
-      if (svcTestRadarBtn) {
-        svcTestRadarBtn.addEventListener("click", () => {
-          console.log("[radar] test button fired");
-          const cp = view.center ? view.center.clone() : null;
-          if (cp) startRadarAtPoint(cp);
-        });
-      }
       svcClearRouteBtn.addEventListener("click", () => {
         clearRoute();
-        window.Radar?.stop?.();
         updateSeniorRouteButtons();
       });
       // radar removed
@@ -5112,7 +5039,6 @@ Maintain safe distance
           setSafeHintText("Välj trygghet i listan");
           return;
         }
-        window.Radar?.stop?.();
         clearServiceFlow();
         clearSupportFlows("blue");
         window.infoFlowController?.activateFlow?.("CAR");
@@ -5131,7 +5057,6 @@ Maintain safe distance
       });
       safeRouteBtn.addEventListener("click", async () => {
         window.infoFlowController?.activateFlow?.("CAR");
-        window.Radar?.stop?.();
         clearServiceFlow();
         clearSupportFlows("car");
         if (!safeSelect.value) {
