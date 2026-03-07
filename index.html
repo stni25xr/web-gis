@@ -3779,17 +3779,22 @@ Maintain safe distance
           busDashPhase = 0;
           const geom = buildDashGeometryFromRoute(routePoints, dashLen, gapLen, busDashPhase);
           if (!geom) return;
+          const is3d = view && view.type === "3d";
 
           if (!busDashGraphic) {
             busDashGraphic = new Graphic({
               geometry: geom,
-              symbol: {
+              symbol: is3d ? {
                 type: "line-3d",
                 symbolLayers: [{
                   type: "line",
                   size: 5,
                   material: { color: "#06b6d4" }
                 }]
+              } : {
+                type: "simple-line",
+                color: "#06b6d4",
+                width: 4
               }
             });
             busDashLayer.add(busDashGraphic);
@@ -3800,7 +3805,7 @@ Maintain safe distance
           if (!busVehicleGraphic) {
             busVehicleGraphic = new Graphic({
               geometry: busSimRoute[0],
-              symbol: {
+              symbol: is3d ? {
                 type: "point-3d",
                 symbolLayers: [{
                   type: "icon",
@@ -3808,6 +3813,11 @@ Maintain safe distance
                   size: 24,
                   anchor: "center"
                 }]
+              } : {
+                type: "picture-marker",
+                url: busCompositeIcon,
+                width: "24px",
+                height: "24px"
               }
             });
             busDashLayer.add(busVehicleGraphic);
@@ -5329,6 +5339,11 @@ Maintain safe distance
     });
     document.getElementById("shuttleCancel")?.addEventListener("click", () => {
       window.ShuttleController?.cancelRequest?.();
+    });
+    document.addEventListener("click", (e) => {
+      if (e.target && e.target.id === "shuttleCancel") {
+        window.ShuttleController?.cancelRequest?.();
+      }
     });
     document.getElementById("alarmGoIncident")?.addEventListener("click", () => {
       window.hideAlarmModal();

@@ -47,6 +47,12 @@
   overflow: hidden;
 }
 
+/* Keep at least 1cm gap from the right frame edge */
+.esri-popup--is-docked.esri-popup--dock-top-right {
+  right: 1cm !important;
+  transform: none !important;
+}
+
 #bimModal .bim-header {
   display: flex;
   align-items: center;
