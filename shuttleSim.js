@@ -250,11 +250,32 @@
       });
     }
 
+    async snapToRoad(point) {
+      const lon = point.longitude ?? point.x;
+      const lat = point.latitude ?? point.y;
+      if (!Number.isFinite(lon) || !Number.isFinite(lat)) return point;
+      const url = `https://router.project-osrm.org/nearest/v1/driving/${lon},${lat}?number=1`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return point;
+        const data = await res.json();
+        const loc = data?.waypoints?.[0]?.location;
+        if (Array.isArray(loc) && loc.length >= 2) {
+          return { longitude: loc[0], latitude: loc[1] };
+        }
+      } catch (e) {
+        return point;
+      }
+      return point;
+    }
+
     async fetchRoute(start, end) {
-      const sLon = start.longitude ?? start.x;
-      const sLat = start.latitude ?? start.y;
-      const eLon = end.longitude ?? end.x;
-      const eLat = end.latitude ?? end.y;
+      const sSnap = await this.snapToRoad(start);
+      const eSnap = await this.snapToRoad(end);
+      const sLon = sSnap.longitude ?? sSnap.x;
+      const sLat = sSnap.latitude ?? sSnap.y;
+      const eLon = eSnap.longitude ?? eSnap.x;
+      const eLat = eSnap.latitude ?? eSnap.y;
       const url = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${eLon},${eLat}?overview=full&geometries=geojson&alternatives=false`;
       try {
         const res = await fetch(url);

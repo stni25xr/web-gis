@@ -2615,7 +2615,7 @@ Maintain safe distance
           .map((f) => ({ fieldName: f.name, label: f.alias || f.name }));
         buildingFootprints.popupTemplate = addShuttleAction({
           title: "{byggnadsnamn1}",
-          content: [
+          content: withShuttleButtonContent([
             {
               type: "custom",
               creator: (event) => {
@@ -2688,7 +2688,7 @@ Maintain safe distance
               }
             },
             { type: "fields", fieldInfos: allFields }
-          ]
+          ])
         });
 
         buildingFootprints.queryFeatures({
@@ -2781,7 +2781,7 @@ Maintain safe distance
         visible: false,
         popupTemplate: addShuttleAction({
           title: "Fastighet",
-          content: [{
+          content: withShuttleButtonContent([{
             type: "fields",
             fieldInfos: [
               { fieldName: "fastighet", label: "Fastighet" },
@@ -2790,7 +2790,7 @@ Maintain safe distance
               { fieldName: "detaljtyp", label: "Detaljtyp" },
               { fieldName: "kommunnamn", label: "Kommun" }
             ]
-          }]
+          }])
         })
       });
       map.add(fastighet);
@@ -2876,7 +2876,7 @@ Maintain safe distance
         visible: true,
         popupTemplate: addShuttleAction({
           title: "Busshållplats",
-          content: [
+          content: withShuttleButtonContent([
             {
               type: "fields",
               fieldInfos: [
@@ -2884,7 +2884,7 @@ Maintain safe distance
                 { fieldName: "Hplnamn", label: "Hplnamn" }
               ]
             }
-          ]
+          ])
         })
       });
       map.add(bus);
@@ -2908,7 +2908,7 @@ Maintain safe distance
         visible: false,
         popupTemplate: addShuttleAction({
           title: "Skolväg (gång)",
-          content: [
+          content: withShuttleButtonContent([
             {
               type: "fields",
               fieldInfos: [
@@ -2921,7 +2921,7 @@ Maintain safe distance
                 { fieldName: "Shape_Area", label: "Shape_Area" }
               ]
             }
-          ]
+          ])
         })
       });
       map.add(skolWalk);
@@ -2940,7 +2940,7 @@ Maintain safe distance
         visible: true,
         popupTemplate: addShuttleAction({
           title: "Attribut",
-          content: [{ type: "fields" }]
+          content: withShuttleButtonContent([{ type: "fields" }])
         })
       });
       map.add(mark);
@@ -2959,7 +2959,7 @@ Maintain safe distance
         visible: true,
         popupTemplate: addShuttleAction({
           title: "Attribut",
-          content: [{ type: "fields" }]
+          content: withShuttleButtonContent([{ type: "fields" }])
         })
       });
       map.add(water);
@@ -2979,7 +2979,7 @@ Maintain safe distance
         visible: true,
         popupTemplate: addShuttleAction({
           title: "{name}",
-          content: [{ type: "fields" }]
+          content: withShuttleButtonContent([{ type: "fields" }])
         })
       });
       map.add(forskola);
@@ -2999,7 +2999,7 @@ Maintain safe distance
         visible: true,
         popupTemplate: addShuttleAction({
           title: "{name}",
-          content: [{ type: "fields" }]
+          content: withShuttleButtonContent([{ type: "fields" }])
         })
       });
       map.add(grund);
@@ -3019,7 +3019,7 @@ Maintain safe distance
         visible: true,
         popupTemplate: addShuttleAction({
           title: "{name}",
-          content: [{ type: "fields" }]
+          content: withShuttleButtonContent([{ type: "fields" }])
         })
       });
       map.add(gymn);
@@ -3039,7 +3039,7 @@ Maintain safe distance
         visible: true,
         popupTemplate: addShuttleAction({
           title: "{name}",
-          content: [{ type: "fields" }]
+          content: withShuttleButtonContent([{ type: "fields" }])
         })
       });
       map.add(vard);
@@ -3064,7 +3064,7 @@ Maintain safe distance
           }
         },
         visible: true,
-        popupTemplate: addShuttleAction({ title: "{name}", content: [{ type: "fields" }] })
+        popupTemplate: addShuttleAction({ title: "{name}", content: withShuttleButtonContent([{ type: "fields" }]) })
       });
       map.add(police);
 
@@ -3088,7 +3088,7 @@ Maintain safe distance
           }
         },
         visible: true,
-        popupTemplate: addShuttleAction({ title: "{name}", content: [{ type: "fields" }] })
+        popupTemplate: addShuttleAction({ title: "{name}", content: withShuttleButtonContent([{ type: "fields" }]) })
       });
       map.add(fire);
 
@@ -3112,7 +3112,7 @@ Maintain safe distance
           }
         },
         visible: true,
-        popupTemplate: addShuttleAction({ title: "{name}", content: [{ type: "fields" }] })
+        popupTemplate: addShuttleAction({ title: "{name}", content: withShuttleButtonContent([{ type: "fields" }]) })
       });
       map.add(hospital);
 
@@ -3129,7 +3129,7 @@ Maintain safe distance
           }
         },
         visible: false,
-        popupTemplate: addShuttleAction({ title: "Skyddsrum", content: [{ type: "fields" }] })
+        popupTemplate: addShuttleAction({ title: "Skyddsrum", content: withShuttleButtonContent([{ type: "fields" }]) })
       });
       map.add(shelter);
 
@@ -4142,6 +4142,52 @@ Maintain safe distance
         if (!actions.find((a) => a && a.id === action.id)) actions.push(action);
         template.actions = actions;
         return template;
+      }
+
+      function makeShuttleButtonContent() {
+        return {
+          type: "custom",
+          creator: (event) => {
+            const wrap = document.createElement("div");
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.textContent = "Call shuttle";
+            btn.style.display = "block";
+            btn.style.width = "100%";
+            btn.style.margin = "0 0 8px";
+            btn.style.padding = "10px 12px";
+            btn.style.borderRadius = "10px";
+            btn.style.border = "none";
+            btn.style.background = "#0ea5e9";
+            btn.style.color = "#fff";
+            btn.style.fontSize = "13px";
+            btn.style.cursor = "pointer";
+            btn.addEventListener("click", (e) => {
+              e.preventDefault();
+              let geom = event?.graphic?.geometry || view.popup?.location || null;
+              if (!geom) return;
+              if (geom.type && geom.type !== "point") {
+                try {
+                  geom = geometryEngine.centroid(geom);
+                } catch (err) {
+                  if (geom.extent) geom = geom.extent.center;
+                }
+              }
+              const pickup = toGeographic(geom);
+              if (!pickup) return;
+              if (typeof window.requestShuttleToPickup === "function") {
+                window.requestShuttleToPickup(pickup);
+              }
+            });
+            wrap.appendChild(btn);
+            return wrap;
+          }
+        };
+      }
+
+      function withShuttleButtonContent(content) {
+        const list = Array.isArray(content) ? content : [];
+        return [makeShuttleButtonContent(), ...list];
       }
 
       function distanceMeters(a, b) {
