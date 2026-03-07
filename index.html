@@ -4909,6 +4909,7 @@ Maintain safe distance
           } else {
             updateServiceDistances(event.mapPoint);
           }
+          startRadarAtPoint(event.mapPoint);
         }
         if (safeMeasureEnabled && event.mapPoint) {
           updateSelectedSafetyDistance(event.mapPoint);
