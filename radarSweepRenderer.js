@@ -3,7 +3,7 @@
   const ORANGE = [1.0, 0.549, 0.0, 0.85];
   const RADIUS = 500;
   const BEAM_WIDTH_DEG = 10;
-  const HEIGHT_OFFSET = 15;
+  const HEIGHT_OFFSET = 1.7;
   const SEGMENTS = 12;
 
   let activeRenderer = null;
@@ -22,6 +22,25 @@
     if (!el) return;
     el.textContent = on ? "RADAR: ON" : "RADAR: OFF";
     el.classList.toggle("is-on", !!on);
+  }
+
+  async function applyGeojsonElevation(point) {
+    const provider = window.ElevationProvider;
+    if (!provider || typeof provider.getElevation !== "function") return point;
+    const lat = point.latitude ?? point.y;
+    const lon = point.longitude ?? point.x;
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return point;
+    try {
+      const elev = await provider.getElevation(lat, lon);
+      if (Number.isFinite(elev)) {
+        const next = point.clone();
+        next.z = elev;
+        return next;
+      }
+    } catch (e) {
+      // ignore elevation errors
+    }
+    return point;
   }
 
   function createShader(gl, type, source) {
@@ -165,7 +184,7 @@
         gl.uniformMatrix4fv(this.uProj, false, context.camera.projectionMatrix);
         gl.uniform4fv(this.uColor, ORANGE);
 
-        gl.enable(gl.DEPTH_TEST);
+        gl.disable(gl.DEPTH_TEST);
         gl.depthMask(false);
         gl.disable(gl.CULL_FACE);
         gl.enable(gl.BLEND);
@@ -198,23 +217,27 @@
       return;
     }
 
-    if (activeRenderer && activeView === view) {
-      activeRenderer.setCenter(centerPoint);
+    const handlePoint = (pt) => {
+      if (activeRenderer && activeView === view) {
+        activeRenderer.setCenter(pt);
+        setStatus(true);
+        logCenter(pt);
+        return;
+      }
+
+      stop();
+      const renderer = createRenderer(view, pt);
+      if (!renderer) return;
+      activeRenderer = renderer;
+      activeView = view;
+
+      externalRenderers.add(view, renderer);
+      console.log("[radar] renderer added");
+      logCenter(pt);
       setStatus(true);
-      logCenter(centerPoint);
-      return;
-    }
+    };
 
-    stop();
-    const renderer = createRenderer(view, centerPoint);
-    if (!renderer) return;
-    activeRenderer = renderer;
-    activeView = view;
-
-    externalRenderers.add(view, renderer);
-    console.log("[radar] renderer added");
-    logCenter(centerPoint);
-    setStatus(true);
+    applyGeojsonElevation(centerPoint).then(handlePoint);
   }
 
   function stop() {
