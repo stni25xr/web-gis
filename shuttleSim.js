@@ -4,6 +4,7 @@
   const SPEED_MPS = 11.11;
   const STATION = { latitude: 57.77101, longitude: 14.26968 };
   const HEALTHCARE = { latitude: 57.77468, longitude: 14.26546 };
+  const HEALTHCARE_LABEL = "Vårdcentralen (57.77468, 14.26546)";
 
   const STATE = {
     IDLE: "idle_at_station",
@@ -103,6 +104,7 @@
       this.countdownTimer = null;
       this.pauseTimer = null;
       this.modalMuted = false;
+      this.healthcareLegMeters = 0;
 
       this.initMarker();
 
@@ -118,6 +120,7 @@
           type: "point",
           longitude: STATION.longitude,
           latitude: STATION.latitude,
+          z: 0,
           spatialReference: { wkid: 4326 }
         },
         attributes: {
@@ -125,18 +128,20 @@
           type: SHUTTLE_TYPE
         },
         symbol: {
-          type: "picture-marker",
-          url: icon,
-          width: 20,
-          height: 20
+          type: "point-3d",
+          symbolLayers: [{
+            type: "icon",
+            resource: { href: icon },
+            size: 18,
+            outline: { color: "white", size: 1 }
+          }]
         }
       });
       this.shuttleLayer.add(this.shuttleGraphic);
     }
 
-    showModal(title, message, opts = {}) {
-      const { force = false } = opts;
-      if (this.modalMuted && !force) return;
+    showModal(title, message) {
+      if (this.modalMuted) return;
       const modal = document.getElementById("shuttleModal");
       const titleEl = document.getElementById("shuttleTitle");
       const msgEl = document.getElementById("shuttleMessage");
@@ -186,6 +191,12 @@
       const geo = toGeoPoint(pickupPoint, this.webMercatorUtils);
       if (!geo) return false;
       this.currentRequest = { pickup: geo };
+      this.healthcareLegMeters = 0;
+      const healthcareRoute = await this.fetchRoute(this.currentRequest.pickup, HEALTHCARE);
+      if (healthcareRoute) {
+        const sampler = buildSampler(this.Polyline, this.webMercatorUtils, healthcareRoute);
+        if (sampler) this.healthcareLegMeters = sampler.total || 0;
+      }
       await this.driveToPickup();
       return true;
     }
@@ -198,17 +209,23 @@
         this.resetToStation();
         return;
       }
-      this.showModal("Shuttle bokad", "Din shuttle är på väg till dig.", { force: true });
+      this.showModal("Shuttle bokad", "Din shuttle är på väg till dig.");
       await this.driveRoute(route, "#2563eb", (remainingMeters, remainingSeconds) => {
         const mins = Math.floor(remainingSeconds / 60);
         const secs = Math.max(0, Math.round(remainingSeconds % 60));
         const line1 = "Din shuttle är på väg till dig.";
         const line2 = `Ankomst om ${mins} min ${secs} sek`;
         const line3 = `Avstånd kvar: ${Math.round(remainingMeters)} m`;
-        this.updateModal(`${line1}\n${line2}\n${line3}`);
+        const totalToHealth = remainingMeters + (this.healthcareLegMeters || 0);
+        const healthSeconds = totalToHealth / SPEED_MPS;
+        const hMins = Math.floor(healthSeconds / 60);
+        const hSecs = Math.max(0, Math.round(healthSeconds % 60));
+        const line4 = `Till vårdcentral: ${hMins} min ${hSecs} sek`;
+        const line5 = `Destination: ${HEALTHCARE_LABEL}`;
+        this.updateModal(`${line1}\n${line2}\n${line3}\n${line4}\n${line5}`);
       });
       this.setState(STATE.WAIT_PICKUP);
-      this.showModal("Shuttle framme", "Din shuttle har anlänt.", { force: true });
+      this.showModal("Shuttle framme", "Din shuttle har anlänt.");
       await this.pause(2500);
       await this.driveToHealthcare();
     }
@@ -221,9 +238,17 @@
         await this.pause(2000);
         return this.returnToStation();
       }
-      await this.driveRoute(route, "#22c55e");
+      await this.driveRoute(route, "#22c55e", (remainingMeters, remainingSeconds) => {
+        const mins = Math.floor(remainingSeconds / 60);
+        const secs = Math.max(0, Math.round(remainingSeconds % 60));
+        const line1 = "Shuttlen är på väg till vårdcentralen.";
+        const line2 = `Ankomst om ${mins} min ${secs} sek`;
+        const line3 = `Avstånd kvar: ${Math.round(remainingMeters)} m`;
+        const line4 = `Destination: ${HEALTHCARE_LABEL}`;
+        this.updateModal(`${line1}\n${line2}\n${line3}\n${line4}`);
+      });
       this.setState(STATE.WAIT_HEALTH);
-      this.showModal("Framme vid vårdcentral", "Shuttlen har anlänt till vårdcentralen.", { force: true });
+      this.showModal("Framme vid vårdcentral", "Shuttlen har anlänt till vårdcentralen.");
       await this.pause(2500);
       await this.returnToStation();
     }
@@ -243,6 +268,7 @@
       this.clearTimers();
       this.setState(STATE.IDLE);
       this.currentRequest = null;
+      this.healthcareLegMeters = 0;
       if (this.shuttleRouteGraphic) this.shuttleLayer.remove(this.shuttleRouteGraphic);
       this.shuttleRouteGraphic = null;
       if (this.shuttleGraphic) {
@@ -262,6 +288,7 @@
       this.clearTimers();
       this.setState(STATE.IDLE);
       this.currentRequest = null;
+      this.healthcareLegMeters = 0;
       if (this.shuttleRouteGraphic) this.shuttleLayer.remove(this.shuttleRouteGraphic);
       this.shuttleRouteGraphic = null;
       if (this.shuttleGraphic) {
@@ -369,6 +396,7 @@
               type: "point",
               longitude: pt.longitude,
               latitude: pt.latitude,
+              z: 0,
               spatialReference: { wkid: 4326 }
             };
           }

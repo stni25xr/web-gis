@@ -706,13 +706,17 @@ html, body, body.app {
 }
 
 #shuttleModal #shuttleCancel {
-  border: none;
-  background: #ef4444;
-  color: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #ffffff;
+  color: #0f172a;
   padding: 8px 14px;
   border-radius: 10px;
   cursor: pointer;
   font-size: 13px;
+}
+
+#shuttleModal #shuttleCancel:hover {
+  background: #f1f5f9;
 }
 
 #incidentModal {
