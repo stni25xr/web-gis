@@ -3995,6 +3995,16 @@ Maintain safe distance
         const diffLabel = diff >= 0 ? `+${diff}` : `${diff}`;
         return `Höjdskillnad: ${diffLabel} m • ↑ ${up} m / ↓ ${down} m`;
       }
+      function formatElevationSourceNote() {
+        const status = window.ElevationProvider?.getStatus?.();
+        if (status?.url) {
+          let label = "ElevationProvider";
+          if (/r2\\.dev|cloudflarestorage\\.com/i.test(status.url)) label = "GeoJSON (R2)";
+          else if (/drive\\.google\\.com/i.test(status.url)) label = "GeoJSON (Drive)";
+          return `<div class="elevation-source" style="font-size:12px;color:#64748b;">Höjddata: ${label}</div>`;
+        }
+        return `<div class="elevation-source" style="font-size:12px;color:#64748b;">Höjddata: okänd</div>`;
+      }
       const elevationCache = new globalThis.Map();
       async function getElevationStats(routePolyline) {
         if (!routePolyline) return null;
@@ -4309,7 +4319,7 @@ Maintain safe distance
           });
           const elevation = await getElevationStats(straight);
           if (elevation) {
-            const elevLine = `<div class="elevation-info">${formatElevationInfo(elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
+            const elevLine = `<div class="elevation-info">${formatElevationInfo(elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>${formatElevationSourceNote()}`;
             svcList.innerHTML = `${header}<div>${formatDistanceColored(d)} • ca ${formatWalkTime(d)} till fots</div>${elevLine}`;
           }
         } catch (e) {
@@ -4322,13 +4332,13 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistanceColored(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>${formatElevationSourceNote()}`;
           svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>${elevLine}`;
         } else {
           // Fallback: still attempt elevation from last route if available
           if (lastRouteGeometry) {
             const elevation = await getElevationStats(lastRouteGeometry);
-            const elevLine = `<div class="elevation-info">${formatElevationInfo(elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
+            const elevLine = `<div class="elevation-info">${formatElevationInfo(elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>${formatElevationSourceNote()}`;
             svcList.innerHTML = `${header}<div>${formatDistanceColored(d)} • ca ${formatWalkTime(d)} till fots</div>${elevLine}`;
           }
         }
@@ -4459,7 +4469,7 @@ Maintain safe distance
           const dist = formatDistance(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
           setSafeHintText("");
-          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>${formatElevationSourceNote()}`;
           setSafeListHtml(`${header}<div>${dist} • ca ${mins} min (bil)</div>${elevLine}`);
         }
       }
@@ -4917,7 +4927,7 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistanceColored(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>${formatElevationSourceNote()}`;
           nearMeta.innerHTML = `${dist} • ca ${mins} min (gångväg)${elevLine}`;
         }
         updateSeniorRouteButtons();
@@ -5013,7 +5023,7 @@ Maintain safe distance
         if (summary?.distance != null && summary?.duration != null) {
           const dist = formatDistanceColored(summary.distance);
           const mins = Math.max(1, Math.round(summary.duration / 60));
-          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>`;
+          const elevLine = `<div class="elevation-info">${formatElevationInfo(summary?.elevation)}</div><div class="elevation-help">Höjd påverkar gångtid och tillgänglighet.</div>${formatElevationSourceNote()}`;
           svcList.innerHTML = `${header}<div>${dist} • ca ${mins} min (gångväg)</div>${elevLine}`;
         }
           updateSeniorRouteButtons();
