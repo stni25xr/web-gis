@@ -98,7 +98,7 @@
       this.currentRequest = null;
       this.shuttleGraphic = null;
       this.shuttleRouteGraphic = null;
-      this.shuttleLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 1.7 } });
+      this.shuttleLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 } });
       this.map.add(this.shuttleLayer);
       this.animation = null;
       this.countdownTimer = null;
@@ -129,13 +129,15 @@
         },
         symbol: {
           type: "point-3d",
+          verticalOffset: { screenLength: 18, maxWorldLength: 30, minWorldLength: 6 },
           symbolLayers: [{
             type: "icon",
             resource: { href: icon },
-            size: 18,
-            outline: { color: "white", size: 1 }
+            size: 24,
+            outline: { color: "white", size: 2 }
           }]
-        }
+        },
+        visible: true
       });
       this.shuttleLayer.add(this.shuttleGraphic);
     }
