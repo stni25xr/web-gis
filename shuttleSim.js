@@ -160,14 +160,14 @@
       const titleEl = document.getElementById("shuttleTitle");
       const msgEl = document.getElementById("shuttleMessage");
       if (titleEl) titleEl.textContent = title;
-      if (msgEl) msgEl.textContent = message;
+      if (msgEl) msgEl.innerHTML = this.toModalHtml(message);
       if (modal) modal.style.display = "flex";
     }
 
     updateModal(message) {
       if (this.modalMuted) return;
       const msgEl = document.getElementById("shuttleMessage");
-      if (msgEl) msgEl.textContent = message;
+      if (msgEl) msgEl.innerHTML = this.toModalHtml(message);
     }
 
     hideModal() {
@@ -211,6 +211,7 @@
         name: CUSTOMER_NAME,
         phone: CUSTOMER_PHONE,
         customerId: CUSTOMER_ID,
+        orderId: this.generateOrderId(),
         calledAt: new Date(),
         pickup: geo
       };
@@ -246,7 +247,9 @@
         const line4 = `Till vårdcentral: ${hMins} min ${hSecs} sek`;
         const line5 = `Destination: ${HEALTHCARE_LABEL}`;
         const meta = this.formatRequestMeta();
-        this.updateModal(`${line1}\n${line2}\n${line3}\n${line4}\n${line5}${meta}`);
+        this.updateModal(this.formatStatusMessage([
+          line1, line2, line3, line4, line5
+        ], meta));
       });
       this.setState(STATE.WAIT_PICKUP);
       this.showModal("Shuttle framme", "Din shuttle har anlänt.");
@@ -270,7 +273,9 @@
         const line3 = `Avstånd kvar: ${Math.round(remainingMeters)} m`;
         const line4 = `Destination: ${HEALTHCARE_LABEL}`;
         const meta = this.formatRequestMeta();
-        this.updateModal(`${line1}\n${line2}\n${line3}\n${line4}${meta}`);
+        this.updateModal(this.formatStatusMessage([
+          line1, line2, line3, line4
+        ], meta));
       });
       this.setState(STATE.WAIT_HEALTH);
       this.showModal("Framme vid vårdcentral", "Shuttlen har anlänt till vårdcentralen.");
@@ -339,7 +344,7 @@
 
     formatRequestMeta() {
       if (!this.requestMeta) return "";
-      const { name, phone, customerId, calledAt, pickup } = this.requestMeta;
+      const { name, phone, customerId, orderId, calledAt, pickup } = this.requestMeta;
       const lat = pickup?.latitude ?? pickup?.y;
       const lon = pickup?.longitude ?? pickup?.x;
       const coordLine = (Number.isFinite(lat) && Number.isFinite(lon))
@@ -348,7 +353,68 @@
       const timeLine = calledAt
         ? calledAt.toLocaleString("sv-SE", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
         : "—";
-      return `\nNamn: ${name}\nKundnummer: ${customerId}\nAdress: ${coordLine}\nTelefon nr.: ${phone}\nCalled shuttle time/date: ${timeLine}`;
+      return {
+        name,
+        phone,
+        customerId,
+        orderId,
+        coordLine,
+        timeLine
+      };
+    }
+
+    formatStatusMessage(lines, meta) {
+      const safeLines = (lines || []).filter(Boolean);
+      if (!meta) return safeLines.join("\n");
+      return [
+        safeLines.join("\n"),
+        "",
+        `Namn: ${meta.name}`,
+        `Kundnummer: ${meta.customerId}`,
+        `Order: ${meta.orderId}`,
+        `Adress: ${meta.coordLine}`,
+        `Telefon nr.: ${meta.phone}`,
+        `Called shuttle time/date: ${meta.timeLine}`
+      ].join("\n");
+    }
+
+    toModalHtml(message) {
+      const text = String(message || "");
+      const lines = text.split("\n");
+      const topLines = [];
+      const metaLines = [];
+      let inMeta = false;
+      for (const line of lines) {
+        if (!line && !inMeta) {
+          inMeta = true;
+          continue;
+        }
+        if (!inMeta) {
+          topLines.push(line);
+        } else if (line) {
+          metaLines.push(line);
+        }
+      }
+      const topHtml = topLines.map((l) => `<div class="shuttle-line">${this.escapeHtml(l)}</div>`).join("");
+      const metaHtml = metaLines.length
+        ? `<div class="shuttle-meta">${metaLines.map((l) => `<div>${this.escapeHtml(l)}</div>`).join("")}</div>`
+        : "";
+      return `${topHtml}${metaHtml}`;
+    }
+
+    escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    generateOrderId() {
+      const year = new Date().getFullYear();
+      const rand = Math.floor(1000 + Math.random() * 9000);
+      return `ORD-${year}-${rand}`;
     }
 
     async snapToRoad(point) {
@@ -437,9 +503,9 @@
               type: "point",
               longitude: pt.longitude,
               latitude: pt.latitude,
-              z: 0,
               spatialReference: { wkid: 4326 }
             };
+            this.shuttleGraphic.visible = true;
           }
           if (this.view && typeof this.view.requestRender === "function") {
             this.view.requestRender();

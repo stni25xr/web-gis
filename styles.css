@@ -704,7 +704,24 @@ html, body, body.app {
 
 #shuttleModal .alarm-message {
   color: #f8fafc;
-  white-space: pre-line;
+  white-space: normal;
+}
+
+#shuttleModal .shuttle-line {
+  margin: 0 0 6px 0;
+  font-size: 15px;
+}
+
+#shuttleModal .shuttle-meta {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #e2e8f0;
 }
 
 #shuttleModal .alarm-actions {
