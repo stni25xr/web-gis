@@ -50,7 +50,8 @@
 /* Keep at least 1cm gap from the right frame edge */
 .esri-popup--is-docked.esri-popup--dock-top-right {
   right: 1cm !important;
-  transform: translateY(calc(-1 * (var(--header-height, 64px) - 30px))) !important;
+  top: calc(var(--header-height, 64px) + 30px) !important;
+  transform: none !important;
 }
 
 #bimModal .bim-header {
