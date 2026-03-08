@@ -3,6 +3,7 @@
   const SHUTTLE_TYPE = "electric shuttle";
   const SHUTTLE_DEBUG = true;
   const SPEED_MPS = 11.11;
+  const SHOW_SHUTTLE_ROUTE = false;
   const STATION = { latitude: 57.77101, longitude: 14.26968 };
   const HEALTHCARE = { latitude: 57.77468, longitude: 14.26546 };
   const HEALTHCARE_LABEL = "Vårdcentralen (57.77468, 14.26546)";
@@ -287,7 +288,18 @@
         this.resetToStation();
         return;
       }
-      await this.driveRoute(route, "#94a3b8");
+      await this.driveRoute(route, "#94a3b8", (remainingMeters, remainingSeconds) => {
+        const mins = Math.floor(remainingSeconds / 60);
+        const secs = Math.max(0, Math.round(remainingSeconds % 60));
+        const line1 = "Shuttlen är på väg tillbaka till hållplatsen.";
+        const line2 = `Ankomst om ${mins} min ${secs} sek`;
+        const line3 = `Avstånd kvar: ${Math.round(remainingMeters)} m`;
+        const line4 = "Destination: Station";
+        const meta = this.formatRequestMeta();
+        this.updateModal(this.formatStatusMessage([
+          line1, line2, line3, line4
+        ], meta));
+      });
       this.resetToStation();
     }
 
@@ -463,11 +475,15 @@
       if (this.shuttleRouteGraphic) this.shuttleLayer.remove(this.shuttleRouteGraphic);
 
       const polyline = new this.Polyline({ paths: [coords], spatialReference: { wkid: 4326 } });
-      this.shuttleRouteGraphic = new this.Graphic({
-        geometry: polyline,
-        symbol: { type: "simple-line", color: color || "#2563eb", width: 3 }
-      });
-      this.shuttleLayer.add(this.shuttleRouteGraphic);
+      if (SHOW_SHUTTLE_ROUTE) {
+        this.shuttleRouteGraphic = new this.Graphic({
+          geometry: polyline,
+          symbol: { type: "simple-line", color: color || "#2563eb", width: 3 }
+        });
+        this.shuttleLayer.add(this.shuttleRouteGraphic);
+      } else {
+        this.shuttleRouteGraphic = null;
+      }
       this.debugLog("[shuttle] driveRoute started");
 
       const sampler = buildSampler(this.Polyline, this.webMercatorUtils, coords);
