@@ -48,9 +48,10 @@
 }
 
 /* Keep at least 1cm gap from the right frame edge */
-.esri-popup--is-docked.esri-popup--dock-top-right {
+/* Docked popup: keep 1cm from right edge and 30px below map top (header already above map) */
+.esri-view .esri-popup--is-docked {
   right: 1cm !important;
-  top: calc(var(--header-height, 64px) + 30px) !important;
+  top: 30px !important;
   transform: none !important;
 }
 
