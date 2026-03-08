@@ -104,7 +104,7 @@
       this.currentRequest = null;
       this.shuttleGraphic = null;
       this.shuttleRouteGraphic = null;
-      this.shuttleLayer = new GraphicsLayer({ elevationInfo: { mode: "absolute-height" } });
+      this.shuttleLayer = new GraphicsLayer({ elevationInfo: { mode: "on-the-ground" } });
       this.map.add(this.shuttleLayer);
       this.animation = null;
       this.countdownTimer = null;
@@ -534,12 +534,10 @@
 
     withElevation(point) {
       if (!point) return point;
-      const z = this.sampleElevation(point);
-      if (!Number.isFinite(z)) {
-        this.primeElevation(point);
-        return point;
-      }
-      return { ...point, z };
+      // Keep the marker draped to ground for reliable visibility in 2D/3D.
+      // Still prime elevation in the background for future use/debug.
+      this.primeElevation(point);
+      return point;
     }
 
     sampleElevation(point) {
