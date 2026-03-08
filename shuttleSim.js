@@ -96,6 +96,9 @@
       this.Polyline = Polyline;
       this.geometryEngine = geometryEngine;
       this.webMercatorUtils = webMercatorUtils;
+      this.elevationSampler = null;
+      this.elevationCache = new Map();
+      this.lastElevationRequest = 0;
 
       this.currentState = STATE.IDLE;
       this.currentRequest = null;
@@ -111,6 +114,11 @@
       this.requestMeta = null;
 
       this.initMarker();
+      if (this.view && typeof this.view.when === "function") {
+        this.view.when(() => {
+          this.elevationSampler = this.view?.groundView?.elevationSampler || null;
+        });
+      }
 
       window.shuttleGraphic = this.shuttleGraphic;
       window.shuttleCurrentRoute = null;
@@ -120,14 +128,14 @@
     initMarker() {
       const icon = createShuttleIcon();
       const is3d = this.view && this.view.type === "3d";
+      const startPoint = this.withElevation({
+        type: "point",
+        longitude: STATION.longitude,
+        latitude: STATION.latitude,
+        spatialReference: { wkid: 4326 }
+      });
       this.shuttleGraphic = new this.Graphic({
-        geometry: {
-          type: "point",
-          longitude: STATION.longitude,
-          latitude: STATION.latitude,
-          z: 0,
-          spatialReference: { wkid: 4326 }
-        },
+        geometry: startPoint,
         attributes: {
           id: SHUTTLE_ID,
           type: SHUTTLE_TYPE
@@ -499,12 +507,13 @@
           lastDist = dist;
           const pt = sampler.toGeo(dist);
           if (pt && this.shuttleGraphic) {
-            this.shuttleGraphic.geometry = {
+            const nextPoint = this.withElevation({
               type: "point",
               longitude: pt.longitude,
               latitude: pt.latitude,
               spatialReference: { wkid: 4326 }
-            };
+            });
+            this.shuttleGraphic.geometry = nextPoint;
             this.shuttleGraphic.visible = true;
           }
           if (this.view && typeof this.view.requestRender === "function") {
@@ -521,6 +530,60 @@
       });
 
       this.clearTimers();
+    }
+
+    withElevation(point) {
+      if (!point) return point;
+      const z = this.sampleElevation(point);
+      if (!Number.isFinite(z)) {
+        this.primeElevation(point);
+        return point;
+      }
+      return { ...point, z };
+    }
+
+    sampleElevation(point) {
+      const sampler = this.elevationSampler;
+      if (sampler && this.webMercatorUtils) {
+        const sr = point.spatialReference;
+        let wmPoint = point;
+        if (sr && (sr.isWGS84 || sr.wkid === 4326)) {
+          wmPoint = this.webMercatorUtils.geographicToWebMercator(point);
+        }
+        try {
+          const sampled = sampler.sample(wmPoint);
+          const z = sampled?.z ?? sampled?.geometry?.z;
+          if (Number.isFinite(z)) return z;
+        } catch (e) {
+          // fall back to cache
+        }
+      }
+      const key = this.elevationKey(point);
+      const cached = this.elevationCache.get(key);
+      return Number.isFinite(cached) ? cached : null;
+    }
+
+    primeElevation(point) {
+      const now = performance.now();
+      if (now - this.lastElevationRequest < 500) return;
+      this.lastElevationRequest = now;
+      const key = this.elevationKey(point);
+      if (this.elevationCache.has(key)) return;
+      const lon = point.longitude ?? point.x;
+      const lat = point.latitude ?? point.y;
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+      if (window.ElevationProvider && typeof window.ElevationProvider.getElevation === "function") {
+        window.ElevationProvider.getElevation(lat, lon).then((z) => {
+          if (Number.isFinite(z)) this.elevationCache.set(key, z);
+        }).catch(() => {});
+      }
+    }
+
+    elevationKey(point) {
+      const lon = point.longitude ?? point.x;
+      const lat = point.latitude ?? point.y;
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return "0,0";
+      return `${lat.toFixed(5)},${lon.toFixed(5)}`;
     }
   }
 
