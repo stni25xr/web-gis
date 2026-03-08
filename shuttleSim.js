@@ -138,10 +138,11 @@
             outline: { color: "white", size: 2 }
           }]
         } : {
-          type: "picture-marker",
-          url: icon,
-          width: "24px",
-          height: "24px"
+          type: "simple-marker",
+          style: "circle",
+          color: [239, 68, 68, 0.95],
+          size: 10,
+          outline: { color: [255, 255, 255, 0.9], width: 1 }
         },
         visible: true
       });
