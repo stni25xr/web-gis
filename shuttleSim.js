@@ -5,6 +5,9 @@
   const STATION = { latitude: 57.77101, longitude: 14.26968 };
   const HEALTHCARE = { latitude: 57.77468, longitude: 14.26546 };
   const HEALTHCARE_LABEL = "Vårdcentralen (57.77468, 14.26546)";
+  const CUSTOMER_NAME = "Ingrid Andersson";
+  const CUSTOMER_PHONE = "+46 (0)768 333332";
+  const CUSTOMER_ID = "SE-2026-0001";
 
   const STATE = {
     IDLE: "idle_at_station",
@@ -105,6 +108,7 @@
       this.pauseTimer = null;
       this.modalMuted = false;
       this.healthcareLegMeters = 0;
+      this.requestMeta = null;
 
       this.initMarker();
 
@@ -203,6 +207,13 @@
       const geo = toGeoPoint(pickupPoint, this.webMercatorUtils);
       if (!geo) return false;
       this.currentRequest = { pickup: geo };
+      this.requestMeta = {
+        name: CUSTOMER_NAME,
+        phone: CUSTOMER_PHONE,
+        customerId: CUSTOMER_ID,
+        calledAt: new Date(),
+        pickup: geo
+      };
       this.healthcareLegMeters = 0;
       const healthcareRoute = await this.fetchRoute(this.currentRequest.pickup, HEALTHCARE);
       if (healthcareRoute) {
@@ -234,7 +245,8 @@
         const hSecs = Math.max(0, Math.round(healthSeconds % 60));
         const line4 = `Till vårdcentral: ${hMins} min ${hSecs} sek`;
         const line5 = `Destination: ${HEALTHCARE_LABEL}`;
-        this.updateModal(`${line1}\n${line2}\n${line3}\n${line4}\n${line5}`);
+        const meta = this.formatRequestMeta();
+        this.updateModal(`${line1}\n${line2}\n${line3}\n${line4}\n${line5}${meta}`);
       });
       this.setState(STATE.WAIT_PICKUP);
       this.showModal("Shuttle framme", "Din shuttle har anlänt.");
@@ -257,7 +269,8 @@
         const line2 = `Ankomst om ${mins} min ${secs} sek`;
         const line3 = `Avstånd kvar: ${Math.round(remainingMeters)} m`;
         const line4 = `Destination: ${HEALTHCARE_LABEL}`;
-        this.updateModal(`${line1}\n${line2}\n${line3}\n${line4}`);
+        const meta = this.formatRequestMeta();
+        this.updateModal(`${line1}\n${line2}\n${line3}\n${line4}${meta}`);
       });
       this.setState(STATE.WAIT_HEALTH);
       this.showModal("Framme vid vårdcentral", "Shuttlen har anlänt till vårdcentralen.");
@@ -281,6 +294,7 @@
       this.setState(STATE.IDLE);
       this.currentRequest = null;
       this.healthcareLegMeters = 0;
+      this.requestMeta = null;
       if (this.shuttleRouteGraphic) this.shuttleLayer.remove(this.shuttleRouteGraphic);
       this.shuttleRouteGraphic = null;
       if (this.shuttleGraphic) {
@@ -301,6 +315,7 @@
       this.setState(STATE.IDLE);
       this.currentRequest = null;
       this.healthcareLegMeters = 0;
+      this.requestMeta = null;
       if (this.shuttleRouteGraphic) this.shuttleLayer.remove(this.shuttleRouteGraphic);
       this.shuttleRouteGraphic = null;
       if (this.shuttleGraphic) {
@@ -320,6 +335,20 @@
       return new Promise((resolve) => {
         this.pauseTimer = setTimeout(resolve, ms);
       });
+    }
+
+    formatRequestMeta() {
+      if (!this.requestMeta) return "";
+      const { name, phone, customerId, calledAt, pickup } = this.requestMeta;
+      const lat = pickup?.latitude ?? pickup?.y;
+      const lon = pickup?.longitude ?? pickup?.x;
+      const coordLine = (Number.isFinite(lat) && Number.isFinite(lon))
+        ? `${lat.toFixed(5)}, ${lon.toFixed(5)}`
+        : "—";
+      const timeLine = calledAt
+        ? calledAt.toLocaleString("sv-SE", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+        : "—";
+      return `\nNamn: ${name}\nKundnummer: ${customerId}\nAdress: ${coordLine}\nTelefon nr.: ${phone}\nCalled shuttle time/date: ${timeLine}`;
     }
 
     async snapToRoad(point) {
