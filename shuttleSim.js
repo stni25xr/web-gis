@@ -115,6 +115,7 @@
 
     initMarker() {
       const icon = createShuttleIcon();
+      const is3d = this.view && this.view.type === "3d";
       this.shuttleGraphic = new this.Graphic({
         geometry: {
           type: "point",
@@ -127,7 +128,7 @@
           id: SHUTTLE_ID,
           type: SHUTTLE_TYPE
         },
-        symbol: {
+        symbol: is3d ? {
           type: "point-3d",
           verticalOffset: { screenLength: 18, maxWorldLength: 30, minWorldLength: 6 },
           symbolLayers: [{
@@ -136,6 +137,11 @@
             size: 24,
             outline: { color: "white", size: 2 }
           }]
+        } : {
+          type: "picture-marker",
+          url: icon,
+          width: "24px",
+          height: "24px"
         },
         visible: true
       });

@@ -4150,10 +4150,8 @@ Maintain safe distance
 
       function addShuttleAction(template) {
         if (!template) return template;
-        const action = { id: "call-shuttle", title: "Call shuttle", className: "esri-icon-navigation" };
         const actions = Array.isArray(template.actions) ? template.actions.slice() : [];
-        if (!actions.find((a) => a && a.id === action.id)) actions.push(action);
-        template.actions = actions;
+        template.actions = actions.filter((a) => a && a.id !== "call-shuttle");
         return template;
       }
 
