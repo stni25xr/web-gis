@@ -544,11 +544,14 @@
       return {
         type: "point-3d",
         verticalOffset: { screenLength: 40, maxWorldLength: 80, minWorldLength: 20 },
+        callout: { type: "line", size: 1.5, color: [255, 255, 255, 0.7] },
         symbolLayers: [{
-          type: "icon",
-          resource: { href: createShuttleIcon() },
-          size,
-          outline: { color: [255, 255, 255, 0.95], size: 2 }
+          type: "object",
+          resource: { primitive: "sphere" },
+          material: { color: [239, 68, 68, 0.98] },
+          width: size,
+          height: size,
+          depth: size
         }]
       };
     }
