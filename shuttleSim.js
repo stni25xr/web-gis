@@ -3,7 +3,7 @@
   const SHUTTLE_TYPE = "electric shuttle";
   const SHUTTLE_DEBUG = true;
   const SPEED_MPS = 11.11;
-  const SHOW_SHUTTLE_ROUTE = false;
+  const SHOW_SHUTTLE_ROUTE = true;
   const STATION = { latitude: 57.77101, longitude: 14.26968 };
   const HEALTHCARE = { latitude: 57.77468, longitude: 14.26546 };
   const HEALTHCARE_LABEL = "Vårdcentralen (57.77468, 14.26546)";
