@@ -104,7 +104,7 @@
       this.currentRequest = null;
       this.shuttleGraphic = null;
       this.shuttleRouteGraphic = null;
-      this.shuttleLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 } });
+      this.shuttleLayer = new GraphicsLayer({ elevationInfo: { mode: "absolute-height" } });
       this.map.add(this.shuttleLayer);
       this.animation = null;
       this.countdownTimer = null;
@@ -311,12 +311,12 @@
       if (this.shuttleRouteGraphic) this.shuttleLayer.remove(this.shuttleRouteGraphic);
       this.shuttleRouteGraphic = null;
       if (this.shuttleGraphic) {
-        this.shuttleGraphic.geometry = {
+        this.shuttleGraphic.geometry = this.withElevation({
           type: "point",
           longitude: STATION.longitude,
           latitude: STATION.latitude,
           spatialReference: { wkid: 4326 }
-        };
+        });
       }
       window.shuttleCurrentRoute = null;
       window.shuttleAnimationState = null;
@@ -332,12 +332,12 @@
       if (this.shuttleRouteGraphic) this.shuttleLayer.remove(this.shuttleRouteGraphic);
       this.shuttleRouteGraphic = null;
       if (this.shuttleGraphic) {
-        this.shuttleGraphic.geometry = {
+        this.shuttleGraphic.geometry = this.withElevation({
           type: "point",
           longitude: STATION.longitude,
           latitude: STATION.latitude,
           spatialReference: { wkid: 4326 }
-        };
+        });
       }
       window.shuttleCurrentRoute = null;
       window.shuttleAnimationState = null;
