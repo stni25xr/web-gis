@@ -106,6 +106,9 @@
       this.shuttleRouteGraphic = null;
       this.shuttleLayer = new GraphicsLayer({ elevationInfo: { mode: "on-the-ground" } });
       this.map.add(this.shuttleLayer);
+      if (typeof this.map.reorder === "function") {
+        this.map.reorder(this.shuttleLayer, this.map.layers.length - 1);
+      }
       this.animation = null;
       this.countdownTimer = null;
       this.pauseTimer = null;
@@ -147,14 +150,14 @@
             type: "icon",
             resource: { primitive: "circle" },
             material: { color: [239, 68, 68, 0.95] },
-            size: 14,
+            size: 18,
             outline: { color: [255, 255, 255, 0.9], size: 1 }
           }]
         } : {
           type: "simple-marker",
           style: "circle",
           color: [239, 68, 68, 0.95],
-          size: 10,
+          size: 14,
           outline: { color: [255, 255, 255, 0.9], width: 1 }
         },
         visible: true
