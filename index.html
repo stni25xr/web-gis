@@ -2896,9 +2896,6 @@ Maintain safe distance
         if (window.initBus15Layer) {
           window.initBus15Layer({ view, map, GraphicsLayer, Graphic, Polyline, webMercatorUtils, busLayer: bus });
         }
-        const busDebug = document.getElementById("busDebugPopup");
-        if (busDebug) busDebug.textContent = "Bus: starting...";
-        if (typeof startBus15Simulation === "function") startBus15Simulation();
       });
 
       const skolWalk = new GeoJSONLayer({
@@ -3724,23 +3721,15 @@ Maintain safe distance
 
       function startBus15Simulation() {
         if (busDashTimer) return;
-        const busDebug = document.getElementById("busDebugPopup");
-        if (busDebug) busDebug.textContent = "Bus: starting...";
         getBusFeatures().then(async (features) => {
           busSimRoute = buildBus15Route(features);
-          if (!busSimRoute.length) {
-            if (busDebug) busDebug.textContent = "Bus: no route points";
-            return;
-          }
+          if (!busSimRoute.length) return;
           const stopPoints = busSimRoute.map((g) => {
             const lon = g.longitude ?? g.x;
             const lat = g.latitude ?? g.y;
             return [lon, lat];
           }).filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
-          if (stopPoints.length < 2) {
-            if (busDebug) busDebug.textContent = "Bus: insufficient stops";
-            return;
-          }
+          if (stopPoints.length < 2) return;
 
           let routePoints = stopPoints;
           const cacheKey = "bus15_ors_route_v1";
@@ -3790,10 +3779,7 @@ Maintain safe distance
           const gapLen = 50;
           busDashPhase = 0;
           const geom = buildDashGeometryFromRoute(routePoints, dashLen, gapLen, busDashPhase);
-          if (!geom) {
-            if (busDebug) busDebug.textContent = "Bus: route geometry failed";
-            return;
-          }
+          if (!geom) return;
           const is3d = view && view.type === "3d";
 
           if (!busDashGraphic) {
