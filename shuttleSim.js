@@ -133,9 +133,10 @@
           verticalOffset: { screenLength: 18, maxWorldLength: 30, minWorldLength: 6 },
           symbolLayers: [{
             type: "icon",
-            resource: { href: icon },
-            size: 24,
-            outline: { color: "white", size: 2 }
+            resource: { primitive: "circle" },
+            material: { color: [239, 68, 68, 0.95] },
+            size: 14,
+            outline: { color: [255, 255, 255, 0.9], size: 1 }
           }]
         } : {
           type: "simple-marker",
