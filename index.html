@@ -305,6 +305,12 @@
         <path d="m8 3.293 4.712 4.712A4.5 4.5 0 0 0 8.758 15H3.5A1.5 1.5 0 0 1 2 13.5V9.293z"/>
       </svg>
     </button>
+    <button id="leftTabShuttle" class="panel-tab panel-tab-left" aria-label="Öppna shuttle dashboard">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M2 8.5h12a1 1 0 0 0 .97-.757l.75-3A1 1 0 0 0 14.75 3H1.25a1 1 0 0 0-.97 1.243l.75 3A1 1 0 0 0 2 8.5m.25-4.5h11.5l-.5 2H2.75z"/>
+        <path d="M2 9.5a1 1 0 0 0-1 1v2.25a.75.75 0 0 0 1.5 0V12h11v.75a.75.75 0 0 0 1.5 0V10.5a1 1 0 0 0-1-1H2zm2.25 2a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5m7.5 0a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5"/>
+      </svg>
+    </button>
     <button id="leftTabMain" class="panel-tab panel-tab-left" aria-label="Öppna meny">
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
         <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
@@ -843,6 +849,106 @@
       <div class="alarm-actions">
         <button id="shuttleCancel" type="button">Avbryt transport</button>
       </div>
+    </div>
+  </div>
+  <div id="shuttleDashboard" class="shuttle-dashboard" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="shuttleDashTitle">
+    <div class="shuttle-dashboard__surface">
+      <header class="shuttle-dashboard__header">
+        <div class="shuttle-dashboard__title">
+          <div class="shuttle-dashboard__badge">Shuttle Operations</div>
+          <h2 id="shuttleDashTitle">Autonomous Shuttle Status</h2>
+          <div class="shuttle-dashboard__subtitle">Simulation control room • Zone Öxnehaga</div>
+        </div>
+        <div class="shuttle-dashboard__meta">
+          <div class="dash-pill dash-pill-live">Live</div>
+          <div class="dash-pill">Route: STN25XR</div>
+          <div class="dash-pill">Mode: Eco</div>
+          <button id="shuttleDashClose" class="dash-close" type="button" aria-label="Stäng dashboard">✕</button>
+        </div>
+      </header>
+
+      <section class="shuttle-dashboard__grid" aria-label="Shuttle KPI">
+        <div class="dash-card dash-span-3">
+          <div class="dash-label">Passengers onboard</div>
+          <div class="dash-value">12 <span>/ 18</span></div>
+          <div class="dash-foot">Current occupancy 67%</div>
+        </div>
+        <div class="dash-card dash-span-3">
+          <div class="dash-label">Riders today</div>
+          <div class="dash-value">286</div>
+          <div class="dash-foot">+18% vs yesterday</div>
+        </div>
+        <div class="dash-card dash-span-3">
+          <div class="dash-label">Energy used</div>
+          <div class="dash-value">142 <span>kWh</span></div>
+          <div class="dash-foot">Avg 1.9 kWh/km</div>
+        </div>
+        <div class="dash-card dash-span-3">
+          <div class="dash-label">CO2 saved</div>
+          <div class="dash-value dash-positive">94 <span>kg</span></div>
+          <div class="dash-foot">Equivalent 62 km ICE</div>
+        </div>
+
+        <div class="dash-card dash-span-4 dash-battery">
+          <div class="dash-label">Battery level</div>
+          <div class="battery-meter">
+            <div class="battery-fill" style="width: 78%;"></div>
+            <div class="battery-cap"></div>
+            <div class="battery-text">78%</div>
+          </div>
+          <div class="dash-foot">Estimated range 42 km</div>
+        </div>
+        <div class="dash-card dash-span-4">
+          <div class="dash-label">Movement</div>
+          <div class="dash-value">Moving <span>18 km/h</span></div>
+          <div class="dash-progress">
+            <div class="dash-progress-bar" style="width: 58%;"></div>
+          </div>
+          <div class="dash-foot">Next stop: Öxnehaga Torget (2 min)</div>
+        </div>
+        <div class="dash-card dash-span-4">
+          <div class="dash-label">Distance today</div>
+          <div class="dash-value">74 <span>km</span></div>
+          <div class="dash-foot">Avg trip length 1.4 km</div>
+        </div>
+
+        <div class="dash-card dash-span-6">
+          <div class="dash-title">Ridership by hour</div>
+          <div class="dash-chart bars">
+            <div class="bar" style="height: 28%"><span>6</span></div>
+            <div class="bar" style="height: 46%"><span>7</span></div>
+            <div class="bar" style="height: 65%"><span>8</span></div>
+            <div class="bar" style="height: 72%"><span>9</span></div>
+            <div class="bar" style="height: 48%"><span>10</span></div>
+            <div class="bar" style="height: 58%"><span>11</span></div>
+            <div class="bar" style="height: 36%"><span>12</span></div>
+            <div class="bar" style="height: 44%"><span>13</span></div>
+          </div>
+          <div class="dash-axis">
+            <span>06</span><span>07</span><span>08</span><span>09</span><span>10</span><span>11</span><span>12</span><span>13</span>
+          </div>
+        </div>
+        <div class="dash-card dash-span-6">
+          <div class="dash-title">Energy + CO2 trend</div>
+          <div class="dash-chart">
+            <svg viewBox="0 0 420 140" width="100%" height="140" aria-hidden="true">
+              <defs>
+                <linearGradient id="energyFill" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.5"/>
+                  <stop offset="100%" stop-color="#0f172a" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <path d="M10 110 L60 90 L110 96 L160 70 L210 74 L260 52 L310 62 L360 38 L410 46" fill="none" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+              <path d="M10 110 L60 90 L110 96 L160 70 L210 74 L260 52 L310 62 L360 38 L410 46 L410 130 L10 130 Z" fill="url(#energyFill)"/>
+              <path d="M10 96 L60 88 L110 78 L160 84 L210 66 L260 64 L310 54 L360 48 L410 40" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="4 4"/>
+            </svg>
+          </div>
+          <div class="dash-legend">
+            <span><i class="legend-dot energy"></i>Energy (kWh)</span>
+            <span><i class="legend-dot co2"></i>CO2 saved (kg)</span>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
   <div id="routeColorModal" style="display:none;">
@@ -5397,22 +5503,27 @@ Maintain safe distance
     const rightPanel = document.getElementById("info-panel");
     const leftTabMain = document.getElementById("leftTabMain");
     const leftTabDigital = document.getElementById("leftTabDigital");
+    const leftTabShuttle = document.getElementById("leftTabShuttle");
     const rightTab = document.getElementById("rightTab");
     const leftClose = document.getElementById("leftPanelClose");
     const digitalClose = document.getElementById("digitalPanelClose");
     const rightClose = document.getElementById("rightPanelClose");
+    const shuttleDashboard = document.getElementById("shuttleDashboard");
+    const shuttleDashClose = document.getElementById("shuttleDashClose");
 
     let leftOpen = false;
     let digitalOpen = false;
     let rightOpen = false;
+    let shuttleOpen = false;
 
     function updateUI() {
       leftPanel?.classList.toggle("is-open", leftOpen);
       digitalPanel?.classList.toggle("is-open", digitalOpen);
       rightPanel?.classList.toggle("is-open", rightOpen);
-      const anyOpen = leftOpen || digitalOpen || rightOpen;
+      const anyOpen = leftOpen || digitalOpen || rightOpen || shuttleOpen;
       if (leftTabMain) leftTabMain.style.display = anyOpen ? "none" : "block";
       if (leftTabDigital) leftTabDigital.style.display = anyOpen ? "none" : "block";
+      if (leftTabShuttle) leftTabShuttle.style.display = anyOpen ? "none" : "block";
       if (rightTab) rightTab.style.display = anyOpen ? "none" : "block";
       if (window.view && typeof window.refreshViewSize === "function") {
         window.refreshViewSize();
@@ -5426,6 +5537,9 @@ Maintain safe distance
       leftOpen = true;
       digitalOpen = false;
       rightOpen = false;
+      shuttleOpen = false;
+      if (shuttleDashboard) shuttleDashboard.style.display = "none";
+      document.body.classList.remove("shuttle-dashboard-open");
       updateUI();
     }
     function closeLeft() {
@@ -5436,6 +5550,9 @@ Maintain safe distance
       digitalOpen = true;
       leftOpen = false;
       rightOpen = false;
+      shuttleOpen = false;
+      if (shuttleDashboard) shuttleDashboard.style.display = "none";
+      document.body.classList.remove("shuttle-dashboard-open");
       updateUI();
     }
     function closeDigital() {
@@ -5446,6 +5563,9 @@ Maintain safe distance
       rightOpen = true;
       leftOpen = false;
       digitalOpen = false;
+      shuttleOpen = false;
+      if (shuttleDashboard) shuttleDashboard.style.display = "none";
+      document.body.classList.remove("shuttle-dashboard-open");
       updateUI();
     }
     function closeRight() {
@@ -5458,10 +5578,28 @@ Maintain safe distance
         window.stopPoliceDriveAnimation();
       }
     }
+    function openShuttleDashboard() {
+      shuttleOpen = true;
+      leftOpen = false;
+      digitalOpen = false;
+      rightOpen = false;
+      if (shuttleDashboard) shuttleDashboard.style.display = "flex";
+      document.body.classList.add("shuttle-dashboard-open");
+      updateUI();
+    }
+    function closeShuttleDashboard() {
+      shuttleOpen = false;
+      if (shuttleDashboard) shuttleDashboard.style.display = "none";
+      document.body.classList.remove("shuttle-dashboard-open");
+      updateUI();
+    }
     function closeAll() {
       leftOpen = false;
       digitalOpen = false;
       rightOpen = false;
+      shuttleOpen = false;
+      if (shuttleDashboard) shuttleDashboard.style.display = "none";
+      document.body.classList.remove("shuttle-dashboard-open");
       updateUI();
       clearServiceFlow();
       clearSupportFlows();
@@ -5469,10 +5607,15 @@ Maintain safe distance
 
     leftTabMain?.addEventListener("click", openLeft);
     leftTabDigital?.addEventListener("click", openDigital);
+    leftTabShuttle?.addEventListener("click", openShuttleDashboard);
     rightTab?.addEventListener("click", openRight);
     leftClose?.addEventListener("click", closeLeft);
     digitalClose?.addEventListener("click", closeDigital);
     rightClose?.addEventListener("click", closeRight);
+    shuttleDashClose?.addEventListener("click", closeShuttleDashboard);
+    shuttleDashboard?.addEventListener("click", (e) => {
+      if (e.target && e.target.id === "shuttleDashboard") closeShuttleDashboard();
+    });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeAll();
     });
