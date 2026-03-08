@@ -198,6 +198,7 @@
         return false;
       }
       this.modalMuted = false;
+      this.showModal("Calling shuttle", "Kontaktar shuttlen…");
       const geo = toGeoPoint(pickupPoint, this.webMercatorUtils);
       if (!geo) return false;
       this.currentRequest = { pickup: geo };
