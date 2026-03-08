@@ -1,6 +1,7 @@
 (() => {
   const SHUTTLE_ID = "shuttle-1";
   const SHUTTLE_TYPE = "electric shuttle";
+  const SHUTTLE_DEBUG = true;
   const SPEED_MPS = 11.11;
   const STATION = { latitude: 57.77101, longitude: 14.26968 };
   const HEALTHCARE = { latitude: 57.77468, longitude: 14.26546 };
@@ -99,6 +100,7 @@
       this.elevationSampler = null;
       this.elevationCache = new Map();
       this.lastElevationRequest = 0;
+      this.lastDebugLog = 0;
 
       this.currentState = STATE.IDLE;
       this.currentRequest = null;
@@ -129,8 +131,8 @@
     }
 
     initMarker() {
-      const icon = createShuttleIcon();
       const is3d = this.view && this.view.type === "3d";
+      const icon = createShuttleIcon();
       const startPoint = this.withElevation({
         type: "point",
         longitude: STATION.longitude,
@@ -143,23 +145,7 @@
           id: SHUTTLE_ID,
           type: SHUTTLE_TYPE
         },
-        symbol: is3d ? {
-          type: "point-3d",
-          verticalOffset: { screenLength: 18, maxWorldLength: 30, minWorldLength: 6 },
-          symbolLayers: [{
-            type: "icon",
-            resource: { primitive: "circle" },
-            material: { color: [239, 68, 68, 0.95] },
-            size: 18,
-            outline: { color: [255, 255, 255, 0.9], size: 1 }
-          }]
-        } : {
-          type: "simple-marker",
-          style: "circle",
-          color: [239, 68, 68, 0.95],
-          size: 14,
-          outline: { color: [255, 255, 255, 0.9], width: 1 }
-        },
+        symbol: is3d ? this.buildShuttleSymbol3D({ moving: false }) : this.buildShuttleSymbol2D({ moving: false }),
         visible: true
       });
       this.shuttleLayer.add(this.shuttleGraphic);
@@ -470,6 +456,10 @@
 
     async driveRoute(coords, color, onTick) {
       this.clearTimers();
+      if (typeof this.map.reorder === "function") {
+        this.map.reorder(this.shuttleLayer, this.map.layers.length - 1);
+        this.debugLog("[shuttle] shuttleLayer reordered to top");
+      }
       if (this.shuttleRouteGraphic) this.shuttleLayer.remove(this.shuttleRouteGraphic);
 
       const polyline = new this.Polyline({ paths: [coords], spatialReference: { wkid: 4326 } });
@@ -478,6 +468,7 @@
         symbol: { type: "simple-line", color: color || "#2563eb", width: 3 }
       });
       this.shuttleLayer.add(this.shuttleRouteGraphic);
+      this.debugLog("[shuttle] driveRoute started");
 
       const sampler = buildSampler(this.Polyline, this.webMercatorUtils, coords);
       if (!sampler) return;
@@ -518,6 +509,11 @@
             });
             this.shuttleGraphic.geometry = nextPoint;
             this.shuttleGraphic.visible = true;
+            const is3d = this.view && this.view.type === "3d";
+            this.shuttleGraphic.symbol = is3d
+              ? this.buildShuttleSymbol3D({ moving: true })
+              : this.buildShuttleSymbol2D({ moving: true });
+            this.debugTick(pt);
           }
           if (this.view && typeof this.view.requestRender === "function") {
             this.view.requestRender();
@@ -541,6 +537,46 @@
       // Still prime elevation in the background for future use/debug.
       this.primeElevation(point);
       return point;
+    }
+
+    buildShuttleSymbol3D({ moving }) {
+      const size = moving ? 30 : 24;
+      return {
+        type: "point-3d",
+        verticalOffset: { screenLength: 40, maxWorldLength: 80, minWorldLength: 20 },
+        symbolLayers: [{
+          type: "icon",
+          resource: { href: createShuttleIcon() },
+          size,
+          outline: { color: [255, 255, 255, 0.95], size: 2 }
+        }]
+      };
+    }
+
+    buildShuttleSymbol2D({ moving }) {
+      return {
+        type: "simple-marker",
+        style: "circle",
+        color: [239, 68, 68, 0.95],
+        size: moving ? 16 : 14,
+        outline: { color: [255, 255, 255, 0.9], width: 2 }
+      };
+    }
+
+    debugTick(point) {
+      if (!SHUTTLE_DEBUG) return;
+      const now = performance.now();
+      if (now - this.lastDebugLog < 1000) return;
+      this.lastDebugLog = now;
+      const lon = point?.longitude ?? point?.x;
+      const lat = point?.latitude ?? point?.y;
+      const visible = this.shuttleGraphic ? this.shuttleGraphic.visible : false;
+      console.log(`[shuttle] x=${lon?.toFixed?.(6) ?? lon}, y=${lat?.toFixed?.(6) ?? lat}, state=${this.currentState}, visible=${visible}`);
+    }
+
+    debugLog(message) {
+      if (!SHUTTLE_DEBUG) return;
+      console.log(message);
     }
 
     sampleElevation(point) {
