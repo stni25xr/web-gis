@@ -806,6 +806,7 @@
   <div id="sceneView" role="main" aria-label="3D‑karta"></div>
   <div id="windBlueTint" class="wind-blue-tint hidden" aria-hidden="true"></div>
   <div id="bus15Widget" aria-live="polite">Bus simulation: init...</div>
+  <div id="busDebugPopup" aria-live="polite">Bus: idle</div>
   <div id="iotContainer" style="display:none;"></div>
   <div id="bimModal" style="display:none;">
     <div class="bim-modal">
@@ -3809,27 +3810,35 @@ Maintain safe distance
                 type: "point-3d",
                 symbolLayers: [{
                   type: "icon",
-                  resource: { href: busCompositeIcon },
-                  size: 24,
-                  anchor: "center"
+                  resource: { primitive: "circle" },
+                  material: { color: [239, 68, 68, 0.95] },
+                  size: 16,
+                  outline: { color: [255, 255, 255, 0.9], size: 1 }
                 }]
               } : {
-                type: "picture-marker",
-                url: busCompositeIcon,
-                width: "24px",
-                height: "24px"
+                type: "simple-marker",
+                style: "circle",
+                color: [239, 68, 68, 0.95],
+                size: 12,
+                outline: { color: [255, 255, 255, 0.9], width: 1 }
               }
             });
             busDashLayer.add(busVehicleGraphic);
           }
 
+          const busDebug = document.getElementById("busDebugPopup");
           busDashTimer = setInterval(() => {
             if (!busDashTotal || busDashTotal <= 0) return;
             busDashPhase = (busDashPhase + 10) % busDashTotal;
             const nextGeom = buildDashGeometryFromRoute(routePoints, dashLen, gapLen, busDashPhase);
             if (nextGeom) busDashGraphic.geometry = nextGeom;
             const busPoint = buildBusPointFromRoute(routePoints, busDashPhase);
-            if (busPoint && busVehicleGraphic) busVehicleGraphic.geometry = busPoint;
+            if (busPoint && busVehicleGraphic) {
+              busVehicleGraphic.geometry = busPoint;
+              if (busDebug) busDebug.textContent = "Bus: moving (red dot following route)";
+            } else if (busDebug) {
+              busDebug.textContent = "Bus: waiting for route point";
+            }
           }, 400);
         });
       }
