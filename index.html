@@ -821,6 +821,7 @@
       <button id="bimReplaceLoad" type="button">Load GLB</button>
       <button id="bimReplaceMove" type="button">Move</button>
       <button id="bimReplaceRotate" type="button">Rotate</button>
+      <button id="bimReplaceClip" type="button">Clip X/Y/Z</button>
       <button id="bimReplaceRemove" type="button">Remove</button>
     </div>
   </div>
@@ -1599,6 +1600,7 @@ Maintain safe distance
       const bimReplaceLoadBtn = document.getElementById("bimReplaceLoad");
       const bimReplaceMoveBtn = document.getElementById("bimReplaceMove");
       const bimReplaceRotateBtn = document.getElementById("bimReplaceRotate");
+      const bimReplaceClipBtn = document.getElementById("bimReplaceClip");
       const bimReplaceRemoveBtn = document.getElementById("bimReplaceRemove");
       let bimReplaceSketchVM = null;
       let bimReplaceGraphic = null;
@@ -1610,8 +1612,9 @@ Maintain safe distance
         try {
           if (hiddenBimOverlayIds.has(BIM_REPLACE_TARGET_ID)) {
             buildingFootprintsLayerView.featureEffect = {
-              filter: { where: `objektidentitet <> '${BIM_REPLACE_TARGET_ID}'` },
-              excludedEffect: "opacity(0%)"
+              filter: { where: `objektidentitet = '${BIM_REPLACE_TARGET_ID}'` },
+              includedEffect: "opacity(12%)",
+              excludedEffect: "opacity(100%)"
             };
           } else {
             buildingFootprintsLayerView.featureEffect = null;
@@ -1629,7 +1632,11 @@ Maintain safe distance
         if (hidden) hiddenBimOverlayIds.add(BIM_REPLACE_TARGET_ID);
         else hiddenBimOverlayIds.delete(BIM_REPLACE_TARGET_ID);
         const targetGraphic = buildingGraphicsById.get(BIM_REPLACE_TARGET_ID);
-        if (targetGraphic) targetGraphic.visible = !hidden;
+        if (targetGraphic) {
+          const lastColorKey = lastMapColorKeyById.get(BIM_REPLACE_TARGET_ID);
+          const baseColor = lastColorKey ? mapColorForKey(lastColorKey) : [220, 38, 38, 0.9];
+          setBuildingGraphicColor(targetGraphic, baseColor);
+        }
         applyBimFootprintMask();
       }
 
@@ -1741,6 +1748,26 @@ Maintain safe distance
         }
       }
 
+      function openBimClipToolForReplacement() {
+        if (!bimReplaceObjectUrl) {
+          setBimReplaceStatus("Load a GLB model first.");
+          return;
+        }
+        const panel = document.getElementById("bimViewerPanel");
+        if (panel) panel.classList.add("is-open");
+        if (window.BIMViewer?.loadModel) {
+          window.BIMViewer.loadModel(bimReplaceObjectUrl);
+          const clipToggleEl = document.getElementById("bimClipToggle");
+          if (clipToggleEl && !clipToggleEl.checked) {
+            clipToggleEl.checked = true;
+            clipToggleEl.dispatchEvent(new Event("change"));
+          }
+          setBimReplaceStatus("Clip tool opened (X/Y/Z sliders).");
+        } else {
+          setBimReplaceStatus("Clip tool is not available right now.");
+        }
+      }
+
       async function loadBimReplacementFromFile(file) {
         if (!file) return;
         const anchorPoint = await resolveBimReplaceAnchorPoint();
@@ -1801,6 +1828,7 @@ Maintain safe distance
       bimReplaceLoadBtn?.addEventListener("click", () => window.startMapBimReplacement?.());
       bimReplaceMoveBtn?.addEventListener("click", () => startBimReplacementEdit("move"));
       bimReplaceRotateBtn?.addEventListener("click", () => startBimReplacementEdit("transform"));
+      bimReplaceClipBtn?.addEventListener("click", openBimClipToolForReplacement);
       bimReplaceRemoveBtn?.addEventListener("click", () => removeBimReplacement({ restoreOverlay: true }));
       window.addEventListener("beforeunload", () => {
         if (bimReplaceObjectUrl) URL.revokeObjectURL(bimReplaceObjectUrl);
@@ -1890,16 +1918,24 @@ Maintain safe distance
         return FIXED_HEIGHT_IDS.has(objectId) ? 18 : 6;
       }
 
+      function getBuildingMaterialColor(objectId, color) {
+        const rgba = Array.isArray(color) ? color.slice(0, 4) : [220, 38, 38, 0.9];
+        if (!Number.isFinite(rgba[3])) rgba[3] = 0.9;
+        if (hiddenBimOverlayIds.has(objectId)) rgba[3] = 0.12;
+        return rgba;
+      }
+
       function setBuildingGraphicColor(graphic, color) {
         if (!graphic) return;
         const id = graphic.attributes?.objektidentitet;
+        const materialColor = getBuildingMaterialColor(id, color);
         graphic.symbol = {
           type: "polygon-3d",
           symbolLayers: [{
             type: "extrude",
             // Ensure 18m height for the two specified objects
             size: getBuildingExtrudeSize(id),
-            material: { color },
+            material: { color: materialColor },
             edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
           }]
         };
@@ -3063,14 +3099,13 @@ Maintain safe distance
             const graphic = new Graphic({
               geometry: f.geometry,
               attributes: f.attributes || {},
-              visible: !hiddenBimOverlayIds.has(id),
               symbol: {
                 type: "polygon-3d",
                 symbolLayers: [{
                   type: "extrude",
                   // Ensure 18m height for the two specified objects
                   size: getBuildingExtrudeSize(id),
-                  material: { color: [220, 38, 38, 0.9] },
+                  material: { color: getBuildingMaterialColor(id, [220, 38, 38, 0.9]) },
                   edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
                 }]
               }
