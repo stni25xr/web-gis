@@ -23,16 +23,21 @@
   function createShuttleIcon() {
     return "data:image/svg+xml;utf8," + encodeURIComponent(
       "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>"
-      + "<rect x='10' y='16' width='44' height='26' rx='8' fill='#0f172a'/>"
-      + "<rect x='14' y='20' width='30' height='12' rx='4' fill='#e2e8f0'/>"
-      + "<rect x='46' y='20' width='8' height='12' rx='3' fill='#38bdf8'/>"
-      + "<circle cx='22' cy='46' r='6' fill='#0f172a'/>"
-      + "<circle cx='42' cy='46' r='6' fill='#0f172a'/>"
-      + "<circle cx='22' cy='46' r='3' fill='#94a3b8'/>"
-      + "<circle cx='42' cy='46' r='3' fill='#94a3b8'/>"
-      + "<path d='M50 40 l8 6 -8 6' fill='none' stroke='#38bdf8' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/>"
+      + "<rect x='8' y='14' width='48' height='28' rx='8' fill='#2563eb'/>"
+      + "<rect x='14' y='20' width='36' height='12' rx='4' fill='rgba(255,255,255,0.9)'/>"
+      + "<rect x='18' y='36' width='8' height='8' rx='4' fill='#0f172a'/>"
+      + "<rect x='38' y='36' width='8' height='8' rx='4' fill='#0f172a'/>"
+      + "<path d='M51 18 l5 4 -5 4' fill='none' stroke='#f8fafc' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/>"
       + "</svg>"
     );
+  }
+
+  function lonLatFromPoint(point) {
+    if (!point) return null;
+    const lon = point.longitude ?? point.x;
+    const lat = point.latitude ?? point.y;
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+    return [lon, lat];
   }
 
   function toGeoPoint(pt, webMercatorUtils) {
@@ -118,6 +123,7 @@
       this.modalMuted = false;
       this.healthcareLegMeters = 0;
       this.requestMeta = null;
+      this.currentVisualKey = null;
 
       this.initMarker();
       if (this.view && typeof this.view.when === "function") {
@@ -133,7 +139,6 @@
 
     initMarker() {
       const is3d = this.view && this.view.type === "3d";
-      const icon = createShuttleIcon();
       const startPoint = this.withElevation({
         type: "point",
         longitude: STATION.longitude,
@@ -150,6 +155,18 @@
         visible: true
       });
       this.shuttleLayer.add(this.shuttleGraphic);
+      this.applyShuttleVisual(false);
+    }
+
+    applyShuttleVisual(moving) {
+      if (!this.shuttleGraphic) return;
+      const is3d = this.view && this.view.type === "3d";
+      const visualKey = `${is3d ? "3d" : "2d"}:${moving ? "moving" : "idle"}`;
+      if (visualKey === this.currentVisualKey) return;
+      this.currentVisualKey = visualKey;
+      this.shuttleGraphic.symbol = is3d
+        ? this.buildShuttleSymbol3D({ moving })
+        : this.buildShuttleSymbol2D({ moving });
     }
 
     showModal(title, message) {
@@ -318,6 +335,7 @@
           latitude: STATION.latitude,
           spatialReference: { wkid: 4326 }
         });
+        this.applyShuttleVisual(false);
       }
       window.shuttleCurrentRoute = null;
       window.shuttleAnimationState = null;
@@ -339,6 +357,7 @@
           latitude: STATION.latitude,
           spatialReference: { wkid: 4326 }
         });
+        this.applyShuttleVisual(false);
       }
       window.shuttleCurrentRoute = null;
       window.shuttleAnimationState = null;
@@ -460,7 +479,22 @@
         const route = data?.routes?.[0];
         const coords = route?.geometry?.coordinates;
         if (!coords || coords.length < 2) return null;
-        return coords;
+        const routeCoords = coords
+          .map((c) => [Number(c[0]), Number(c[1])])
+          .filter((c) => Number.isFinite(c[0]) && Number.isFinite(c[1]));
+        if (routeCoords.length < 2) return null;
+
+        const startCoord = lonLatFromPoint(start);
+        const endCoord = lonLatFromPoint(end);
+        const first = routeCoords[0];
+        const last = routeCoords[routeCoords.length - 1];
+        if (startCoord && (Math.abs(first[0] - startCoord[0]) > 1e-7 || Math.abs(first[1] - startCoord[1]) > 1e-7)) {
+          routeCoords.unshift(startCoord);
+        }
+        if (endCoord && (Math.abs(last[0] - endCoord[0]) > 1e-7 || Math.abs(last[1] - endCoord[1]) > 1e-7)) {
+          routeCoords.push(endCoord);
+        }
+        return routeCoords;
       } catch (e) {
         return null;
       }
@@ -492,7 +526,19 @@
       const totalMeters = sampler.total;
       const totalSeconds = totalMeters / SPEED_MPS;
       const startTime = performance.now();
-      let lastDist = 0;
+      const distanceAtNow = () => {
+        const elapsed = (performance.now() - startTime) / 1000;
+        return Math.min(totalMeters, elapsed * SPEED_MPS);
+      };
+      const remainingAtNow = () => {
+        const dist = distanceAtNow();
+        const remaining = Math.max(0, totalMeters - dist);
+        return {
+          dist,
+          remaining,
+          remainingSeconds: remaining / SPEED_MPS
+        };
+      };
 
       window.shuttleCurrentRoute = polyline;
       window.shuttleAnimationState = {
@@ -501,20 +547,20 @@
         currentMeters: 0,
         currentState: this.currentState
       };
+      this.applyShuttleVisual(true);
 
       if (typeof onTick === "function") {
+        const firstTick = remainingAtNow();
+        onTick(firstTick.remaining, firstTick.remainingSeconds);
         this.countdownTimer = setInterval(() => {
-          const remaining = Math.max(0, totalMeters - lastDist);
-          const remainingSeconds = remaining / SPEED_MPS;
-          onTick(remaining, remainingSeconds);
+          const status = remainingAtNow();
+          onTick(status.remaining, status.remainingSeconds);
         }, 1000);
       }
 
       await new Promise((resolve) => {
         const step = () => {
-          const elapsed = (performance.now() - startTime) / 1000;
-          const dist = Math.min(totalMeters, elapsed * SPEED_MPS);
-          lastDist = dist;
+          const dist = distanceAtNow();
           const pt = sampler.toGeo(dist);
           if (pt && this.shuttleGraphic) {
             const nextPoint = this.withElevation({
@@ -525,10 +571,6 @@
             });
             this.shuttleGraphic.geometry = nextPoint;
             this.shuttleGraphic.visible = true;
-            const is3d = this.view && this.view.type === "3d";
-            this.shuttleGraphic.symbol = is3d
-              ? this.buildShuttleSymbol3D({ moving: true })
-              : this.buildShuttleSymbol2D({ moving: true });
             this.debugTick(pt);
           }
           if (this.view && typeof this.view.requestRender === "function") {
@@ -556,7 +598,7 @@
     }
 
     buildShuttleSymbol3D({ moving }) {
-      const size = moving ? 30 : 24;
+      const size = moving ? 26 : 22;
       return {
         type: "point-3d",
         verticalOffset: { screenLength: 40, maxWorldLength: 80, minWorldLength: 20 },
@@ -570,12 +612,13 @@
     }
 
     buildShuttleSymbol2D({ moving }) {
+      const size = moving ? 20 : 17;
       return {
-        type: "simple-marker",
-        style: "circle",
-        color: [239, 68, 68, 0.95],
-        size: moving ? 16 : 14,
-        outline: { color: [255, 255, 255, 0.9], width: 2 }
+        type: "picture-marker",
+        url: createShuttleIcon(),
+        width: size,
+        height: size,
+        yoffset: 2
       };
     }
 
