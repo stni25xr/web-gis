@@ -826,6 +826,7 @@
       <button id="bimReplaceSave" type="button">Save</button>
       <button id="bimReplaceMove" type="button">Move</button>
       <button id="bimReplaceRotate" type="button">Rotate</button>
+      <button id="bimReplaceCancel" type="button">Cancel</button>
       <button id="bimReplaceToggleGis" type="button">Hide GIS</button>
       <button id="bimReplaceClip" type="button">Clip X/Y/Z</button>
       <button id="bimReplaceRemove" type="button">Remove</button>
@@ -1617,6 +1618,7 @@ Maintain safe distance
       const bimReplaceSaveBtn = document.getElementById("bimReplaceSave");
       const bimReplaceMoveBtn = document.getElementById("bimReplaceMove");
       const bimReplaceRotateBtn = document.getElementById("bimReplaceRotate");
+      const bimReplaceCancelBtn = document.getElementById("bimReplaceCancel");
       const bimReplaceToggleGisBtn = document.getElementById("bimReplaceToggleGis");
       const bimReplaceClipBtn = document.getElementById("bimReplaceClip");
       const bimReplaceRemoveBtn = document.getElementById("bimReplaceRemove");
@@ -2164,6 +2166,16 @@ Maintain safe distance
       bimReplaceSaveBtn?.addEventListener("click", saveActiveBimModel);
       bimReplaceMoveBtn?.addEventListener("click", () => startBimReplacementEdit("move"));
       bimReplaceRotateBtn?.addEventListener("click", () => startBimReplacementEdit("transform"));
+      bimReplaceCancelBtn?.addEventListener("click", () => {
+        if (bimReplaceSketchVM) {
+          try {
+            bimReplaceSketchVM.cancel();
+          } catch (err) {
+            // ignore cancel errors
+          }
+        }
+        setBimReplaceStatus("Edit canceled.");
+      });
       bimReplaceToggleGisBtn?.addEventListener("click", () => {
         const id = activeBimObjectId;
         const currentlyHidden = hiddenBimOverlayIds.has(id);
@@ -3452,6 +3464,8 @@ Maintain safe distance
             if (!f || !f.geometry) return;
             const id = f.attributes && f.attributes.objektidentitet;
             if (!id) return;
+            // Keep EL-sim GIS overlay buildings hidden; GLB replacements are used instead.
+            if (SIM_OBJECT_IDS.includes(id)) return;
             const graphic = new Graphic({
               geometry: f.geometry,
               attributes: f.attributes || {},
