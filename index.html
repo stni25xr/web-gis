@@ -2499,7 +2499,8 @@ Maintain safe distance
           return;
         }
         const d = data.demo;
-        const isSimBuilding = SIM_OBJECT_IDS.includes(String(data.objectNumber || ""));
+        const hasObjectId = Boolean(String(data.objectNumber || "").trim());
+        const isElSimBuilding = SIM_OBJECT_IDS.includes(String(data.objectNumber || ""));
         const metaRows = Object.entries(data.metadata || {})
           .filter(([k, v]) => v != null && v !== "")
           .sort((a, b) => a[0].localeCompare(b[0]));
@@ -2526,8 +2527,8 @@ Maintain safe distance
                   <iframe id="biPdfFrame" title="PDF preview" src="" loading="lazy"></iframe>
                   <div class="bi-pdf-actions">
                     <button id="biPdfOpen" type="button" class="bi-btn bi-btn-inline">Open full size</button>
-                    ${isSimBuilding ? `<button id="biOpenBim" type="button" class="bi-btn bi-btn-inline bi-btn-sim">Se BIM Model</button>` : ``}
-                    ${isSimBuilding ? `<button id="biOpenElSim" type="button" class="bi-btn bi-btn-inline bi-btn-sim">EL sim</button>` : ``}
+                    ${hasObjectId ? `<button id="biOpenBim" type="button" class="bi-btn bi-btn-inline bi-btn-sim">Se BIM Model</button>` : ``}
+                    ${isElSimBuilding ? `<button id="biOpenElSim" type="button" class="bi-btn bi-btn-inline bi-btn-sim">EL sim</button>` : ``}
                   </div>
                 </div>
               </div>
@@ -3431,7 +3432,7 @@ Maintain safe distance
               creator: (event) => {
                 const attrs = event?.graphic?.attributes || {};
                 const wrap = document.createElement("div");
-                if (SIM_OBJECT_IDS.includes(attrs.objektidentitet)) {
+                if (attrs.objektidentitet) {
                   const infoBtn = document.createElement("button");
                   infoBtn.type = "button";
                   infoBtn.textContent = "Building information";
@@ -5756,7 +5757,7 @@ Maintain safe distance
           if (SHOW_ALARM_112 && id === ALARM_OBJECT_ID) {
             window.showAlarmModal();
           }
-          if (SIM_OBJECT_IDS.includes(id)) {
+          if (id) {
             buildingLink.innerHTML = `
               <div style="margin-top:8px;">
                 <button type="button" style="width:100%;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#0f172a;padding:6px 10px;font-size:12px;cursor:pointer;" onclick="window.openBuildingInfoModal && window.openBuildingInfoModal(lastSelection?.graphic?.attributes || null);">Building information</button>
