@@ -1633,6 +1633,9 @@ Maintain safe distance
       let pendingBimTargetObjectId = DEFAULT_BIM_REPLACE_TARGET_ID;
       let suppressBimMenuOpenUntil = 0;
       let buildingTypeFilterValue = "";
+      let bimViewerDetachedForClip = false;
+      let bimViewerOriginalParent = null;
+      let bimViewerOriginalNextSibling = null;
 
       function getDefaultClipState() {
         return { enabled: false, x: 0, y: 0, z: 0 };
@@ -2008,11 +2011,23 @@ Maintain safe distance
       function setBimViewerClipPreview(enabled) {
         const panel = document.getElementById("bimViewerPanel");
         if (!panel) return;
+        if (enabled && !bimViewerDetachedForClip) {
+          bimViewerOriginalParent = panel.parentNode;
+          bimViewerOriginalNextSibling = panel.nextSibling;
+          document.body.appendChild(panel);
+          bimViewerDetachedForClip = true;
+        }
         if (enabled) {
           panel.classList.add("is-open");
           panel.classList.add("bim-viewer-floating-preview");
+          setBimReplaceStatus("Clip preview opened.");
         } else {
           panel.classList.remove("bim-viewer-floating-preview");
+          panel.classList.remove("is-open");
+          if (bimViewerDetachedForClip && bimViewerOriginalParent) {
+            bimViewerOriginalParent.insertBefore(panel, bimViewerOriginalNextSibling);
+          }
+          bimViewerDetachedForClip = false;
         }
       }
 
