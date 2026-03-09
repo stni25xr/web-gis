@@ -946,6 +946,13 @@
             <span>06</span><span>07</span><span>08</span><span>09</span><span>10</span><span>11</span><span>12</span><span>13</span>
           </div>
         </div>
+        <div class="dash-card dash-span-3 dash-mini-map-card">
+          <div class="dash-title">Live shuttle map</div>
+          <div class="dash-mini-map-wrap">
+            <canvas id="shuttleMiniMapCanvas" class="dash-mini-map-canvas" aria-label="Live shuttle route mini map"></canvas>
+          </div>
+          <div id="shuttleMiniMapLabel" class="dash-foot">Väntar på aktiv shuttle-rutt…</div>
+        </div>
         <div class="dash-card dash-span-6">
           <div class="dash-title">Energy + CO2 trend</div>
           <div class="dash-chart">
@@ -5534,6 +5541,8 @@ Maintain safe distance
     const shuttleMovementState = document.getElementById("shuttleMovementState");
     const shuttleBatteryTempValue = document.getElementById("shuttleBatteryTempValue");
     const shuttleBatteryTempBar = document.getElementById("shuttleBatteryTempBar");
+    const shuttleMiniMapCanvas = document.getElementById("shuttleMiniMapCanvas");
+    const shuttleMiniMapLabel = document.getElementById("shuttleMiniMapLabel");
 
     let leftOpen = false;
     let digitalOpen = false;
@@ -5562,6 +5571,147 @@ Maintain safe distance
       if (state === "waiting_at_healthcare") return "Status: Waiting at vårdcentral";
       if (speedKmh <= 1) return "Status: Standby at station";
       return "Status: Moving";
+    }
+
+    function shuttleTargetLabelForState(state) {
+      if (state === "driving_to_pickup" || state === "waiting_at_pickup") return "Destination: Pickup stop";
+      if (state === "driving_to_healthcare" || state === "waiting_at_healthcare") return "Destination: Vårdcentral";
+      if (state === "returning_to_station") return "Destination: Station";
+      return "Destination: Standby";
+    }
+
+    function getMiniMapRouteCoords() {
+      const route = window.shuttleCurrentRoute || null;
+      const path = route?.paths?.[0]
+        || route?.geometry?.paths?.[0]
+        || (typeof route?.toJSON === "function" ? route.toJSON()?.paths?.[0] : null);
+      if (!Array.isArray(path) || path.length < 2) return [];
+      return path
+        .map((p) => {
+          if (Array.isArray(p)) return [Number(p[0]), Number(p[1])];
+          const lon = Number(p?.longitude ?? p?.x);
+          const lat = Number(p?.latitude ?? p?.y);
+          return [lon, lat];
+        })
+        .filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+    }
+
+    function getMiniMapCurrentCoord(routeCoords) {
+      const geom = window.shuttleGraphic?.geometry || null;
+      const lon = Number(geom?.longitude ?? geom?.x);
+      const lat = Number(geom?.latitude ?? geom?.y);
+      if (Number.isFinite(lon) && Number.isFinite(lat)) return [lon, lat];
+      const anim = window.shuttleAnimationState || null;
+      const cur = Number(anim?.currentMeters);
+      const total = Number(anim?.totalMeters);
+      if (routeCoords.length >= 2 && Number.isFinite(cur) && Number.isFinite(total) && total > 0) {
+        const t = Math.max(0, Math.min(1, cur / total));
+        const idx = Math.max(0, Math.min(routeCoords.length - 1, Math.round(t * (routeCoords.length - 1))));
+        return routeCoords[idx];
+      }
+      return routeCoords[0] || null;
+    }
+
+    function renderShuttleMiniMap(live) {
+      if (!shuttleMiniMapCanvas) return;
+      const canvas = shuttleMiniMapCanvas;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const cssW = Math.max(140, Math.round(canvas.clientWidth || 260));
+      const cssH = Math.max(120, Math.round(canvas.clientHeight || 220));
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const pxW = Math.round(cssW * dpr);
+      const pxH = Math.round(cssH * dpr);
+      if (canvas.width !== pxW || canvas.height !== pxH) {
+        canvas.width = pxW;
+        canvas.height = pxH;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, cssW, cssH);
+
+      const routeCoords = getMiniMapRouteCoords();
+      if (routeCoords.length < 2) {
+        ctx.fillStyle = "rgba(8, 16, 30, 0.96)";
+        ctx.fillRect(0, 0, cssW, cssH);
+        ctx.fillStyle = "rgba(148, 163, 184, 0.9)";
+        ctx.font = "12px IBM Plex Sans, Segoe UI, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Waiting for active shuttle route", cssW / 2, cssH / 2);
+        if (shuttleMiniMapLabel) shuttleMiniMapLabel.textContent = "Väntar på aktiv shuttle-rutt…";
+        return;
+      }
+
+      const pad = 14;
+      let minLon = Infinity; let maxLon = -Infinity;
+      let minLat = Infinity; let maxLat = -Infinity;
+      routeCoords.forEach((p) => {
+        if (p[0] < minLon) minLon = p[0];
+        if (p[0] > maxLon) maxLon = p[0];
+        if (p[1] < minLat) minLat = p[1];
+        if (p[1] > maxLat) maxLat = p[1];
+      });
+      const lonSpan = Math.max(1e-6, maxLon - minLon);
+      const latSpan = Math.max(1e-6, maxLat - minLat);
+      const scale = Math.min((cssW - pad * 2) / lonSpan, (cssH - pad * 2) / latSpan);
+      const drawW = lonSpan * scale;
+      const drawH = latSpan * scale;
+      const offX = (cssW - drawW) / 2;
+      const offY = (cssH - drawH) / 2;
+      const project = (p) => {
+        const x = offX + (p[0] - minLon) * scale;
+        const y = cssH - (offY + (p[1] - minLat) * scale);
+        return [x, y];
+      };
+
+      ctx.fillStyle = "rgba(8, 16, 30, 0.96)";
+      ctx.fillRect(0, 0, cssW, cssH);
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.95)";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      routeCoords.forEach((p, i) => {
+        const [x, y] = project(p);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      const start = project(routeCoords[0]);
+      const end = project(routeCoords[routeCoords.length - 1]);
+      const curCoord = getMiniMapCurrentCoord(routeCoords);
+      const cur = curCoord ? project(curCoord) : start;
+
+      ctx.fillStyle = "rgba(148, 163, 184, 0.95)";
+      ctx.beginPath();
+      ctx.arc(start[0], start[1], 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(34, 197, 94, 0.95)";
+      ctx.beginPath();
+      ctx.arc(end[0], end[1], 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(56, 189, 248, 0.25)";
+      ctx.beginPath();
+      ctx.arc(cur[0], cur[1], 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(56, 189, 248, 1)";
+      ctx.beginPath();
+      ctx.arc(cur[0], cur[1], 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(cur[0], cur[1], 5, 0, Math.PI * 2);
+      ctx.stroke();
+
+      const anim = window.shuttleAnimationState || null;
+      const remaining = Math.max(0, (Number(anim?.totalMeters) || 0) - (Number(anim?.currentMeters) || 0));
+      const destLabel = shuttleTargetLabelForState(live?.state || anim?.currentState || "idle_at_station");
+      if (shuttleMiniMapLabel) {
+        shuttleMiniMapLabel.textContent = `${destLabel} • ${Math.round(remaining)} m kvar`;
+      }
     }
 
     function readLiveShuttleTelemetry() {
@@ -5622,6 +5772,7 @@ Maintain safe distance
       const tempPct = ((clampedTemp - 20) / (45 - 20)) * 100;
       if (shuttleBatteryTempValue) shuttleBatteryTempValue.textContent = clampedTemp.toFixed(1);
       if (shuttleBatteryTempBar) shuttleBatteryTempBar.style.width = `${Math.max(0, Math.min(100, tempPct))}%`;
+      renderShuttleMiniMap(live);
     }
 
     function startShuttleTelemetrySimulation() {

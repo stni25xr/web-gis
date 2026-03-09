@@ -1046,6 +1046,25 @@ body.shuttle-dashboard-open {
   color: #94a3b8;
 }
 
+.dash-mini-map-card {
+  gap: 10px;
+}
+
+.dash-mini-map-wrap {
+  position: relative;
+  min-height: 220px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: linear-gradient(180deg, rgba(8, 20, 36, 0.9) 0%, rgba(5, 12, 24, 0.95) 100%);
+  overflow: hidden;
+}
+
+.dash-mini-map-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .legend-dot {
   width: 10px;
   height: 10px;
