@@ -5539,58 +5539,98 @@ Maintain safe distance
     let digitalOpen = false;
     let rightOpen = false;
     let shuttleOpen = false;
-    const shuttleSpeedSim = {
-      min: 0,
-      max: 40,
-      current: 18,
-      direction: 1,
-      timer: null
+    const shuttleTelemetry = {
+      minKmh: 0,
+      maxKmh: 40,
+      timer: null,
+      lastSampleMs: 0,
+      lastMeters: 0,
+      batteryTempC: 30
     };
 
+    function isShuttleDrivingState(state) {
+      return state === "driving_to_pickup"
+        || state === "driving_to_healthcare"
+        || state === "returning_to_station";
+    }
+
+    function speedStatusForState(state, speedKmh) {
+      if (state === "driving_to_pickup") return "Status: To pickup stop";
+      if (state === "driving_to_healthcare") return "Status: To vårdcentral";
+      if (state === "returning_to_station") return "Status: Returning to station";
+      if (state === "waiting_at_pickup") return "Status: Waiting at pickup";
+      if (state === "waiting_at_healthcare") return "Status: Waiting at vårdcentral";
+      if (speedKmh <= 1) return "Status: Standby at station";
+      return "Status: Moving";
+    }
+
+    function readLiveShuttleTelemetry() {
+      const nowMs = performance.now();
+      const anim = window.shuttleAnimationState || null;
+      const state = anim?.currentState || window.ShuttleController?.currentState || "idle_at_station";
+      const moving = isShuttleDrivingState(state);
+      let speedKmh = 0;
+
+      if (moving && anim) {
+        const meters = Number(anim.currentMeters) || 0;
+        if (shuttleTelemetry.lastSampleMs > 0) {
+          const dt = (nowMs - shuttleTelemetry.lastSampleMs) / 1000;
+          if (dt > 0.06) {
+            const dm = Math.max(0, meters - shuttleTelemetry.lastMeters);
+            speedKmh = (dm / dt) * 3.6;
+          }
+        }
+        if (!Number.isFinite(speedKmh) || speedKmh < 0.2) {
+          const totalMeters = Number(anim.totalMeters) || 0;
+          const totalSeconds = Number(anim.totalSeconds) || 0;
+          if (totalMeters > 0 && totalSeconds > 0) {
+            speedKmh = (totalMeters / totalSeconds) * 3.6;
+          }
+        }
+        shuttleTelemetry.lastMeters = meters;
+      } else {
+        shuttleTelemetry.lastMeters = Number(anim?.currentMeters) || 0;
+      }
+      shuttleTelemetry.lastSampleMs = nowMs;
+
+      const clampedSpeed = Math.max(
+        shuttleTelemetry.minKmh,
+        Math.min(shuttleTelemetry.maxKmh, Number.isFinite(speedKmh) ? speedKmh : 0)
+      );
+      return { state, moving, speedKmh: clampedSpeed };
+    }
+
     function renderShuttleTelemetry() {
-      const speed = Math.max(shuttleSpeedSim.min, Math.min(shuttleSpeedSim.max, shuttleSpeedSim.current));
-      const roundedSpeed = Math.round(speed);
-      const speedPct = (speed / shuttleSpeedSim.max) * 100;
+      const live = readLiveShuttleTelemetry();
+      const roundedSpeed = Math.round(live.speedKmh);
+      const speedPct = (live.speedKmh / shuttleTelemetry.maxKmh) * 100;
       if (shuttleSpeedValue) shuttleSpeedValue.textContent = `${roundedSpeed} km/h`;
-      if (shuttleSpeedBar) shuttleSpeedBar.style.width = `${speedPct}%`;
-      if (shuttleMovementState) shuttleMovementState.textContent = roundedSpeed <= 1 ? "Standby" : "Moving";
+      if (shuttleSpeedBar) shuttleSpeedBar.style.width = `${Math.max(0, Math.min(100, speedPct))}%`;
+      if (shuttleMovementState) shuttleMovementState.textContent = live.moving ? "Moving" : "Standby";
       if (shuttleSpeedStatus) {
-        if (roundedSpeed <= 1) shuttleSpeedStatus.textContent = "Status: Waiting at stop";
-        else if (roundedSpeed < 14) shuttleSpeedStatus.textContent = "Status: Local approach";
-        else if (roundedSpeed < 30) shuttleSpeedStatus.textContent = "Status: Normal cruise";
-        else shuttleSpeedStatus.textContent = "Status: High cruise";
+        shuttleSpeedStatus.textContent = speedStatusForState(live.state, roundedSpeed);
       }
 
-      const temperature = 24 + (speed / shuttleSpeedSim.max) * 14 + (Math.random() * 1.2 - 0.6);
-      const clampedTemp = Math.max(20, Math.min(45, temperature));
+      const targetTemp = 24 + (live.speedKmh / shuttleTelemetry.maxKmh) * 11 + (live.moving ? 2.5 : 0);
+      shuttleTelemetry.batteryTempC += (targetTemp - shuttleTelemetry.batteryTempC) * 0.22;
+      const clampedTemp = Math.max(20, Math.min(45, shuttleTelemetry.batteryTempC));
       const tempPct = ((clampedTemp - 20) / (45 - 20)) * 100;
       if (shuttleBatteryTempValue) shuttleBatteryTempValue.textContent = clampedTemp.toFixed(1);
-      if (shuttleBatteryTempBar) shuttleBatteryTempBar.style.width = `${tempPct}%`;
+      if (shuttleBatteryTempBar) shuttleBatteryTempBar.style.width = `${Math.max(0, Math.min(100, tempPct))}%`;
     }
 
     function startShuttleTelemetrySimulation() {
       stopShuttleTelemetrySimulation();
+      shuttleTelemetry.lastSampleMs = 0;
+      shuttleTelemetry.lastMeters = 0;
       renderShuttleTelemetry();
-      shuttleSpeedSim.timer = window.setInterval(() => {
-        const step = 1.2 + Math.random() * 4.8;
-        shuttleSpeedSim.current += shuttleSpeedSim.direction * step;
-        if (shuttleSpeedSim.current >= shuttleSpeedSim.max) {
-          shuttleSpeedSim.current = shuttleSpeedSim.max;
-          shuttleSpeedSim.direction = -1;
-        } else if (shuttleSpeedSim.current <= shuttleSpeedSim.min) {
-          shuttleSpeedSim.current = shuttleSpeedSim.min;
-          shuttleSpeedSim.direction = 1;
-        } else if (Math.random() < 0.16) {
-          shuttleSpeedSim.direction *= -1;
-        }
-        renderShuttleTelemetry();
-      }, 900);
+      shuttleTelemetry.timer = window.setInterval(renderShuttleTelemetry, 350);
     }
 
     function stopShuttleTelemetrySimulation() {
-      if (!shuttleSpeedSim.timer) return;
-      window.clearInterval(shuttleSpeedSim.timer);
-      shuttleSpeedSim.timer = null;
+      if (!shuttleTelemetry.timer) return;
+      window.clearInterval(shuttleTelemetry.timer);
+      shuttleTelemetry.timer = null;
     }
 
     function updateUI() {
