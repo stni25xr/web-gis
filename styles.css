@@ -1459,6 +1459,29 @@ body.shuttle-dashboard-open {
   margin-top: 8px;
 }
 
+#buildingInfoModal .bi-pdf-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+#buildingInfoModal .bi-pdf-actions .bi-btn-inline {
+  margin-top: 0;
+  width: 100%;
+}
+
+#buildingInfoModal .bi-btn-sim {
+  border: none;
+  background: #f59e0b;
+  color: #0b1220;
+  font-weight: 700;
+}
+
+#buildingInfoModal .bi-btn-sim:hover {
+  background: #fbbf24;
+}
+
 #buildingInfoModal .bi-pdf-grid {
   display: grid;
   grid-template-columns: minmax(140px, 1fr) minmax(220px, 2fr);

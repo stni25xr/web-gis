@@ -1853,6 +1853,7 @@ Maintain safe distance
           return;
         }
         const d = data.demo;
+        const isSimBuilding = SIM_OBJECT_IDS.includes(String(data.objectNumber || ""));
         const metaRows = Object.entries(data.metadata || {})
           .filter(([k, v]) => v != null && v !== "")
           .sort((a, b) => a[0].localeCompare(b[0]));
@@ -1877,7 +1878,11 @@ Maintain safe distance
                 </div>
                 <div class="bi-pdf-preview">
                   <iframe id="biPdfFrame" title="PDF preview" src="" loading="lazy"></iframe>
-                  <button id="biPdfOpen" type="button" class="bi-btn bi-btn-inline">Open full size</button>
+                  <div class="bi-pdf-actions">
+                    <button id="biPdfOpen" type="button" class="bi-btn bi-btn-inline">Open full size</button>
+                    ${isSimBuilding ? `<button id="biOpenBim" type="button" class="bi-btn bi-btn-inline bi-btn-sim">Se BIM Model</button>` : ``}
+                    ${isSimBuilding ? `<button id="biOpenElSim" type="button" class="bi-btn bi-btn-inline bi-btn-sim">EL sim</button>` : ``}
+                  </div>
                 </div>
               </div>
             </div>
@@ -2054,6 +2059,16 @@ Maintain safe distance
       document.addEventListener("click", (e) => {
         if (e.target && e.target.id === "biClose") closeBuildingInfoModal();
         if (e.target && e.target.id === "biCloseFooter") closeBuildingInfoModal();
+        if (e.target && e.target.id === "biOpenBim") {
+          if (window.openBimModal) window.openBimModal();
+        }
+        if (e.target && e.target.id === "biOpenElSim") {
+          if (typeof window.openIoTSimulation === "function") {
+            window.openIoTSimulation();
+          } else if (typeof openIoTSimulation === "function") {
+            openIoTSimulation();
+          }
+        }
       });
 
       document.addEventListener("click", (e) => {
@@ -2762,41 +2777,6 @@ Maintain safe distance
                 const attrs = event?.graphic?.attributes || {};
                 const wrap = document.createElement("div");
                 if (SIM_OBJECT_IDS.includes(attrs.objektidentitet)) {
-                  const btn = document.createElement("a");
-                  btn.href = "#";
-                  btn.textContent = "Se BIM Model";
-                  btn.style.display = "block";
-                  btn.style.margin = "0 auto 8px";
-                  btn.style.textAlign = "center";
-                  btn.style.color = "#fff";
-                  btn.style.background = "#1f6feb";
-                  btn.style.padding = "10px 16px";
-                  btn.style.borderRadius = "8px";
-                  btn.style.fontSize = "14px";
-                  btn.style.textDecoration = "none";
-                  btn.addEventListener("click", (e) => {
-                    e.preventDefault();
-                    if (window.openBimModal) window.openBimModal();
-                  });
-                  wrap.appendChild(btn);
-
-                  const iotBtn = document.createElement("button");
-                  iotBtn.id = "iotBox";
-                  iotBtn.type = "button";
-                  iotBtn.textContent = "Visa El‑simulering";
-                  iotBtn.style.display = "block";
-                  iotBtn.style.width = "100%";
-                  iotBtn.style.margin = "0 auto 8px";
-                  iotBtn.style.padding = "10px 16px";
-                  iotBtn.style.borderRadius = "8px";
-                  iotBtn.style.border = "none";
-                  iotBtn.style.background = "#1d4ed8";
-                  iotBtn.style.color = "#fff";
-                  iotBtn.style.fontSize = "14px";
-                  iotBtn.style.cursor = "pointer";
-                  iotBtn.setAttribute("onclick", "openIoTSimulation()");
-                  wrap.appendChild(iotBtn);
-
                   const infoBtn = document.createElement("button");
                   infoBtn.type = "button";
                   infoBtn.textContent = "Building information";
@@ -5106,8 +5086,6 @@ Maintain safe distance
           }
           if (SIM_OBJECT_IDS.includes(id)) {
             buildingLink.innerHTML = `
-              <button type="button" style="display:inline-block;margin-top:6px;color:#fff;background:#1f6feb;padding:6px 10px;border-radius:8px;font-size:12px;text-decoration:none;border:none;cursor:pointer;" onclick="openBimModal();">Se BIM Model</button>
-              <div style="margin-top:8px;"><button id="iotBox" type="button" style="width:100%;" onclick="openIoTSimulation();">Visa El‑simulering</button></div>
               <div style="margin-top:8px;">
                 <button type="button" style="width:100%;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#0f172a;padding:6px 10px;font-size:12px;cursor:pointer;" onclick="window.openBuildingInfoModal && window.openBuildingInfoModal(lastSelection?.graphic?.attributes || null);">Building information</button>
                 <div style="margin-top:4px;font-size:11px;color:#64748b;">ID: ${id}</div>
