@@ -1632,6 +1632,7 @@ Maintain safe distance
       let activeBimObjectId = DEFAULT_BIM_REPLACE_TARGET_ID;
       let pendingBimTargetObjectId = DEFAULT_BIM_REPLACE_TARGET_ID;
       let suppressBimMenuOpenUntil = 0;
+      let buildingTypeFilterValue = "";
 
       function getDefaultClipState() {
         return { enabled: false, x: 0, y: 0, z: 0 };
@@ -1710,6 +1711,18 @@ Maintain safe distance
         });
       }
 
+      function applyBuildingFootprintDefinition() {
+        const clauses = [];
+        if (buildingTypeFilterValue) {
+          clauses.push(`objekttyp = '${escapeSqlText(buildingTypeFilterValue)}'`);
+        }
+        if (hiddenBimOverlayIds.size) {
+          const ids = Array.from(hiddenBimOverlayIds).map((id) => `'${escapeSqlText(id)}'`).join(",");
+          clauses.push(`objektidentitet NOT IN (${ids})`);
+        }
+        buildingFootprints.definitionExpression = clauses.length ? clauses.join(" AND ") : null;
+      }
+
       function getCenterPointFromGeometry(geometry) {
         if (!geometry) return null;
         if (geometry.type === "point") return geometry;
@@ -1750,19 +1763,10 @@ Maintain safe distance
       }
 
       function applyBimFootprintMask() {
+        applyBuildingFootprintDefinition();
         if (!buildingFootprintsLayerView) return;
         try {
-          const ids = Array.from(hiddenBimOverlayIds);
-          if (!ids.length) {
-            buildingFootprintsLayerView.featureEffect = null;
-            return;
-          }
-          const where = `objektidentitet IN ('${ids.map((id) => escapeSqlText(id)).join("','")}')`;
-          buildingFootprintsLayerView.featureEffect = {
-            filter: { where },
-            includedEffect: "opacity(12%)",
-            excludedEffect: "opacity(100%)"
-          };
+          buildingFootprintsLayerView.featureEffect = null;
         } catch (err) {
           console.warn("Failed to apply footprint BIM mask", err);
         }
@@ -5816,18 +5820,15 @@ Maintain safe distance
       if (buildingTypeApply && buildingTypeFilter) {
         buildingTypeApply.addEventListener("click", () => {
           const v = (buildingTypeFilter.value || "").trim();
-          if (!v) {
-            buildingFootprints.definitionExpression = null;
-            return;
-          }
-          const safe = v.replace(/'/g, "''");
-          buildingFootprints.definitionExpression = `objekttyp = '${safe}'`;
+          buildingTypeFilterValue = v;
+          applyBuildingFootprintDefinition();
         });
       }
       if (buildingTypeClear && buildingTypeFilter) {
         buildingTypeClear.addEventListener("click", () => {
           buildingTypeFilter.value = "";
-          buildingFootprints.definitionExpression = null;
+          buildingTypeFilterValue = "";
+          applyBuildingFootprintDefinition();
         });
       }
 
