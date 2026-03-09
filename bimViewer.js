@@ -30,6 +30,7 @@ let planeX;
 let planeY;
 let planeZ;
 let clippingPlanes;
+let currentModelUrl = "";
 
 function setStatus(text) {
   if (statusEl) statusEl.textContent = text || "";
@@ -161,36 +162,64 @@ function fitToModel(object) {
   orbit.target.copy(center);
   orbit.update();
 
-  const range = Math.max(1, Math.ceil(maxDim));
+  const range = Math.max(1, Math.ceil(maxDim / 2));
+  const step = Math.max(0.01, range / 200);
   [clipX, clipY, clipZ].forEach((slider) => {
     if (!slider) return;
     slider.min = String(-range);
     slider.max = String(range);
-    slider.step = String(Math.max(1, Math.round(range / 100)));
+    slider.step = String(Number(step.toFixed(3)));
     slider.value = "0";
   });
   updateClipFromSliders();
 }
 
-function loadModel(url) {
-  if (!loader || !url) return;
+function applyClipState(state = {}) {
+  const enabled = Boolean(state.enabled);
+  if (clipToggle) clipToggle.checked = enabled;
+  if (clipX && Number.isFinite(Number(state.x))) clipX.value = String(Number(state.x));
+  if (clipY && Number.isFinite(Number(state.y))) clipY.value = String(Number(state.y));
+  if (clipZ && Number.isFinite(Number(state.z))) clipZ.value = String(Number(state.z));
+  updateClipFromSliders();
+  setClipEnabled(enabled);
+}
+
+function loadModel(url, options = {}) {
+  if (!loader || !url) return Promise.resolve(null);
   setStatus("Laddar modell…");
-  loader.load(
-    url,
-    (gltf) => {
-      if (modelRoot) scene.remove(modelRoot);
-      modelRoot = gltf.scene;
-      scene.add(modelRoot);
-      fitToModel(modelRoot);
-      setClipEnabled(Boolean(clipToggle?.checked));
-      setStatus("Model laddad.");
-    },
-    undefined,
-    (err) => {
-      console.error("[BIM] Failed to load model", err);
-      setStatus("Kunde inte ladda modellen.");
-    }
-  );
+  return new Promise((resolve, reject) => {
+    loader.load(
+      url,
+      (gltf) => {
+        if (modelRoot) scene.remove(modelRoot);
+        modelRoot = gltf.scene;
+        currentModelUrl = url;
+        scene.add(modelRoot);
+        fitToModel(modelRoot);
+        setClipEnabled(Boolean(clipToggle?.checked));
+        if (options?.clipState) applyClipState(options.clipState);
+        setStatus("Model laddad.");
+        if (typeof options?.onLoaded === "function") options.onLoaded(modelRoot);
+        resolve(modelRoot);
+      },
+      undefined,
+      (err) => {
+        console.error("[BIM] Failed to load model", err);
+        setStatus("Kunde inte ladda modellen.");
+        reject(err);
+      }
+    );
+  });
+}
+
+function ensureModelLoaded(url, options = {}) {
+  if (!url) return Promise.resolve(null);
+  if (modelRoot && currentModelUrl === url) {
+    if (options?.clipState) applyClipState(options.clipState);
+    if (typeof options?.onLoaded === "function") options.onLoaded(modelRoot);
+    return Promise.resolve(modelRoot);
+  }
+  return loadModel(url, options);
 }
 
 const raycaster = {
@@ -237,6 +266,7 @@ function clearModel() {
     scene.remove(modelRoot);
     modelRoot = null;
   }
+  currentModelUrl = "";
   transform.detach();
   setStatus("Modell borttagen.");
 }
@@ -270,5 +300,5 @@ clipZ?.addEventListener("input", updateClipFromSliders);
 window.addEventListener("resize", resize);
 if (viewEl) viewEl.addEventListener("pointerdown", selectAt);
 
-window.BIMViewer = { loadModel, clearModel, initThree };
+window.BIMViewer = { loadModel, ensureModelLoaded, applyClipState, clearModel, initThree };
 initThree();

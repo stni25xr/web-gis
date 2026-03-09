@@ -282,6 +282,15 @@
   z-index: 1700;
 }
 
+#bimViewerPanel.bim-viewer-floating-preview .bim-viewer-header,
+#bimViewerPanel.bim-viewer-floating-preview .bim-viewer-controls {
+  display: none;
+}
+
+#bimViewerPanel.bim-viewer-floating-preview .bim-viewer-body {
+  grid-template-rows: 1fr;
+}
+
 .bim-viewer-header {
   display: flex;
   align-items: center;

@@ -1636,6 +1636,7 @@ Maintain safe distance
       let bimViewerDetachedForClip = false;
       let bimViewerOriginalParent = null;
       let bimViewerOriginalNextSibling = null;
+      let bimPreviewSourceKey = "";
 
       function getDefaultClipState() {
         return { enabled: false, x: 0, y: 0, z: 0 };
@@ -1996,6 +1997,7 @@ Maintain safe distance
       function hideBimReplaceMenu() {
         showBimReplaceControls(false);
         setBimViewerClipPreview(false);
+        bimPreviewSourceKey = "";
         suppressBimMenuOpenUntil = Date.now() + 150;
       }
 
@@ -2033,7 +2035,7 @@ Maintain safe distance
 
       function applyClipToBimViewerForActiveModel() {
         const model = getActiveBimModel();
-        if (!model || !window.BIMViewer?.loadModel) {
+        if (!model || !window.BIMViewer?.ensureModelLoaded) {
           setBimReplaceStatus("Clip viewer is not available.");
           return;
         }
@@ -2042,25 +2044,16 @@ Maintain safe distance
           setBimReplaceStatus("Load model first.");
           return;
         }
-        window.BIMViewer.loadModel(sourceUrl);
-        const clipToggleEl = document.getElementById("bimClipToggle");
-        const clipXEl = document.getElementById("bimClipX");
-        const clipYEl = document.getElementById("bimClipY");
-        const clipZEl = document.getElementById("bimClipZ");
-        if (!clipToggleEl || !clipXEl || !clipYEl || !clipZEl) {
-          setBimReplaceStatus("Clip controls are not ready.");
-          return;
-        }
         const clipState = getClipStateFromMenu();
         model.clipState = clipState;
-        clipToggleEl.checked = !!clipState.enabled;
-        clipToggleEl.dispatchEvent(new Event("change"));
-        clipXEl.value = String(clipState.x);
-        clipYEl.value = String(clipState.y);
-        clipZEl.value = String(clipState.z);
-        clipXEl.dispatchEvent(new Event("input"));
-        clipYEl.dispatchEvent(new Event("input"));
-        clipZEl.dispatchEvent(new Event("input"));
+        const previewKey = `${model.objectId}|${sourceUrl}`;
+        if (bimPreviewSourceKey !== previewKey) {
+          bimPreviewSourceKey = previewKey;
+          window.BIMViewer.ensureModelLoaded(sourceUrl, { clipState })
+            .catch(() => setBimReplaceStatus("Could not open clip preview."));
+        } else {
+          window.BIMViewer.applyClipState?.(clipState);
+        }
         setBimReplaceStatus("Clip updated (X/Y/Z).");
       }
 
@@ -2069,6 +2062,7 @@ Maintain safe distance
         const show = bimReplaceClipControlsEl.style.display === "none";
         bimReplaceClipControlsEl.style.display = show ? "block" : "none";
         setBimViewerClipPreview(show);
+        if (!show) bimPreviewSourceKey = "";
         if (show) applyClipToBimViewerForActiveModel();
       }
 
