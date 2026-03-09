@@ -275,11 +275,16 @@
 #bimViewerPanel.bim-viewer-floating-preview {
   position: fixed;
   top: calc(var(--header-height, 64px) + 16px);
-  right: 16px;
-  width: min(420px, calc(100vw - 40px));
-  height: min(460px, calc(100vh - var(--header-height, 64px) - 32px));
+  left: 16px;
+  width: min(360px, calc(100vw - 40px));
+  height: min(260px, calc(100vh - var(--header-height, 64px) - 32px));
   margin-top: 0;
   z-index: 1700;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  pointer-events: none;
 }
 
 #bimViewerPanel.bim-viewer-floating-preview .bim-viewer-header,
@@ -289,6 +294,15 @@
 
 #bimViewerPanel.bim-viewer-floating-preview .bim-viewer-body {
   grid-template-rows: 1fr;
+  background: transparent;
+}
+
+#bimViewerPanel.bim-viewer-floating-preview #bimView {
+  background: transparent;
+}
+
+#bimViewerPanel.bim-viewer-floating-preview #bimView canvas {
+  background: transparent !important;
 }
 
 .bim-viewer-header {

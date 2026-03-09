@@ -1962,6 +1962,9 @@ Maintain safe distance
           if (model?.graphic) {
             model.lastGeometry = serializePoint(model.graphic.geometry);
           }
+          if (bimReplaceClipControlsEl?.style.display !== "none") {
+            applyClipToBimViewerForActiveModel();
+          }
           if (event.state === "complete") {
             setBimReplaceStatus("Model position updated.");
           } else if (event.state === "cancel") {
@@ -2010,6 +2013,41 @@ Maintain safe distance
         };
       }
 
+      function positionBimViewerClipPreview() {
+        const panel = document.getElementById("bimViewerPanel");
+        if (!panel || !panel.classList.contains("bim-viewer-floating-preview")) return;
+        const model = getActiveBimModel();
+        const point = model?.graphic?.geometry;
+        const headerHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-height")) || 64;
+        const margin = 12;
+        const width = Math.min(360, Math.max(240, Math.round(window.innerWidth * 0.28)));
+        const height = Math.min(260, Math.max(180, Math.round(window.innerHeight * 0.24)));
+        panel.style.width = `${width}px`;
+        panel.style.height = `${height}px`;
+        panel.style.right = "auto";
+
+        let left = margin;
+        let top = headerHeight + margin;
+        try {
+          if (point && view?.toScreen) {
+            const screen = view.toScreen(point);
+            if (screen && Number.isFinite(screen.x) && Number.isFinite(screen.y)) {
+              left = Math.round(screen.x + 18);
+              top = Math.round(screen.y - height / 2);
+            }
+          }
+        } catch (err) {
+          // fallback to default top-left placement
+        }
+
+        const minLeft = Math.max(56 + 8, margin);
+        const maxLeft = Math.max(minLeft, window.innerWidth - width - margin);
+        const minTop = headerHeight + margin;
+        const maxTop = Math.max(minTop, window.innerHeight - height - margin);
+        panel.style.left = `${Math.min(Math.max(left, minLeft), maxLeft)}px`;
+        panel.style.top = `${Math.min(Math.max(top, minTop), maxTop)}px`;
+      }
+
       function setBimViewerClipPreview(enabled) {
         const panel = document.getElementById("bimViewerPanel");
         if (!panel) return;
@@ -2022,10 +2060,16 @@ Maintain safe distance
         if (enabled) {
           panel.classList.add("is-open");
           panel.classList.add("bim-viewer-floating-preview");
+          positionBimViewerClipPreview();
           setBimReplaceStatus("Clip preview opened.");
         } else {
           panel.classList.remove("bim-viewer-floating-preview");
           panel.classList.remove("is-open");
+          panel.style.left = "";
+          panel.style.top = "";
+          panel.style.right = "";
+          panel.style.width = "";
+          panel.style.height = "";
           if (bimViewerDetachedForClip && bimViewerOriginalParent) {
             bimViewerOriginalParent.insertBefore(panel, bimViewerOriginalNextSibling);
           }
@@ -2050,11 +2094,16 @@ Maintain safe distance
         if (bimPreviewSourceKey !== previewKey) {
           bimPreviewSourceKey = previewKey;
           window.BIMViewer.ensureModelLoaded(sourceUrl, { clipState })
+            .then(() => {
+              positionBimViewerClipPreview();
+              setBimReplaceStatus("Clip updated (X/Y/Z).");
+            })
             .catch(() => setBimReplaceStatus("Could not open clip preview."));
         } else {
           window.BIMViewer.applyClipState?.(clipState);
+          positionBimViewerClipPreview();
+          setBimReplaceStatus("Clip updated (X/Y/Z).");
         }
-        setBimReplaceStatus("Clip updated (X/Y/Z).");
       }
 
       function toggleClipControls() {
@@ -2202,6 +2251,7 @@ Maintain safe distance
         el.addEventListener("input", applyClipToBimViewerForActiveModel);
         el.addEventListener("change", applyClipToBimViewerForActiveModel);
       });
+      window.addEventListener("resize", positionBimViewerClipPreview);
 
       window.addEventListener("beforeunload", () => {
         bimModelsById.forEach((model) => cleanupModelObjectUrl(model));

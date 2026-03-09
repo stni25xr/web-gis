@@ -31,6 +31,8 @@ let planeY;
 let planeZ;
 let clippingPlanes;
 let currentModelUrl = "";
+let initPromise = null;
+let clipBounds = null;
 
 function setStatus(text) {
   if (statusEl) statusEl.textContent = text || "";
@@ -81,13 +83,15 @@ async function initThree() {
   }
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0b1220);
+  scene.background = null;
   camera = new THREE.PerspectiveCamera(55, 1, 0.1, 10000);
   camera.position.set(6, 6, 10);
 
-  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio || 1);
+  renderer.setClearColor(0x000000, 0);
   renderer.localClippingEnabled = true;
+  renderer.clippingPlanes = [];
   viewEl.innerHTML = "";
   viewEl.appendChild(renderer.domElement);
 
@@ -128,14 +132,16 @@ async function initThree() {
 
 function setClipEnabled(enabled) {
   if (!renderer) return;
-  renderer.localClippingEnabled = enabled;
+  renderer.localClippingEnabled = true;
+  renderer.clippingPlanes = enabled ? clippingPlanes : [];
   if (modelRoot) {
     modelRoot.traverse((child) => {
       if (child.isMesh && child.material) {
         const mats = Array.isArray(child.material) ? child.material : [child.material];
         mats.forEach((m) => {
           m.clippingPlanes = enabled ? clippingPlanes : [];
-          m.clipIntersection = true;
+          m.clipIntersection = false;
+          m.clipShadows = enabled;
           m.needsUpdate = true;
         });
       }
@@ -143,17 +149,67 @@ function setClipEnabled(enabled) {
   }
 }
 
+function getBoundsForObject(object) {
+  if (!object || !THREE) return null;
+  const box = new THREE.Box3().setFromObject(object);
+  if (box.isEmpty()) return null;
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  return { box, size, center };
+}
+
+function applyAxisClip(plane, axisIndex, sliderValue, bounds) {
+  if (!plane || !bounds) return;
+  const minVal = axisIndex === 0 ? bounds.box.min.x : axisIndex === 1 ? bounds.box.min.y : bounds.box.min.z;
+  const maxVal = axisIndex === 0 ? bounds.box.max.x : axisIndex === 1 ? bounds.box.max.y : bounds.box.max.z;
+  const sizeVal = axisIndex === 0 ? bounds.size.x : axisIndex === 1 ? bounds.size.y : bounds.size.z;
+  const center = bounds.center;
+  const distance = Math.min(Math.abs(sliderValue), Math.max(0, sizeVal));
+  const point = center.clone();
+  const normal = new THREE.Vector3(0, 0, 0);
+  const margin = Math.max(0.1, sizeVal * 0.05);
+
+  if (distance <= 0.0001) {
+    normal.set(axisIndex === 0 ? 1 : 0, axisIndex === 1 ? 1 : 0, axisIndex === 2 ? 1 : 0);
+    if (axisIndex === 0) point.x = maxVal + margin;
+    if (axisIndex === 1) point.y = maxVal + margin;
+    if (axisIndex === 2) point.z = maxVal + margin;
+    plane.setFromNormalAndCoplanarPoint(normal, point);
+    return;
+  }
+
+  if (sliderValue > 0) {
+    normal.set(axisIndex === 0 ? 1 : 0, axisIndex === 1 ? 1 : 0, axisIndex === 2 ? 1 : 0);
+    if (axisIndex === 0) point.x = maxVal - distance;
+    if (axisIndex === 1) point.y = maxVal - distance;
+    if (axisIndex === 2) point.z = maxVal - distance;
+  } else {
+    normal.set(axisIndex === 0 ? -1 : 0, axisIndex === 1 ? -1 : 0, axisIndex === 2 ? -1 : 0);
+    if (axisIndex === 0) point.x = minVal + distance;
+    if (axisIndex === 1) point.y = minVal + distance;
+    if (axisIndex === 2) point.z = minVal + distance;
+  }
+  plane.setFromNormalAndCoplanarPoint(normal, point);
+}
+
 function updateClipFromSliders() {
-  if (!planeX) return;
-  planeX.constant = Number(clipX?.value || 0);
-  planeY.constant = Number(clipY?.value || 0);
-  planeZ.constant = Number(clipZ?.value || 0);
+  if (!planeX || !modelRoot) return;
+  const bounds = getBoundsForObject(modelRoot);
+  if (!bounds) return;
+  clipBounds = bounds.box.clone();
+  const x = Number(clipX?.value || 0);
+  const y = Number(clipY?.value || 0);
+  const z = Number(clipZ?.value || 0);
+  applyAxisClip(planeX, 0, x, bounds);
+  applyAxisClip(planeY, 1, y, bounds);
+  applyAxisClip(planeZ, 2, z, bounds);
 }
 
 function fitToModel(object) {
-  const box = new THREE.Box3().setFromObject(object);
-  const size = box.getSize(new THREE.Vector3());
-  const center = box.getCenter(new THREE.Vector3());
+  const bounds = getBoundsForObject(object);
+  if (!bounds) return;
+  const { box, size, center } = bounds;
+  clipBounds = box.clone();
 
   const maxDim = Math.max(size.x, size.y, size.z);
   const dist = maxDim * 1.5;
@@ -162,15 +218,18 @@ function fitToModel(object) {
   orbit.target.copy(center);
   orbit.update();
 
-  const range = Math.max(1, Math.ceil(maxDim / 2));
-  const step = Math.max(0.01, range / 200);
-  [clipX, clipY, clipZ].forEach((slider) => {
+  const setupSlider = (slider, axisSize) => {
     if (!slider) return;
+    const range = Math.max(1, Math.ceil(axisSize));
+    const step = Math.max(0.01, axisSize / 200);
     slider.min = String(-range);
     slider.max = String(range);
     slider.step = String(Number(step.toFixed(3)));
     slider.value = "0";
-  });
+  };
+  setupSlider(clipX, size.x);
+  setupSlider(clipY, size.y);
+  setupSlider(clipZ, size.z);
   updateClipFromSliders();
 }
 
@@ -184,31 +243,40 @@ function applyClipState(state = {}) {
   setClipEnabled(enabled);
 }
 
+async function ensureReady() {
+  if (loader) return true;
+  if (!initPromise) initPromise = initThree();
+  await initPromise;
+  return Boolean(loader);
+}
+
 function loadModel(url, options = {}) {
-  if (!loader || !url) return Promise.resolve(null);
-  setStatus("Laddar modell…");
-  return new Promise((resolve, reject) => {
-    loader.load(
-      url,
-      (gltf) => {
-        if (modelRoot) scene.remove(modelRoot);
-        modelRoot = gltf.scene;
-        currentModelUrl = url;
-        scene.add(modelRoot);
-        fitToModel(modelRoot);
-        setClipEnabled(Boolean(clipToggle?.checked));
-        if (options?.clipState) applyClipState(options.clipState);
-        setStatus("Model laddad.");
-        if (typeof options?.onLoaded === "function") options.onLoaded(modelRoot);
-        resolve(modelRoot);
-      },
-      undefined,
-      (err) => {
-        console.error("[BIM] Failed to load model", err);
-        setStatus("Kunde inte ladda modellen.");
-        reject(err);
-      }
-    );
+  return ensureReady().then((ok) => {
+    if (!ok || !url) return null;
+    setStatus("Laddar modell…");
+    return new Promise((resolve, reject) => {
+      loader.load(
+        url,
+        (gltf) => {
+          if (modelRoot) scene.remove(modelRoot);
+          modelRoot = gltf.scene;
+          currentModelUrl = url;
+          scene.add(modelRoot);
+          fitToModel(modelRoot);
+          setClipEnabled(Boolean(clipToggle?.checked));
+          if (options?.clipState) applyClipState(options.clipState);
+          setStatus("Model laddad.");
+          if (typeof options?.onLoaded === "function") options.onLoaded(modelRoot);
+          resolve(modelRoot);
+        },
+        undefined,
+        (err) => {
+          console.error("[BIM] Failed to load model", err);
+          setStatus("Kunde inte ladda modellen.");
+          reject(err);
+        }
+      );
+    });
   });
 }
 
@@ -267,6 +335,7 @@ function clearModel() {
     modelRoot = null;
   }
   currentModelUrl = "";
+  clipBounds = null;
   transform.detach();
   setStatus("Modell borttagen.");
 }
@@ -300,5 +369,5 @@ clipZ?.addEventListener("input", updateClipFromSliders);
 window.addEventListener("resize", resize);
 if (viewEl) viewEl.addEventListener("pointerdown", selectAt);
 
-window.BIMViewer = { loadModel, ensureModelLoaded, applyClipState, clearModel, initThree };
-initThree();
+initPromise = initThree();
+window.BIMViewer = { loadModel, ensureModelLoaded, applyClipState, clearModel, initThree, ensureReady };
