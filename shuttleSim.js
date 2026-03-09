@@ -111,6 +111,7 @@
       this.currentState = STATE.IDLE;
       this.currentRequest = null;
       this.shuttleGraphic = null;
+      this.shuttleFallbackGraphic = null;
       this.shuttleRouteGraphic = null;
       this.shuttleLayer = new GraphicsLayer({ elevationInfo: { mode: "on-the-ground" } });
       this.map.add(this.shuttleLayer);
@@ -154,7 +155,16 @@
         symbol: is3d ? this.buildShuttleSymbol3D({ moving: false }) : this.buildShuttleSymbol2D({ moving: false }),
         visible: true
       });
-      this.shuttleLayer.add(this.shuttleGraphic);
+      this.shuttleFallbackGraphic = new this.Graphic({
+        geometry: startPoint,
+        attributes: {
+          id: `${SHUTTLE_ID}-fallback`,
+          type: SHUTTLE_TYPE
+        },
+        symbol: this.buildShuttleFallback2D({ moving: false }),
+        visible: true
+      });
+      this.shuttleLayer.addMany([this.shuttleFallbackGraphic, this.shuttleGraphic]);
       this.applyShuttleVisual(false);
     }
 
@@ -167,6 +177,9 @@
       this.shuttleGraphic.symbol = is3d
         ? this.buildShuttleSymbol3D({ moving })
         : this.buildShuttleSymbol2D({ moving });
+      if (this.shuttleFallbackGraphic) {
+        this.shuttleFallbackGraphic.symbol = this.buildShuttleFallback2D({ moving });
+      }
     }
 
     showModal(title, message) {
@@ -337,6 +350,15 @@
         });
         this.applyShuttleVisual(false);
       }
+      if (this.shuttleFallbackGraphic) {
+        this.shuttleFallbackGraphic.geometry = this.withElevation({
+          type: "point",
+          longitude: STATION.longitude,
+          latitude: STATION.latitude,
+          spatialReference: { wkid: 4326 }
+        });
+        this.shuttleFallbackGraphic.visible = true;
+      }
       window.shuttleCurrentRoute = null;
       window.shuttleAnimationState = null;
       this.modalMuted = false;
@@ -358,6 +380,15 @@
           spatialReference: { wkid: 4326 }
         });
         this.applyShuttleVisual(false);
+      }
+      if (this.shuttleFallbackGraphic) {
+        this.shuttleFallbackGraphic.geometry = this.withElevation({
+          type: "point",
+          longitude: STATION.longitude,
+          latitude: STATION.latitude,
+          spatialReference: { wkid: 4326 }
+        });
+        this.shuttleFallbackGraphic.visible = true;
       }
       window.shuttleCurrentRoute = null;
       window.shuttleAnimationState = null;
@@ -571,6 +602,10 @@
             });
             this.shuttleGraphic.geometry = nextPoint;
             this.shuttleGraphic.visible = true;
+            if (this.shuttleFallbackGraphic) {
+              this.shuttleFallbackGraphic.geometry = nextPoint;
+              this.shuttleFallbackGraphic.visible = true;
+            }
             this.debugTick(pt);
           }
           if (this.view && typeof this.view.requestRender === "function") {
@@ -619,6 +654,16 @@
         width: size,
         height: size,
         yoffset: 2
+      };
+    }
+
+    buildShuttleFallback2D({ moving }) {
+      return {
+        type: "simple-marker",
+        style: "circle",
+        color: [251, 191, 36, 0.95],
+        size: moving ? 10 : 8,
+        outline: { color: [15, 23, 42, 0.95], width: 1.8 }
       };
     }
 
