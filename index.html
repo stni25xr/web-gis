@@ -888,8 +888,14 @@
           <div class="dash-value dash-positive">94 <span>kg</span></div>
           <div class="dash-foot">Equivalent 62 km ICE</div>
         </div>
+        <div class="dash-card dash-span-3">
+          <div class="dash-label">Rider satisfaction</div>
+          <div class="dash-value">4.4 <span>/ 5</span></div>
+          <div class="dash-stars" aria-label="4.4 av 5 stjarnor">★★★★☆</div>
+          <div class="dash-foot">Based on post-trip feedback</div>
+        </div>
 
-        <div class="dash-card dash-span-4 dash-battery">
+        <div class="dash-card dash-span-3 dash-battery">
           <div class="dash-label">Battery level</div>
           <div class="battery-meter">
             <div class="battery-fill" style="width: 78%;"></div>
@@ -898,15 +904,27 @@
           </div>
           <div class="dash-foot">Estimated range 42 km</div>
         </div>
-        <div class="dash-card dash-span-4">
-          <div class="dash-label">Movement</div>
-          <div class="dash-value">Moving <span>18 km/h</span></div>
-          <div class="dash-progress">
-            <div class="dash-progress-bar" style="width: 58%;"></div>
+        <div class="dash-card dash-span-3">
+          <div class="dash-label">Battery temperature</div>
+          <div class="dash-value"><span id="shuttleBatteryTempValue">31.4</span><span>°C</span></div>
+          <div class="dash-temp-track">
+            <div id="shuttleBatteryTempBar" class="dash-temp-fill" style="width: 46%;"></div>
           </div>
+          <div class="dash-foot">Optimal zone: 24-38 °C</div>
+        </div>
+        <div class="dash-card dash-span-3">
+          <div class="dash-label">Movement</div>
+          <div class="dash-speed-row">
+            <div id="shuttleMovementState" class="dash-value">Moving</div>
+            <div id="shuttleSpeedValue" class="dash-speed-display">18 km/h</div>
+          </div>
+          <div class="dash-progress">
+            <div id="shuttleSpeedBar" class="dash-progress-bar" style="width: 45%;"></div>
+          </div>
+          <div id="shuttleSpeedStatus" class="dash-foot">Status: Normal cruise</div>
           <div class="dash-foot">Next stop: Öxnehaga Torget (2 min)</div>
         </div>
-        <div class="dash-card dash-span-4">
+        <div class="dash-card dash-span-3">
           <div class="dash-label">Distance today</div>
           <div class="dash-value">74 <span>km</span></div>
           <div class="dash-foot">Avg trip length 1.4 km</div>
@@ -5510,11 +5528,70 @@ Maintain safe distance
     const rightClose = document.getElementById("rightPanelClose");
     const shuttleDashboard = document.getElementById("shuttleDashboard");
     const shuttleDashClose = document.getElementById("shuttleDashClose");
+    const shuttleSpeedValue = document.getElementById("shuttleSpeedValue");
+    const shuttleSpeedBar = document.getElementById("shuttleSpeedBar");
+    const shuttleSpeedStatus = document.getElementById("shuttleSpeedStatus");
+    const shuttleMovementState = document.getElementById("shuttleMovementState");
+    const shuttleBatteryTempValue = document.getElementById("shuttleBatteryTempValue");
+    const shuttleBatteryTempBar = document.getElementById("shuttleBatteryTempBar");
 
     let leftOpen = false;
     let digitalOpen = false;
     let rightOpen = false;
     let shuttleOpen = false;
+    const shuttleSpeedSim = {
+      min: 0,
+      max: 40,
+      current: 18,
+      direction: 1,
+      timer: null
+    };
+
+    function renderShuttleTelemetry() {
+      const speed = Math.max(shuttleSpeedSim.min, Math.min(shuttleSpeedSim.max, shuttleSpeedSim.current));
+      const roundedSpeed = Math.round(speed);
+      const speedPct = (speed / shuttleSpeedSim.max) * 100;
+      if (shuttleSpeedValue) shuttleSpeedValue.textContent = `${roundedSpeed} km/h`;
+      if (shuttleSpeedBar) shuttleSpeedBar.style.width = `${speedPct}%`;
+      if (shuttleMovementState) shuttleMovementState.textContent = roundedSpeed <= 1 ? "Standby" : "Moving";
+      if (shuttleSpeedStatus) {
+        if (roundedSpeed <= 1) shuttleSpeedStatus.textContent = "Status: Waiting at stop";
+        else if (roundedSpeed < 14) shuttleSpeedStatus.textContent = "Status: Local approach";
+        else if (roundedSpeed < 30) shuttleSpeedStatus.textContent = "Status: Normal cruise";
+        else shuttleSpeedStatus.textContent = "Status: High cruise";
+      }
+
+      const temperature = 24 + (speed / shuttleSpeedSim.max) * 14 + (Math.random() * 1.2 - 0.6);
+      const clampedTemp = Math.max(20, Math.min(45, temperature));
+      const tempPct = ((clampedTemp - 20) / (45 - 20)) * 100;
+      if (shuttleBatteryTempValue) shuttleBatteryTempValue.textContent = clampedTemp.toFixed(1);
+      if (shuttleBatteryTempBar) shuttleBatteryTempBar.style.width = `${tempPct}%`;
+    }
+
+    function startShuttleTelemetrySimulation() {
+      stopShuttleTelemetrySimulation();
+      renderShuttleTelemetry();
+      shuttleSpeedSim.timer = window.setInterval(() => {
+        const step = 1.2 + Math.random() * 4.8;
+        shuttleSpeedSim.current += shuttleSpeedSim.direction * step;
+        if (shuttleSpeedSim.current >= shuttleSpeedSim.max) {
+          shuttleSpeedSim.current = shuttleSpeedSim.max;
+          shuttleSpeedSim.direction = -1;
+        } else if (shuttleSpeedSim.current <= shuttleSpeedSim.min) {
+          shuttleSpeedSim.current = shuttleSpeedSim.min;
+          shuttleSpeedSim.direction = 1;
+        } else if (Math.random() < 0.16) {
+          shuttleSpeedSim.direction *= -1;
+        }
+        renderShuttleTelemetry();
+      }, 900);
+    }
+
+    function stopShuttleTelemetrySimulation() {
+      if (!shuttleSpeedSim.timer) return;
+      window.clearInterval(shuttleSpeedSim.timer);
+      shuttleSpeedSim.timer = null;
+    }
 
     function updateUI() {
       leftPanel?.classList.toggle("is-open", leftOpen);
@@ -5540,6 +5617,7 @@ Maintain safe distance
       shuttleOpen = false;
       if (shuttleDashboard) shuttleDashboard.style.display = "none";
       document.body.classList.remove("shuttle-dashboard-open");
+      stopShuttleTelemetrySimulation();
       updateUI();
     }
     function closeLeft() {
@@ -5553,6 +5631,7 @@ Maintain safe distance
       shuttleOpen = false;
       if (shuttleDashboard) shuttleDashboard.style.display = "none";
       document.body.classList.remove("shuttle-dashboard-open");
+      stopShuttleTelemetrySimulation();
       updateUI();
     }
     function closeDigital() {
@@ -5566,6 +5645,7 @@ Maintain safe distance
       shuttleOpen = false;
       if (shuttleDashboard) shuttleDashboard.style.display = "none";
       document.body.classList.remove("shuttle-dashboard-open");
+      stopShuttleTelemetrySimulation();
       updateUI();
     }
     function closeRight() {
@@ -5585,12 +5665,14 @@ Maintain safe distance
       rightOpen = false;
       if (shuttleDashboard) shuttleDashboard.style.display = "flex";
       document.body.classList.add("shuttle-dashboard-open");
+      startShuttleTelemetrySimulation();
       updateUI();
     }
     function closeShuttleDashboard() {
       shuttleOpen = false;
       if (shuttleDashboard) shuttleDashboard.style.display = "none";
       document.body.classList.remove("shuttle-dashboard-open");
+      stopShuttleTelemetrySimulation();
       updateUI();
     }
     function closeAll() {
@@ -5600,6 +5682,7 @@ Maintain safe distance
       shuttleOpen = false;
       if (shuttleDashboard) shuttleDashboard.style.display = "none";
       document.body.classList.remove("shuttle-dashboard-open");
+      stopShuttleTelemetrySimulation();
       updateUI();
       clearServiceFlow();
       clearSupportFlows();

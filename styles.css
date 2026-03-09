@@ -903,6 +903,13 @@ body.shuttle-dashboard-open {
   color: #94a3b8;
 }
 
+.dash-stars {
+  font-size: 20px;
+  letter-spacing: 0.14em;
+  color: #facc15;
+  text-shadow: 0 0 14px rgba(250, 204, 21, 0.25);
+}
+
 .battery-meter {
   position: relative;
   height: 34px;
@@ -956,6 +963,34 @@ body.shuttle-dashboard-open {
   height: 100%;
   border-radius: 999px;
   background: linear-gradient(90deg, #38bdf8, #6366f1);
+}
+
+.dash-speed-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dash-speed-display {
+  font-size: 22px;
+  font-weight: 700;
+  color: #c4b5fd;
+  letter-spacing: 0.01em;
+}
+
+.dash-temp-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  overflow: hidden;
+}
+
+.dash-temp-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #38bdf8, #f59e0b, #ef4444);
+  transition: width 0.45s ease;
 }
 
 .dash-title {
