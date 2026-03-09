@@ -560,24 +560,26 @@
       if (!sampler) return;
 
       const totalMeters = sampler.total;
-      const speedAtDistance = (distMeters) => {
+      const cruiseTargetAtDistance = (distMeters) => {
         const dist = Math.max(0, Math.min(totalMeters, distMeters));
-        const remaining = Math.max(0, totalMeters - dist);
-        const accelLimit = Math.sqrt(Math.max(0, 2 * ACCEL_MPS2 * dist));
-        const decelLimit = Math.sqrt(Math.max(0, 2 * DECEL_MPS2 * remaining));
         const wave = 0.5 + 0.5 * Math.sin((dist / CRUISE_WAVE_METERS) * Math.PI * 2);
-        const cruiseTarget = CRUISE_MIN_MPS + wave * (CRUISE_MAX_MPS - CRUISE_MIN_MPS);
-        return Math.max(0, Math.min(accelLimit, decelLimit, cruiseTarget));
+        return CRUISE_MIN_MPS + wave * (CRUISE_MAX_MPS - CRUISE_MIN_MPS);
       };
-      const estimateRemainingSeconds = (startDist) => {
+      const estimateRemainingSeconds = (startDist, startSpeed = 0) => {
         let s = Math.max(0, Math.min(totalMeters, startDist));
+        let v = Math.max(0, startSpeed);
         let secs = 0;
-        const stepMeters = 8;
+        const simDt = 0.25;
         while (s < totalMeters) {
-          const speed = Math.max(0.5, speedAtDistance(s));
-          const ds = Math.min(stepMeters, totalMeters - s);
-          secs += ds / speed;
+          const remaining = Math.max(0, totalMeters - s);
+          const decelLimit = Math.sqrt(Math.max(0, 2 * DECEL_MPS2 * remaining));
+          const cruiseTarget = cruiseTargetAtDistance(s);
+          const targetSpeed = Math.max(0, Math.min(cruiseTarget, decelLimit));
+          if (v < targetSpeed) v = Math.min(targetSpeed, v + ACCEL_MPS2 * simDt);
+          else v = Math.max(targetSpeed, v - DECEL_MPS2 * simDt);
+          const ds = Math.min(remaining, Math.max(0, v * simDt));
           s += ds;
+          secs += simDt;
           if (secs > 6 * 3600) break;
         }
         return secs;
@@ -590,7 +592,7 @@
         return {
           dist: distNow,
           remaining,
-          remainingSeconds: estimateRemainingSeconds(distNow)
+          remainingSeconds: estimateRemainingSeconds(distNow, speedNow)
         };
       };
 
@@ -618,7 +620,12 @@
         const step = (now) => {
           const dt = Math.max(0, Math.min(0.2, (now - lastFrame) / 1000));
           lastFrame = now;
-          speedNow = speedAtDistance(distNow);
+          const remaining = Math.max(0, totalMeters - distNow);
+          const decelLimit = Math.sqrt(Math.max(0, 2 * DECEL_MPS2 * remaining));
+          const cruiseTarget = cruiseTargetAtDistance(distNow);
+          const targetSpeed = Math.max(0, Math.min(cruiseTarget, decelLimit));
+          if (speedNow < targetSpeed) speedNow = Math.min(targetSpeed, speedNow + ACCEL_MPS2 * dt);
+          else speedNow = Math.max(targetSpeed, speedNow - DECEL_MPS2 * dt);
           distNow = Math.min(totalMeters, distNow + speedNow * dt);
           const pt = sampler.toGeo(distNow);
           if (pt && this.shuttleGraphic) {
