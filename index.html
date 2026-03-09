@@ -815,14 +815,26 @@
   <div id="iotContainer" style="display:none;"></div>
   <input id="bimReplaceFile" type="file" accept=".glb,.gbl" style="display:none;" />
   <div id="bimReplaceControls" class="bim-replace-controls" style="display:none;" aria-label="GLB replace controls">
-    <div class="bim-replace-title">GLB model on map</div>
+    <div class="bim-replace-header">
+      <div class="bim-replace-title">GLB model on map</div>
+      <button id="bimReplaceClose" type="button" class="bim-replace-close" aria-label="Close GLB menu">✕</button>
+    </div>
+    <div id="bimReplaceObjectId" class="bim-replace-object-id">Object: -</div>
     <div id="bimReplaceStatus" class="bim-replace-status">No model loaded.</div>
     <div class="bim-replace-actions">
       <button id="bimReplaceLoad" type="button">Load GLB</button>
+      <button id="bimReplaceSave" type="button">Save</button>
       <button id="bimReplaceMove" type="button">Move</button>
       <button id="bimReplaceRotate" type="button">Rotate</button>
+      <button id="bimReplaceToggleGis" type="button">Hide GIS</button>
       <button id="bimReplaceClip" type="button">Clip X/Y/Z</button>
       <button id="bimReplaceRemove" type="button">Remove</button>
+    </div>
+    <div id="bimReplaceClipControls" class="bim-replace-clip-controls" style="display:none;">
+      <label class="bim-replace-clip-enable"><input id="bimReplaceClipEnable" type="checkbox" /> Clip enabled</label>
+      <div class="bim-replace-clip-slider"><span>X</span><input id="bimReplaceClipX" type="range" min="-50" max="50" step="1" value="0" /></div>
+      <div class="bim-replace-clip-slider"><span>Y</span><input id="bimReplaceClipY" type="range" min="-50" max="50" step="1" value="0" /></div>
+      <div class="bim-replace-clip-slider"><span>Z</span><input id="bimReplaceClipZ" type="range" min="-50" max="50" step="1" value="0" /></div>
     </div>
   </div>
   <div id="bimModal" style="display:none;">
@@ -1592,52 +1604,108 @@ Maintain safe distance
         lastColorKey: null,
         baseSymbol: null
       };
-      const BIM_REPLACE_TARGET_ID = "e11f4a59-b4e9-4316-8850-3fe72633a93d";
+      const DEFAULT_BIM_REPLACE_TARGET_ID = "e11f4a59-b4e9-4316-8850-3fe72633a93d";
+      const BIM_REPLACE_STORAGE_KEY = "bim_replace_models_v1";
       const hiddenBimOverlayIds = new Set();
+      const bimModelsById = new window.Map();
       const bimReplaceControlsEl = document.getElementById("bimReplaceControls");
       const bimReplaceStatusEl = document.getElementById("bimReplaceStatus");
+      const bimReplaceObjectIdEl = document.getElementById("bimReplaceObjectId");
       const bimReplaceFileInput = document.getElementById("bimReplaceFile");
+      const bimReplaceCloseBtn = document.getElementById("bimReplaceClose");
       const bimReplaceLoadBtn = document.getElementById("bimReplaceLoad");
+      const bimReplaceSaveBtn = document.getElementById("bimReplaceSave");
       const bimReplaceMoveBtn = document.getElementById("bimReplaceMove");
       const bimReplaceRotateBtn = document.getElementById("bimReplaceRotate");
+      const bimReplaceToggleGisBtn = document.getElementById("bimReplaceToggleGis");
       const bimReplaceClipBtn = document.getElementById("bimReplaceClip");
       const bimReplaceRemoveBtn = document.getElementById("bimReplaceRemove");
+      const bimReplaceClipControlsEl = document.getElementById("bimReplaceClipControls");
+      const bimReplaceClipEnable = document.getElementById("bimReplaceClipEnable");
+      const bimReplaceClipX = document.getElementById("bimReplaceClipX");
+      const bimReplaceClipY = document.getElementById("bimReplaceClipY");
+      const bimReplaceClipZ = document.getElementById("bimReplaceClipZ");
       let bimReplaceSketchVM = null;
-      let bimReplaceGraphic = null;
-      let bimReplaceObjectUrl = null;
       let buildingFootprintsLayerView = null;
+      let activeBimObjectId = DEFAULT_BIM_REPLACE_TARGET_ID;
+      let pendingBimTargetObjectId = DEFAULT_BIM_REPLACE_TARGET_ID;
+      let suppressBimMenuOpenUntil = 0;
 
-      function applyBimFootprintMask() {
-        if (!buildingFootprintsLayerView) return;
-        try {
-          if (hiddenBimOverlayIds.has(BIM_REPLACE_TARGET_ID)) {
-            buildingFootprintsLayerView.featureEffect = {
-              filter: { where: `objektidentitet = '${BIM_REPLACE_TARGET_ID}'` },
-              includedEffect: "opacity(12%)",
-              excludedEffect: "opacity(100%)"
-            };
-          } else {
-            buildingFootprintsLayerView.featureEffect = null;
-          }
-        } catch (err) {
-          console.warn("Failed to apply footprint BIM mask", err);
-        }
+      function getDefaultClipState() {
+        return { enabled: false, x: 0, y: 0, z: 0 };
+      }
+
+      function escapeSqlText(value) {
+        return String(value || "").replace(/'/g, "''");
       }
 
       function setBimReplaceStatus(text) {
         if (bimReplaceStatusEl) bimReplaceStatusEl.textContent = text || "";
       }
 
-      function setBimOverlayTargetHidden(hidden) {
-        if (hidden) hiddenBimOverlayIds.add(BIM_REPLACE_TARGET_ID);
-        else hiddenBimOverlayIds.delete(BIM_REPLACE_TARGET_ID);
-        const targetGraphic = buildingGraphicsById.get(BIM_REPLACE_TARGET_ID);
-        if (targetGraphic) {
-          const lastColorKey = lastMapColorKeyById.get(BIM_REPLACE_TARGET_ID);
-          const baseColor = lastColorKey ? mapColorForKey(lastColorKey) : [220, 38, 38, 0.9];
-          setBuildingGraphicColor(targetGraphic, baseColor);
-        }
-        applyBimFootprintMask();
+      function showBimReplaceControls(show) {
+        if (!bimReplaceControlsEl) return;
+        bimReplaceControlsEl.style.display = show ? "block" : "none";
+      }
+
+      function getBimModelForObject(objectId) {
+        return bimModelsById.get(String(objectId || "")) || null;
+      }
+
+      function getActiveBimModel() {
+        return getBimModelForObject(activeBimObjectId);
+      }
+
+      function updateBimMenuObjectLabel() {
+        if (!bimReplaceObjectIdEl) return;
+        bimReplaceObjectIdEl.textContent = `Object: ${activeBimObjectId || "-"}`;
+      }
+
+      function updateBimToggleGisButtonLabel() {
+        if (!bimReplaceToggleGisBtn) return;
+        const isHidden = hiddenBimOverlayIds.has(activeBimObjectId);
+        bimReplaceToggleGisBtn.textContent = isHidden ? "Show GIS" : "Hide GIS";
+      }
+
+      function updateBimClipControlsFromActiveModel() {
+        const model = getActiveBimModel();
+        const clipState = model?.clipState || getDefaultClipState();
+        if (bimReplaceClipEnable) bimReplaceClipEnable.checked = !!clipState.enabled;
+        if (bimReplaceClipX) bimReplaceClipX.value = String(Number(clipState.x || 0));
+        if (bimReplaceClipY) bimReplaceClipY.value = String(Number(clipState.y || 0));
+        if (bimReplaceClipZ) bimReplaceClipZ.value = String(Number(clipState.z || 0));
+      }
+
+      function setActiveBimObject(objectId, options = {}) {
+        const id = String(objectId || "").trim();
+        if (!id) return;
+        activeBimObjectId = id;
+        pendingBimTargetObjectId = id;
+        updateBimMenuObjectLabel();
+        updateBimToggleGisButtonLabel();
+        updateBimClipControlsFromActiveModel();
+        if (options.openMenu) showBimReplaceControls(true);
+      }
+
+      function serializePoint(point) {
+        if (!point) return null;
+        return {
+          x: point.x,
+          y: point.y,
+          z: Number.isFinite(point.z) ? point.z : 0,
+          wkid: point.spatialReference?.wkid || view?.spatialReference?.wkid || null
+        };
+      }
+
+      function deserializePoint(stored) {
+        if (!stored || !Number.isFinite(Number(stored.x)) || !Number.isFinite(Number(stored.y))) return null;
+        const wkid = Number(stored.wkid) || view?.spatialReference?.wkid || 3857;
+        return new Point({
+          x: Number(stored.x),
+          y: Number(stored.y),
+          z: Number(stored.z || 0),
+          spatialReference: { wkid }
+        });
       }
 
       function getCenterPointFromGeometry(geometry) {
@@ -1650,13 +1718,15 @@ Maintain safe distance
         }
       }
 
-      async function resolveBimReplaceAnchorPoint() {
-        const overlayGraphic = buildingGraphicsById.get(BIM_REPLACE_TARGET_ID);
+      async function resolveBimReplaceAnchorPoint(objectId) {
+        const key = String(objectId || "");
+        const overlayGraphic = buildingGraphicsById.get(key);
         let sourceGeometry = overlayGraphic?.geometry || null;
         if (!sourceGeometry) {
           try {
+            const safeId = escapeSqlText(key);
             const res = await buildingFootprints.queryFeatures({
-              where: `objektidentitet = '${BIM_REPLACE_TARGET_ID}'`,
+              where: `objektidentitet = '${safeId}'`,
               outFields: ["objektidentitet"],
               returnGeometry: true
             });
@@ -1677,12 +1747,196 @@ Maintain safe distance
         });
       }
 
+      function applyBimFootprintMask() {
+        if (!buildingFootprintsLayerView) return;
+        try {
+          const ids = Array.from(hiddenBimOverlayIds);
+          if (!ids.length) {
+            buildingFootprintsLayerView.featureEffect = null;
+            return;
+          }
+          const where = `objektidentitet IN ('${ids.map((id) => escapeSqlText(id)).join("','")}')`;
+          buildingFootprintsLayerView.featureEffect = {
+            filter: { where },
+            includedEffect: "opacity(12%)",
+            excludedEffect: "opacity(100%)"
+          };
+        } catch (err) {
+          console.warn("Failed to apply footprint BIM mask", err);
+        }
+      }
+
+      function refreshBuildingGraphicForObject(objectId) {
+        const id = String(objectId || "");
+        if (!id) return;
+        const targetGraphic = buildingGraphicsById.get(id);
+        if (!targetGraphic) return;
+        const lastColorKey = lastMapColorKeyById.get(id);
+        const baseColor = lastColorKey ? mapColorForKey(lastColorKey) : [220, 38, 38, 0.9];
+        setBuildingGraphicColor(targetGraphic, baseColor);
+      }
+
+      function setObjectGisHidden(objectId, hidden) {
+        const id = String(objectId || "").trim();
+        if (!id) return;
+        if (hidden) hiddenBimOverlayIds.add(id);
+        else hiddenBimOverlayIds.delete(id);
+        const model = getBimModelForObject(id);
+        if (model) model.hideGis = !!hidden;
+        refreshBuildingGraphicForObject(id);
+        applyBimFootprintMask();
+        if (id === activeBimObjectId) updateBimToggleGisButtonLabel();
+      }
+
+      function buildBimGraphic({ objectId, point, sourceUrl, fileName }) {
+        return new Graphic({
+          geometry: point,
+          attributes: {
+            objektidentitet: objectId,
+            objectId,
+            source: "glb-replacement",
+            fileName: fileName || "model.glb"
+          },
+          symbol: {
+            type: "point-3d",
+            symbolLayers: [{
+              type: "object",
+              resource: { href: sourceUrl },
+              heading: 0
+            }]
+          }
+        });
+      }
+
+      function cleanupModelObjectUrl(model) {
+        if (model?.objectUrl) {
+          URL.revokeObjectURL(model.objectUrl);
+          model.objectUrl = null;
+        }
+      }
+
+      function upsertBimModel(modelLike, options = {}) {
+        const objectId = String(modelLike?.objectId || "").trim();
+        if (!objectId || !modelLike?.sourceUrl || !modelLike?.point) return null;
+        const existing = getBimModelForObject(objectId);
+        if (existing?.graphic) bimReplacementLayer.remove(existing.graphic);
+        if (existing && existing.objectUrl && existing.objectUrl !== modelLike.objectUrl) {
+          cleanupModelObjectUrl(existing);
+        }
+        const graphic = buildBimGraphic({
+          objectId,
+          point: modelLike.point,
+          sourceUrl: modelLike.sourceUrl,
+          fileName: modelLike.fileName
+        });
+        bimReplacementLayer.add(graphic);
+        const clipState = { ...getDefaultClipState(), ...(existing?.clipState || {}), ...(modelLike.clipState || {}) };
+        const model = {
+          objectId,
+          fileName: modelLike.fileName || existing?.fileName || "model.glb",
+          sourceUrl: modelLike.sourceUrl,
+          dataUrl: modelLike.dataUrl || existing?.dataUrl || null,
+          file: modelLike.file || existing?.file || null,
+          objectUrl: modelLike.objectUrl || null,
+          hideGis: modelLike.hideGis != null ? !!modelLike.hideGis : (existing?.hideGis ?? true),
+          clipState,
+          graphic
+        };
+        bimModelsById.set(objectId, model);
+        setObjectGisHidden(objectId, model.hideGis);
+        if (options.select) {
+          setActiveBimObject(objectId, { openMenu: options.openMenu !== false });
+        }
+        return model;
+      }
+
+      function loadPersistedBimStore() {
+        try {
+          return JSON.parse(localStorage.getItem(BIM_REPLACE_STORAGE_KEY) || "{}") || {};
+        } catch (err) {
+          return {};
+        }
+      }
+
+      function savePersistedBimStore(store) {
+        localStorage.setItem(BIM_REPLACE_STORAGE_KEY, JSON.stringify(store || {}));
+      }
+
+      function removePersistedBimModel(objectId) {
+        const id = String(objectId || "").trim();
+        if (!id) return;
+        const store = loadPersistedBimStore();
+        if (store[id]) {
+          delete store[id];
+          savePersistedBimStore(store);
+        }
+      }
+
+      function readFileAsDataUrl(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(new Error("Could not read file"));
+          reader.readAsDataURL(file);
+        });
+      }
+
+      async function getPersistableDataUrl(model) {
+        if (!model) return "";
+        if (model.dataUrl && model.dataUrl.startsWith("data:")) return model.dataUrl;
+        if (model.file) return await readFileAsDataUrl(model.file);
+        if (model.sourceUrl && model.sourceUrl.startsWith("data:")) return model.sourceUrl;
+        if (model.sourceUrl && model.sourceUrl.startsWith("blob:")) {
+          const res = await fetch(model.sourceUrl);
+          const blob = await res.blob();
+          return await readFileAsDataUrl(blob);
+        }
+        return "";
+      }
+
+      async function saveActiveBimModel() {
+        const model = getActiveBimModel();
+        if (!model || !model.graphic) {
+          setBimReplaceStatus("No active model to save.");
+          return;
+        }
+        let dataUrl = "";
+        try {
+          dataUrl = await getPersistableDataUrl(model);
+        } catch (err) {
+          console.warn("Could not build model data URL", err);
+        }
+        if (!dataUrl) {
+          setBimReplaceStatus("Could not save model data.");
+          return;
+        }
+        const objectId = model.objectId;
+        const store = loadPersistedBimStore();
+        store[objectId] = {
+          objectId,
+          fileName: model.fileName || "model.glb",
+          dataUrl,
+          geometry: serializePoint(model.graphic.geometry),
+          hideGis: hiddenBimOverlayIds.has(objectId),
+          clipState: { ...getDefaultClipState(), ...(model.clipState || {}) },
+          savedAt: new Date().toISOString()
+        };
+        try {
+          savePersistedBimStore(store);
+          model.dataUrl = dataUrl;
+          setBimReplaceStatus(`Saved model for ${objectId}.`);
+        } catch (err) {
+          console.warn("Could not persist BIM model", err);
+          setBimReplaceStatus("Save failed (storage limit).");
+        }
+      }
+
       function ensureBimReplaceSketchVM() {
         if (bimReplaceSketchVM) return bimReplaceSketchVM;
         bimReplaceSketchVM = new SketchViewModel({
           view,
           layer: bimReplacementLayer,
-          updateOnGraphicClick: true,
+          updateOnGraphicClick: false,
           defaultUpdateOptions: {
             tool: "transform",
             toggleToolOnClick: false,
@@ -1694,6 +1948,10 @@ Maintain safe distance
         });
         bimReplaceSketchVM.on("update", (event) => {
           if (event.state === "active") return;
+          const model = getActiveBimModel();
+          if (model?.graphic) {
+            model.lastGeometry = serializePoint(model.graphic.geometry);
+          }
           if (event.state === "complete") {
             setBimReplaceStatus("Model position updated.");
           } else if (event.state === "cancel") {
@@ -1703,37 +1961,15 @@ Maintain safe distance
         return bimReplaceSketchVM;
       }
 
-      function showBimReplaceControls(show) {
-        if (!bimReplaceControlsEl) return;
-        bimReplaceControlsEl.style.display = show ? "block" : "none";
-      }
-
-      function removeBimReplacement(options = {}) {
-        const { restoreOverlay = true, keepStatus = false } = options;
-        if (bimReplaceSketchVM) {
-          try {
-            bimReplaceSketchVM.cancel();
-          } catch (err) {
-            // ignore cancel errors
-          }
-        }
-        bimReplacementLayer.removeAll();
-        bimReplaceGraphic = null;
-        if (bimReplaceObjectUrl) {
-          URL.revokeObjectURL(bimReplaceObjectUrl);
-          bimReplaceObjectUrl = null;
-        }
-        if (bimReplaceFileInput) bimReplaceFileInput.value = "";
-        if (restoreOverlay) setBimOverlayTargetHidden(false);
-        if (!keepStatus) setBimReplaceStatus("Model removed.");
-        showBimReplaceControls(false);
-      }
-
       function startBimReplacementEdit(tool) {
-        if (!bimReplaceGraphic) return;
+        const model = getActiveBimModel();
+        if (!model?.graphic) {
+          setBimReplaceStatus("Load a model for this object first.");
+          return;
+        }
         const sketchVM = ensureBimReplaceSketchVM();
         sketchVM.cancel();
-        sketchVM.update(bimReplaceGraphic, {
+        sketchVM.update(model.graphic, {
           tool,
           toggleToolOnClick: false,
           enableRotation: tool === "transform",
@@ -1748,93 +1984,208 @@ Maintain safe distance
         }
       }
 
-      function openBimClipToolForReplacement() {
-        if (!bimReplaceObjectUrl) {
-          setBimReplaceStatus("Load a GLB model first.");
-          return;
-        }
+      function hideBimReplaceMenu() {
+        showBimReplaceControls(false);
+        setBimViewerClipPreview(false);
+        suppressBimMenuOpenUntil = Date.now() + 150;
+      }
+
+      function getClipStateFromMenu() {
+        return {
+          enabled: !!bimReplaceClipEnable?.checked,
+          x: Number(bimReplaceClipX?.value || 0),
+          y: Number(bimReplaceClipY?.value || 0),
+          z: Number(bimReplaceClipZ?.value || 0)
+        };
+      }
+
+      function setBimViewerClipPreview(enabled) {
         const panel = document.getElementById("bimViewerPanel");
-        if (panel) panel.classList.add("is-open");
-        if (window.BIMViewer?.loadModel) {
-          window.BIMViewer.loadModel(bimReplaceObjectUrl);
-          const clipToggleEl = document.getElementById("bimClipToggle");
-          if (clipToggleEl && !clipToggleEl.checked) {
-            clipToggleEl.checked = true;
-            clipToggleEl.dispatchEvent(new Event("change"));
-          }
-          setBimReplaceStatus("Clip tool opened (X/Y/Z sliders).");
+        if (!panel) return;
+        if (enabled) {
+          panel.classList.add("is-open");
+          panel.classList.add("bim-viewer-floating-preview");
         } else {
-          setBimReplaceStatus("Clip tool is not available right now.");
+          panel.classList.remove("bim-viewer-floating-preview");
         }
       }
 
-      async function loadBimReplacementFromFile(file) {
-        if (!file) return;
-        const anchorPoint = await resolveBimReplaceAnchorPoint();
+      function applyClipToBimViewerForActiveModel() {
+        const model = getActiveBimModel();
+        if (!model || !window.BIMViewer?.loadModel) {
+          setBimReplaceStatus("Clip viewer is not available.");
+          return;
+        }
+        const sourceUrl = model.dataUrl || model.sourceUrl;
+        if (!sourceUrl) {
+          setBimReplaceStatus("Load model first.");
+          return;
+        }
+        window.BIMViewer.loadModel(sourceUrl);
+        const clipToggleEl = document.getElementById("bimClipToggle");
+        const clipXEl = document.getElementById("bimClipX");
+        const clipYEl = document.getElementById("bimClipY");
+        const clipZEl = document.getElementById("bimClipZ");
+        if (!clipToggleEl || !clipXEl || !clipYEl || !clipZEl) {
+          setBimReplaceStatus("Clip controls are not ready.");
+          return;
+        }
+        const clipState = getClipStateFromMenu();
+        model.clipState = clipState;
+        clipToggleEl.checked = !!clipState.enabled;
+        clipToggleEl.dispatchEvent(new Event("change"));
+        clipXEl.value = String(clipState.x);
+        clipYEl.value = String(clipState.y);
+        clipZEl.value = String(clipState.z);
+        clipXEl.dispatchEvent(new Event("input"));
+        clipYEl.dispatchEvent(new Event("input"));
+        clipZEl.dispatchEvent(new Event("input"));
+        setBimReplaceStatus("Clip updated (X/Y/Z).");
+      }
+
+      function toggleClipControls() {
+        if (!bimReplaceClipControlsEl) return;
+        const show = bimReplaceClipControlsEl.style.display === "none";
+        bimReplaceClipControlsEl.style.display = show ? "block" : "none";
+        setBimViewerClipPreview(show);
+        if (show) applyClipToBimViewerForActiveModel();
+      }
+
+      function bindActiveObjectToMenu(objectId, options = {}) {
+        setActiveBimObject(objectId, { openMenu: options.openMenu !== false });
+        const model = getActiveBimModel();
+        if (model) {
+          setBimReplaceStatus(options.statusText || `Model selected: ${model.fileName}`);
+          if (bimReplaceClipControlsEl?.style.display !== "none") {
+            applyClipToBimViewerForActiveModel();
+          }
+        } else if (options.statusText) {
+          setBimReplaceStatus(options.statusText);
+        }
+      }
+
+      async function removeBimModel(objectId, options = {}) {
+        const id = String(objectId || "").trim();
+        if (!id) return;
+        const model = getBimModelForObject(id);
+        if (!model) return;
+        if (bimReplaceSketchVM) {
+          try { bimReplaceSketchVM.cancel(); } catch (err) { /* ignore */ }
+        }
+        if (model.graphic) bimReplacementLayer.remove(model.graphic);
+        cleanupModelObjectUrl(model);
+        bimModelsById.delete(id);
+        if (options.removePersisted !== false) removePersistedBimModel(id);
+        setObjectGisHidden(id, false);
+        if (activeBimObjectId === id) {
+          const first = Array.from(bimModelsById.keys())[0];
+          if (first) {
+            setActiveBimObject(first, { openMenu: true });
+          } else {
+            setBimReplaceStatus("Model removed.");
+            hideBimReplaceMenu();
+          }
+        }
+      }
+
+      async function loadBimModelFromFileForObject(objectId, file) {
+        const id = String(objectId || "").trim();
+        if (!id || !file) return;
+        const anchorPoint = await resolveBimReplaceAnchorPoint(id);
         if (!anchorPoint) {
           setBimReplaceStatus("Could not find target building geometry.");
           return;
         }
-        if (bimReplaceSketchVM) {
-          bimReplaceSketchVM.cancel();
-        }
-        if (bimReplaceObjectUrl) {
-          URL.revokeObjectURL(bimReplaceObjectUrl);
-          bimReplaceObjectUrl = null;
-        }
-        bimReplaceObjectUrl = URL.createObjectURL(file);
-        setBimOverlayTargetHidden(true);
-        bimReplacementLayer.removeAll();
-        bimReplaceGraphic = new Graphic({
-          geometry: anchorPoint,
-          attributes: {
-            objektidentitet: BIM_REPLACE_TARGET_ID,
-            objectId: BIM_REPLACE_TARGET_ID,
-            source: "glb-replacement",
-            fileName: file.name
-          },
-          symbol: {
-            type: "point-3d",
-            symbolLayers: [{
-              type: "object",
-              resource: { href: bimReplaceObjectUrl },
-              heading: 0
-            }]
-          }
-        });
-        bimReplacementLayer.add(bimReplaceGraphic);
-        showBimReplaceControls(true);
-        setBimReplaceStatus(`Loaded ${file.name}.`);
+        const objectUrl = URL.createObjectURL(file);
+        upsertBimModel({
+          objectId: id,
+          fileName: file.name,
+          point: anchorPoint,
+          sourceUrl: objectUrl,
+          objectUrl,
+          file,
+          hideGis: true
+        }, { select: true, openMenu: true });
+        setBimReplaceStatus(`Loaded ${file.name} for ${id}.`);
         startBimReplacementEdit("move");
       }
 
-      window.startMapBimReplacement = function () {
+      async function restoreSavedBimModels() {
+        const store = loadPersistedBimStore();
+        const models = Object.values(store || {});
+        for (const item of models) {
+          const objectId = String(item?.objectId || "").trim();
+          const dataUrl = String(item?.dataUrl || "");
+          if (!objectId || !dataUrl) continue;
+          let point = deserializePoint(item?.geometry);
+          if (!point) {
+            point = await resolveBimReplaceAnchorPoint(objectId);
+          }
+          if (!point) continue;
+          upsertBimModel({
+            objectId,
+            fileName: item.fileName || "model.glb",
+            point,
+            sourceUrl: dataUrl,
+            dataUrl,
+            hideGis: item.hideGis !== false,
+            clipState: item.clipState || getDefaultClipState()
+          }, { select: false, openMenu: false });
+        }
+      }
+
+      window.startMapBimReplacement = function (objectId) {
         if (typeof closeBuildingInfoModal === "function") closeBuildingInfoModal();
-        if (!bimReplaceFileInput) {
-          setBimReplaceStatus("No GLB file input available.");
-          showBimReplaceControls(true);
+        const fallbackId = lastSelectedBuildingAttrs?.objektidentitet || activeBimObjectId || DEFAULT_BIM_REPLACE_TARGET_ID;
+        const targetId = String(objectId || fallbackId || "").trim();
+        if (!targetId) {
+          setBimReplaceStatus("No target object selected.");
           return;
         }
-        showBimReplaceControls(true);
-        setBimReplaceStatus("Select a GLB file.");
+        bindActiveObjectToMenu(targetId, { openMenu: true, statusText: `Target object: ${targetId}. Select a GLB file.` });
+        if (!bimReplaceFileInput) {
+          setBimReplaceStatus("No GLB file input available.");
+          return;
+        }
+        pendingBimTargetObjectId = targetId;
         bimReplaceFileInput.click();
       };
 
-      bimReplaceFileInput?.addEventListener("change", (event) => {
+      bimReplaceFileInput?.addEventListener("change", async (event) => {
         const file = event?.target?.files?.[0];
         if (!file) return;
-        loadBimReplacementFromFile(file);
+        const targetId = pendingBimTargetObjectId || activeBimObjectId || DEFAULT_BIM_REPLACE_TARGET_ID;
+        await loadBimModelFromFileForObject(targetId, file);
+        bimReplaceFileInput.value = "";
       });
-      bimReplaceLoadBtn?.addEventListener("click", () => window.startMapBimReplacement?.());
+
+      bimReplaceCloseBtn?.addEventListener("click", hideBimReplaceMenu);
+      bimReplaceLoadBtn?.addEventListener("click", () => window.startMapBimReplacement(activeBimObjectId));
+      bimReplaceSaveBtn?.addEventListener("click", saveActiveBimModel);
       bimReplaceMoveBtn?.addEventListener("click", () => startBimReplacementEdit("move"));
       bimReplaceRotateBtn?.addEventListener("click", () => startBimReplacementEdit("transform"));
-      bimReplaceClipBtn?.addEventListener("click", openBimClipToolForReplacement);
-      bimReplaceRemoveBtn?.addEventListener("click", () => removeBimReplacement({ restoreOverlay: true }));
-      window.addEventListener("beforeunload", () => {
-        if (bimReplaceObjectUrl) URL.revokeObjectURL(bimReplaceObjectUrl);
+      bimReplaceToggleGisBtn?.addEventListener("click", () => {
+        const id = activeBimObjectId;
+        const currentlyHidden = hiddenBimOverlayIds.has(id);
+        setObjectGisHidden(id, !currentlyHidden);
+        setBimReplaceStatus(`${!currentlyHidden ? "GIS hidden" : "GIS shown"} for ${id}.`);
       });
-      view.whenLayerView(buildingFootprints).then((layerView) => {
+      bimReplaceClipBtn?.addEventListener("click", toggleClipControls);
+      bimReplaceRemoveBtn?.addEventListener("click", () => removeBimModel(activeBimObjectId, { removePersisted: true }));
+      [bimReplaceClipEnable, bimReplaceClipX, bimReplaceClipY, bimReplaceClipZ].forEach((el) => {
+        if (!el) return;
+        el.addEventListener("input", applyClipToBimViewerForActiveModel);
+        el.addEventListener("change", applyClipToBimViewerForActiveModel);
+      });
+
+      window.addEventListener("beforeunload", () => {
+        bimModelsById.forEach((model) => cleanupModelObjectUrl(model));
+      });
+
+      view.whenLayerView(buildingFootprints).then(async (layerView) => {
         buildingFootprintsLayerView = layerView;
+        await restoreSavedBimModels();
+        setActiveBimObject(activeBimObjectId, { openMenu: false });
         applyBimFootprintMask();
       }).catch((err) => {
         console.warn("Could not get building layer view for BIM mask", err);
@@ -2330,8 +2681,13 @@ Maintain safe distance
         if (e.target && e.target.id === "biClose") closeBuildingInfoModal();
         if (e.target && e.target.id === "biCloseFooter") closeBuildingInfoModal();
         if (e.target && e.target.id === "biOpenBim") {
+          const targetId = String(
+            buildingInfoState?.attrs?.objektidentitet
+            || lastSelectedBuildingAttrs?.objektidentitet
+            || ""
+          ).trim();
           if (window.startMapBimReplacement) {
-            window.startMapBimReplacement();
+            window.startMapBimReplacement(targetId || undefined);
           } else if (window.openBimModal) {
             window.openBimModal();
           }
@@ -5322,6 +5678,21 @@ Maintain safe distance
           lastSafetyClickPoint = event.mapPoint;
         }
       view.hitTest(event).then((hit) => {
+        if (Date.now() < suppressBimMenuOpenUntil) return;
+        const bimModelHit = hit.results.find((r) => r.graphic && r.graphic.layer === bimReplacementLayer);
+        if (bimModelHit) {
+          const objectId = String(
+            bimModelHit.graphic.attributes?.objectId
+            || bimModelHit.graphic.attributes?.objektidentitet
+            || ""
+          ).trim();
+          if (objectId) {
+            bindActiveObjectToMenu(objectId, { openMenu: true, statusText: `Selected model for ${objectId}.` });
+            updateBimClipControlsFromActiveModel();
+          }
+          return;
+        }
+
         const found = hit.results.find((r) => r.graphic);
         if (!found) return;
 
