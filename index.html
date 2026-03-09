@@ -5571,7 +5571,12 @@ Maintain safe distance
       const moving = isShuttleDrivingState(state);
       let speedKmh = 0;
 
-      if (moving && anim) {
+      const directSpeedMps = Number(anim?.currentSpeedMps);
+      if (moving && Number.isFinite(directSpeedMps) && directSpeedMps >= 0) {
+        speedKmh = directSpeedMps * 3.6;
+      }
+
+      if (moving && anim && speedKmh <= 0) {
         const meters = Number(anim.currentMeters) || 0;
         if (shuttleTelemetry.lastSampleMs > 0) {
           const dt = (nowMs - shuttleTelemetry.lastSampleMs) / 1000;

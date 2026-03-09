@@ -2,7 +2,12 @@
   const SHUTTLE_ID = "shuttle-1";
   const SHUTTLE_TYPE = "electric shuttle";
   const SHUTTLE_DEBUG = true;
-  const SPEED_MPS = 11.11;
+  const CRUISE_MIN_MPS = 35 / 3.6;
+  const CRUISE_MAX_MPS = 40 / 3.6;
+  const ACCEL_MPS2 = 5;
+  const DECEL_MPS2 = 5;
+  const AVG_SPEED_MPS = (CRUISE_MIN_MPS + CRUISE_MAX_MPS) / 2;
+  const CRUISE_WAVE_METERS = 140;
   const SHOW_SHUTTLE_ROUTE = true;
   const STATION = { latitude: 57.77101, longitude: 14.26968 };
   const HEALTHCARE = { latitude: 57.77468, longitude: 14.26546 };
@@ -269,7 +274,7 @@
         const line2 = `Ankomst om ${mins} min ${secs} sek`;
         const line3 = `Avstånd kvar: ${Math.round(remainingMeters)} m`;
         const totalToHealth = remainingMeters + (this.healthcareLegMeters || 0);
-        const healthSeconds = totalToHealth / SPEED_MPS;
+        const healthSeconds = totalToHealth / AVG_SPEED_MPS;
         const hMins = Math.floor(healthSeconds / 60);
         const hSecs = Math.max(0, Math.round(healthSeconds % 60));
         const line4 = `Till vårdcentral: ${hMins} min ${hSecs} sek`;
@@ -555,19 +560,37 @@
       if (!sampler) return;
 
       const totalMeters = sampler.total;
-      const totalSeconds = totalMeters / SPEED_MPS;
-      const startTime = performance.now();
-      const distanceAtNow = () => {
-        const elapsed = (performance.now() - startTime) / 1000;
-        return Math.min(totalMeters, elapsed * SPEED_MPS);
-      };
-      const remainingAtNow = () => {
-        const dist = distanceAtNow();
+      const speedAtDistance = (distMeters) => {
+        const dist = Math.max(0, Math.min(totalMeters, distMeters));
         const remaining = Math.max(0, totalMeters - dist);
+        const accelLimit = Math.sqrt(Math.max(0, 2 * ACCEL_MPS2 * dist));
+        const decelLimit = Math.sqrt(Math.max(0, 2 * DECEL_MPS2 * remaining));
+        const wave = 0.5 + 0.5 * Math.sin((dist / CRUISE_WAVE_METERS) * Math.PI * 2);
+        const cruiseTarget = CRUISE_MIN_MPS + wave * (CRUISE_MAX_MPS - CRUISE_MIN_MPS);
+        return Math.max(0, Math.min(accelLimit, decelLimit, cruiseTarget));
+      };
+      const estimateRemainingSeconds = (startDist) => {
+        let s = Math.max(0, Math.min(totalMeters, startDist));
+        let secs = 0;
+        const stepMeters = 8;
+        while (s < totalMeters) {
+          const speed = Math.max(0.5, speedAtDistance(s));
+          const ds = Math.min(stepMeters, totalMeters - s);
+          secs += ds / speed;
+          s += ds;
+          if (secs > 6 * 3600) break;
+        }
+        return secs;
+      };
+      let distNow = 0;
+      let speedNow = 0;
+      const totalSeconds = estimateRemainingSeconds(0);
+      const remainingAtNow = () => {
+        const remaining = Math.max(0, totalMeters - distNow);
         return {
-          dist,
+          dist: distNow,
           remaining,
-          remainingSeconds: remaining / SPEED_MPS
+          remainingSeconds: estimateRemainingSeconds(distNow)
         };
       };
 
@@ -576,6 +599,7 @@
         totalMeters,
         totalSeconds,
         currentMeters: 0,
+        currentSpeedMps: 0,
         currentState: this.currentState
       };
       this.applyShuttleVisual(true);
@@ -590,9 +614,13 @@
       }
 
       await new Promise((resolve) => {
-        const step = () => {
-          const dist = distanceAtNow();
-          const pt = sampler.toGeo(dist);
+        let lastFrame = performance.now();
+        const step = (now) => {
+          const dt = Math.max(0, Math.min(0.2, (now - lastFrame) / 1000));
+          lastFrame = now;
+          speedNow = speedAtDistance(distNow);
+          distNow = Math.min(totalMeters, distNow + speedNow * dt);
+          const pt = sampler.toGeo(distNow);
           if (pt && this.shuttleGraphic) {
             const lon = pt.longitude ?? pt.x;
             const lat = pt.latitude ?? pt.y;
@@ -618,8 +646,11 @@
           if (this.view && typeof this.view.requestRender === "function") {
             this.view.requestRender();
           }
-          window.shuttleAnimationState.currentMeters = dist;
-          if (dist >= totalMeters) {
+          window.shuttleAnimationState.currentMeters = distNow;
+          window.shuttleAnimationState.currentSpeedMps = speedNow;
+          if (distNow >= totalMeters) {
+            window.shuttleAnimationState.currentMeters = totalMeters;
+            window.shuttleAnimationState.currentSpeedMps = 0;
             resolve();
             return;
           }
@@ -640,28 +671,28 @@
     }
 
     buildShuttleSymbol3D({ moving }) {
-      const size = moving ? 20 : 17;
+      const size = moving ? 10 : 10;
       return {
         type: "point-3d",
-        verticalOffset: { screenLength: 48, maxWorldLength: 90, minWorldLength: 20 },
+        verticalOffset: { screenLength: 30, maxWorldLength: 60, minWorldLength: 10 },
         symbolLayers: [{
           type: "icon",
           resource: { primitive: "circle" },
           size,
           material: { color: [37, 99, 235, 0.98] },
-          outline: { color: [255, 255, 255, 0.98], size: 2 }
+          outline: { color: [255, 255, 255, 0.95], size: 1 }
         }]
       };
     }
 
     buildShuttleSymbol2D({ moving }) {
-      const size = moving ? 20 : 17;
+      const size = moving ? 8 : 8;
       return {
-        type: "picture-marker",
-        url: createShuttleIcon(),
-        width: size,
-        height: size,
-        yoffset: 2
+        type: "simple-marker",
+        style: "circle",
+        color: [37, 99, 235, 0.98],
+        size,
+        outline: { color: [255, 255, 255, 0.95], width: 1 }
       };
     }
 
@@ -670,8 +701,8 @@
         type: "simple-marker",
         style: "circle",
         color: [251, 191, 36, 0.95],
-        size: moving ? 10 : 8,
-        outline: { color: [15, 23, 42, 0.95], width: 1.8 }
+        size: moving ? 5 : 5,
+        outline: { color: [15, 23, 42, 0.9], width: 1 }
       };
     }
 
@@ -682,9 +713,9 @@
         symbolLayers: [{
           type: "icon",
           resource: { primitive: "circle" },
-          size: moving ? 11 : 9,
+          size: moving ? 6 : 6,
           material: { color: [251, 191, 36, 0.98] },
-          outline: { color: [15, 23, 42, 0.95], size: 1.2 }
+          outline: { color: [15, 23, 42, 0.95], size: 0.8 }
         }]
       };
     }
