@@ -587,8 +587,8 @@
     <h2>DIGITAL CITY <button id="digitalPanelClose" class="panel-close" type="button" aria-label="Stäng DIGITAL CITY">✕</button></h2>
     <div class="sidebar-scroll">
       <details class="switch-group">
-        <summary class="switch-group-title">LOD</summary>
-        <div class="lod-grid" role="group" aria-label="Level of detail">
+        <summary class="switch-group-title">Zoom</summary>
+        <div class="lod-grid" role="group" aria-label="Zoom level">
           <button class="lod-btn" type="button" data-lod="0">LOD0</button>
           <button class="lod-btn" type="button" data-lod="1">LOD1</button>
           <button class="lod-btn" type="button" data-lod="2">LOD2</button>
@@ -1314,11 +1314,14 @@ Maintain safe distance
       const coordLayer = new GraphicsLayer({ elevationInfo: { mode: "absolute-height" } });
       map.add(coordLayer);
 
+      const defaultCenterLat = 57.77596;
+      const defaultCenterLon = 14.26269;
+      const defaultCameraZ = 5000;
       const view = new SceneView({
         container: "sceneView",
         map,
-        // Start at LOD1 camera to avoid post-load rescale
-        camera: { position: { latitude: 57.762686206841096, longitude: 14.187974955833315, z: 7500 }, tilt: 0 }
+        // Start at Zoom (LOD3) camera without post-load jump
+        camera: { position: { latitude: defaultCenterLat, longitude: defaultCenterLon, z: defaultCameraZ }, tilt: 0 }
       });
       window.view = view;
       const homeCamera = view.camera.clone();
@@ -3372,7 +3375,7 @@ Maintain safe distance
                 : 500;
         if (view && !skipGoTo) {
           if (lvl === 1) {
-            view.goTo({ position: { latitude: 57.762686206841096, longitude: 14.187974955833315, z: targetZ }, tilt: 0 }, { duration: 600 });
+            view.goTo({ position: { latitude: defaultCenterLat, longitude: defaultCenterLon, z: targetZ }, tilt: 0 }, { duration: 600 });
           } else if (view.camera) {
             const cam = view.camera.clone();
             cam.position.z = targetZ;
@@ -3437,8 +3440,8 @@ Maintain safe distance
           applyLod(btn.dataset.lod, false);
         });
       });
-      // Start page in LOD0 (previous LOD1) without triggering a goTo animation
-      applyLod(0, true);
+      // Start page in LOD3 without triggering a goTo animation
+      applyLod(3, true);
       bindGroup(swService, [swForskola, swGrund, swGymn, swVard]);
       bindGroup(swSafety, [swPolice, swFire, swHospital, swShelter]);
 
