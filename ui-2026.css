@@ -114,6 +114,10 @@
   box-shadow: var(--app-shadow-sm);
 }
 
+#info-panel {
+  width: 440px;
+}
+
 #info-panel h2,
 #digitalPanel h2 {
   font-size: 13px;
@@ -538,6 +542,74 @@ button.ghost:hover {
   font-size: 12px;
   padding: 8px 10px;
   min-height: 36px;
+}
+
+/* Information panel: enforce same visual language as menu + digital panel */
+#info-panel.infoPanel {
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 13px;
+  line-height: 1.35;
+  --bg: var(--app-surface);
+  --card: var(--app-surface);
+  --stroke: var(--app-border);
+  --text: var(--app-text);
+  --muted: var(--app-text-muted);
+  --shadow: var(--app-shadow-sm);
+}
+
+#info-panel.infoPanel .panel-title,
+#info-panel.infoPanel .sectionTitle,
+#info-panel.infoPanel .summaryTitle {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  font-weight: 600;
+}
+
+#info-panel.infoPanel .panel-section,
+#info-panel.infoPanel .panelDetails {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  box-shadow: var(--app-shadow-sm);
+  padding: var(--app-spacing-3);
+}
+
+#info-panel.infoPanel .panelDetailsBody {
+  border-top: 1px solid var(--app-border);
+  padding-top: var(--app-spacing-2);
+}
+
+#info-panel.infoPanel .miniCard {
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-sm);
+  box-shadow: none;
+  padding: 10px;
+}
+
+#info-panel.infoPanel select,
+#info-panel.infoPanel button:not(.panel-close) {
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-sm);
+  padding: 8px 10px;
+  min-height: 36px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+#info-panel.infoPanel button:not(.panel-close):hover {
+  background: #eef2ff;
+}
+
+#info-panel.infoPanel .button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 /* Popup placement so it doesn't clip under header */
