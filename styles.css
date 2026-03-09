@@ -351,6 +351,9 @@ html, body, body.app {
   position: static !important;
   transform: none !important;
 }
+.left-rail #leftTabDigital { order: 1; }
+.left-rail #rightTab { order: 2; }
+.left-rail #leftTabShuttle { order: 3; }
 .left-rail #leftTabMain {
   order: 99;
   margin-top: auto;
