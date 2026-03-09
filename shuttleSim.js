@@ -113,7 +113,7 @@
       this.shuttleGraphic = null;
       this.shuttleFallbackGraphic = null;
       this.shuttleRouteGraphic = null;
-      this.shuttleLayer = new GraphicsLayer({ elevationInfo: { mode: "on-the-ground" } });
+      this.shuttleLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 6 } });
       this.map.add(this.shuttleLayer);
       if (typeof this.map.reorder === "function") {
         this.map.reorder(this.shuttleLayer, this.map.layers.length - 1);
@@ -161,7 +161,7 @@
           id: `${SHUTTLE_ID}-fallback`,
           type: SHUTTLE_TYPE
         },
-        symbol: this.buildShuttleFallback2D({ moving: false }),
+        symbol: this.buildShuttleFallbackSymbol({ moving: false }),
         visible: true
       });
       this.shuttleLayer.addMany([this.shuttleFallbackGraphic, this.shuttleGraphic]);
@@ -178,7 +178,7 @@
         ? this.buildShuttleSymbol3D({ moving })
         : this.buildShuttleSymbol2D({ moving });
       if (this.shuttleFallbackGraphic) {
-        this.shuttleFallbackGraphic.symbol = this.buildShuttleFallback2D({ moving });
+        this.shuttleFallbackGraphic.symbol = this.buildShuttleFallbackSymbol({ moving });
       }
     }
 
@@ -594,10 +594,17 @@
           const dist = distanceAtNow();
           const pt = sampler.toGeo(dist);
           if (pt && this.shuttleGraphic) {
+            const lon = pt.longitude ?? pt.x;
+            const lat = pt.latitude ?? pt.y;
+            if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+              this.debugLog("[shuttle] invalid sampled point, skipping tick");
+              this.animation = requestAnimationFrame(step);
+              return;
+            }
             const nextPoint = this.withElevation({
               type: "point",
-              longitude: pt.longitude,
-              latitude: pt.latitude,
+              longitude: lon,
+              latitude: lat,
               spatialReference: { wkid: 4326 }
             });
             this.shuttleGraphic.geometry = nextPoint;
@@ -633,15 +640,16 @@
     }
 
     buildShuttleSymbol3D({ moving }) {
-      const size = moving ? 26 : 22;
+      const size = moving ? 20 : 17;
       return {
         type: "point-3d",
-        verticalOffset: { screenLength: 40, maxWorldLength: 80, minWorldLength: 20 },
+        verticalOffset: { screenLength: 48, maxWorldLength: 90, minWorldLength: 20 },
         symbolLayers: [{
           type: "icon",
-          resource: { href: createShuttleIcon() },
+          resource: { primitive: "circle" },
           size,
-          outline: { color: [255, 255, 255, 0.95], size: 2 }
+          material: { color: [37, 99, 235, 0.98] },
+          outline: { color: [255, 255, 255, 0.98], size: 2 }
         }]
       };
     }
@@ -665,6 +673,27 @@
         size: moving ? 10 : 8,
         outline: { color: [15, 23, 42, 0.95], width: 1.8 }
       };
+    }
+
+    buildShuttleFallback3D({ moving }) {
+      return {
+        type: "point-3d",
+        verticalOffset: { screenLength: 44, maxWorldLength: 84, minWorldLength: 18 },
+        symbolLayers: [{
+          type: "icon",
+          resource: { primitive: "circle" },
+          size: moving ? 11 : 9,
+          material: { color: [251, 191, 36, 0.98] },
+          outline: { color: [15, 23, 42, 0.95], size: 1.2 }
+        }]
+      };
+    }
+
+    buildShuttleFallbackSymbol({ moving }) {
+      const is3d = this.view && this.view.type === "3d";
+      return is3d
+        ? this.buildShuttleFallback3D({ moving })
+        : this.buildShuttleFallback2D({ moving });
     }
 
     debugTick(point) {
