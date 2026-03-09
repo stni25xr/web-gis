@@ -172,9 +172,9 @@
     .infoPanel .cardTitle { font-size:14px; }
     .infoPanel .muted { font-size:13px; color:var(--muted); }
     .infoPanel select,
-    .infoPanel button { font-size:13px; padding:10px 12px; border-radius:12px; line-height:1.1; min-height:38px; }
-    .infoPanel button { background:var(--primary); color:#fff; border-color:var(--primary); }
-    .infoPanel button:hover { background:var(--primaryHover); border-color:var(--primaryHover); }
+    .infoPanel button:not(.panel-close) { font-size:13px; padding:10px 12px; border-radius:12px; line-height:1.1; min-height:38px; }
+    .infoPanel button:not(.panel-close) { background:var(--primary); color:#fff; border-color:var(--primary); }
+    .infoPanel button:not(.panel-close):hover { background:var(--primaryHover); border-color:var(--primaryHover); }
     .infoPanel button.secondary,
     .infoPanel button.secondary:hover {
       background:#fff; color:var(--text); border:1px solid var(--stroke);
@@ -812,7 +812,6 @@
   <div id="sceneView" role="main" aria-label="3D‑karta"></div>
   <div id="windBlueTint" class="wind-blue-tint hidden" aria-hidden="true"></div>
   <div id="bus15Widget" aria-live="polite">Bus simulation: init...</div>
-  <div id="busDebugPopup" aria-live="polite">Bus: idle</div>
   <div id="iotContainer" style="display:none;"></div>
   <div id="bimModal" style="display:none;">
     <div class="bim-modal">
@@ -3957,7 +3956,6 @@ Maintain safe distance
             busDashLayer.add(busVehicleGraphic);
           }
 
-          const busDebug = document.getElementById("busDebugPopup");
           busDashTimer = setInterval(() => {
             if (!busDashTotal || busDashTotal <= 0) return;
             busDashPhase = (busDashPhase + 10) % busDashTotal;
@@ -3966,9 +3964,6 @@ Maintain safe distance
             const busPoint = buildBusPointFromRoute(routePoints, busDashPhase);
             if (busPoint && busVehicleGraphic) {
               busVehicleGraphic.geometry = busPoint;
-              if (busDebug) busDebug.textContent = "Bus: moving (red dot following route)";
-            } else if (busDebug) {
-              busDebug.textContent = "Bus: waiting for route point";
             }
           }, 400);
         });
