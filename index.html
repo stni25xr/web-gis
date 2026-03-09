@@ -1074,7 +1074,7 @@ Maintain safe distance
   </div>
 
   <!-- Simulation time bar -->
-  <div id="simTimeBar" class="sim-time-bar">
+  <div id="simTimeBar" class="sim-time-bar" style="display:none;">
     <button id="routeColorInfoBtn" type="button" class="sim-info-btn" disabled>Färger?</button>
     <div class="sim-time-label">Simulation time</div>
     <div id="simTimeValue" class="sim-time-value">—</div>
@@ -1299,8 +1299,6 @@ Maintain safe distance
       const routeLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 } });
       map.add(routeLayer);
       window.__routeEyeOffset = routeLayer?.elevationInfo?.offset ?? 1.7;
-      const corridorLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 1 } });
-      map.add(corridorLayer);
       const safetyRouteLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 } });
       map.add(safetyRouteLayer);
       const policeDriveLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 3 } });
@@ -1561,7 +1559,10 @@ Maintain safe distance
       // Force 18m height for specific objektidentitet values
       const FIXED_HEIGHT_IDS = new Set(SIM_OBJECT_IDS);
       const ALARM_OBJECT_ID = "e0c44880-6f88-4525-96e3-158cba7b058f";
-      const BIM_OVERLAY_IDS = Array.from(new Set([...SIM_OBJECT_IDS, ALARM_OBJECT_ID]));
+      const SHOW_ALARM_112 = false;
+      const BIM_OVERLAY_IDS = SHOW_ALARM_112
+        ? Array.from(new Set([...SIM_OBJECT_IDS, ALARM_OBJECT_ID]))
+        : Array.from(new Set([...SIM_OBJECT_IDS]));
       const buildingGraphicsById = new window.Map();
       const lastMapColorKeyById = new window.Map();
       const alarmState = {
@@ -1668,6 +1669,7 @@ Maintain safe distance
       }
 
       window.showAlarmModal = function () {
+        if (!SHOW_ALARM_112) return;
         const modal = document.getElementById("alarmModal");
         if (modal) modal.style.display = "flex";
       };
@@ -2699,6 +2701,7 @@ Maintain safe distance
       }
 
       function startAlarmLoop() {
+        if (!SHOW_ALARM_112) return;
         if (alarmState.intervalId) return;
         startAlarmFlashSession();
         alarmState.intervalId = setInterval(() => {
@@ -4735,26 +4738,11 @@ Maintain safe distance
 
           const renderGradientRoute = async (coords, totalMeters) => {
             routeLayer.removeAll();
-            corridorLayer.removeAll();
             const route = new Polyline({
               paths: [coords],
               spatialReference: { wkid: 4326 }
             });
             lastRouteGeometry = route;
-            try {
-              const corridorWidth = 26;
-              const corridor = geometryEngine.geodesicBuffer(route, corridorWidth, "meters");
-              corridorLayer.add(new Graphic({
-                geometry: corridor,
-                symbol: {
-                  type: "simple-fill",
-                  color: [30, 64, 175, 0.08],
-                  outline: { color: [30, 64, 175, 0.18], width: 1 }
-                }
-              }));
-            } catch (e) {
-              // ignore buffer errors
-            }
             let cumulative = 0;
             for (let i = 1; i < coords.length; i++) {
               const a = coords[i - 1];
@@ -4818,7 +4806,6 @@ Maintain safe distance
 
       function clearRoute() {
         routeLayer.removeAll();
-        corridorLayer.removeAll();
         lastRouteGeometry = null;
         lastWalkRoute = null;
         if (typeof window.stopRadarBeam === "function") window.stopRadarBeam();
@@ -5111,7 +5098,7 @@ Maintain safe distance
         if (isBuilding) {
           lastSelectedBuildingAttrs = found.graphic.attributes || null;
           const id = found.graphic.attributes?.objektidentitet;
-          if (id === ALARM_OBJECT_ID) {
+          if (SHOW_ALARM_112 && id === ALARM_OBJECT_ID) {
             window.showAlarmModal();
           }
           if (SIM_OBJECT_IDS.includes(id)) {
