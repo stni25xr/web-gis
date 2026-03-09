@@ -326,6 +326,54 @@
   color: #e2e8f0;
 }
 
+.bim-replace-controls {
+  position: fixed;
+  top: calc(var(--header-height, 64px) + 16px);
+  right: 16px;
+  width: min(320px, calc(100vw - 24px));
+  z-index: 1600;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(2, 6, 23, 0.42);
+  padding: 10px;
+  color: #e2e8f0;
+}
+
+.bim-replace-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bim-replace-status {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.bim-replace-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.bim-replace-actions button {
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #111827;
+  color: #e2e8f0;
+  font-size: 12px;
+  padding: 7px 8px;
+  cursor: pointer;
+}
+
+.bim-replace-actions button:hover {
+  background: #1f2937;
+}
+
 .bim-slider {
   display: grid;
   grid-template-columns: 20px 1fr;

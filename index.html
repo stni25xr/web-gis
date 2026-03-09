@@ -813,6 +813,17 @@
   <div id="windBlueTint" class="wind-blue-tint hidden" aria-hidden="true"></div>
   <div id="bus15Widget" aria-live="polite">Bus simulation: init...</div>
   <div id="iotContainer" style="display:none;"></div>
+  <input id="bimReplaceFile" type="file" accept=".glb,.gbl" style="display:none;" />
+  <div id="bimReplaceControls" class="bim-replace-controls" style="display:none;" aria-label="GLB replace controls">
+    <div class="bim-replace-title">GLB model on map</div>
+    <div id="bimReplaceStatus" class="bim-replace-status">No model loaded.</div>
+    <div class="bim-replace-actions">
+      <button id="bimReplaceLoad" type="button">Load GLB</button>
+      <button id="bimReplaceMove" type="button">Move</button>
+      <button id="bimReplaceRotate" type="button">Rotate</button>
+      <button id="bimReplaceRemove" type="button">Remove</button>
+    </div>
+  </div>
   <div id="bimModal" style="display:none;">
     <div class="bim-modal">
       <div class="bim-header">
@@ -1242,8 +1253,9 @@ Maintain safe distance
       "esri/layers/GraphicsLayer",
       "esri/Graphic",
       "esri/widgets/Home",
-      "esri/widgets/Locate"
-    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, WebTileLayer, esriConfig, geometryEngine, webMercatorUtils, Point, externalRenderers, Polyline, Polygon, GraphicsLayer, Graphic, Home, Locate) {
+      "esri/widgets/Locate",
+      "esri/widgets/Sketch/SketchViewModel"
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, WebTileLayer, esriConfig, geometryEngine, webMercatorUtils, Point, externalRenderers, Polyline, Polygon, GraphicsLayer, Graphic, Home, Locate, SketchViewModel) {
 
       const RESROBOT_KEY = window.RESROBOT_KEY || "";
       const ORS_KEY = window.ORS_KEY || "";
@@ -1309,6 +1321,8 @@ Maintain safe distance
       map.add(bimMarkerLayer);
       const bimBuildingLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 0 } });
       map.add(bimBuildingLayer);
+      const bimReplacementLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 0 } });
+      map.add(bimReplacementLayer);
       const busDashLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 4 } });
       map.add(busDashLayer);
       const coordLayer = new GraphicsLayer({ elevationInfo: { mode: "absolute-height" } });
@@ -1577,6 +1591,226 @@ Maintain safe distance
         lastColorKey: null,
         baseSymbol: null
       };
+      const BIM_REPLACE_TARGET_ID = "e11f4a59-b4e9-4316-8850-3fe72633a93d";
+      const hiddenBimOverlayIds = new Set();
+      const bimReplaceControlsEl = document.getElementById("bimReplaceControls");
+      const bimReplaceStatusEl = document.getElementById("bimReplaceStatus");
+      const bimReplaceFileInput = document.getElementById("bimReplaceFile");
+      const bimReplaceLoadBtn = document.getElementById("bimReplaceLoad");
+      const bimReplaceMoveBtn = document.getElementById("bimReplaceMove");
+      const bimReplaceRotateBtn = document.getElementById("bimReplaceRotate");
+      const bimReplaceRemoveBtn = document.getElementById("bimReplaceRemove");
+      let bimReplaceSketchVM = null;
+      let bimReplaceGraphic = null;
+      let bimReplaceObjectUrl = null;
+      let buildingFootprintsLayerView = null;
+
+      function applyBimFootprintMask() {
+        if (!buildingFootprintsLayerView) return;
+        try {
+          if (hiddenBimOverlayIds.has(BIM_REPLACE_TARGET_ID)) {
+            buildingFootprintsLayerView.featureEffect = {
+              filter: { where: `objektidentitet <> '${BIM_REPLACE_TARGET_ID}'` },
+              excludedEffect: "opacity(0%)"
+            };
+          } else {
+            buildingFootprintsLayerView.featureEffect = null;
+          }
+        } catch (err) {
+          console.warn("Failed to apply footprint BIM mask", err);
+        }
+      }
+
+      function setBimReplaceStatus(text) {
+        if (bimReplaceStatusEl) bimReplaceStatusEl.textContent = text || "";
+      }
+
+      function setBimOverlayTargetHidden(hidden) {
+        if (hidden) hiddenBimOverlayIds.add(BIM_REPLACE_TARGET_ID);
+        else hiddenBimOverlayIds.delete(BIM_REPLACE_TARGET_ID);
+        const targetGraphic = buildingGraphicsById.get(BIM_REPLACE_TARGET_ID);
+        if (targetGraphic) targetGraphic.visible = !hidden;
+        applyBimFootprintMask();
+      }
+
+      function getCenterPointFromGeometry(geometry) {
+        if (!geometry) return null;
+        if (geometry.type === "point") return geometry;
+        try {
+          return geometryEngine.centroid(geometry);
+        } catch (err) {
+          return geometry.extent?.center || null;
+        }
+      }
+
+      async function resolveBimReplaceAnchorPoint() {
+        const overlayGraphic = buildingGraphicsById.get(BIM_REPLACE_TARGET_ID);
+        let sourceGeometry = overlayGraphic?.geometry || null;
+        if (!sourceGeometry) {
+          try {
+            const res = await buildingFootprints.queryFeatures({
+              where: `objektidentitet = '${BIM_REPLACE_TARGET_ID}'`,
+              outFields: ["objektidentitet"],
+              returnGeometry: true
+            });
+            sourceGeometry = res?.features?.[0]?.geometry || null;
+          } catch (err) {
+            console.warn("Failed to query BIM replace geometry", err);
+          }
+        }
+        const center = getCenterPointFromGeometry(sourceGeometry);
+        if (!center) return null;
+        const surface = await getSurfaceZ(center);
+        const z = Number.isFinite(surface?.z) ? surface.z : (Number.isFinite(center.z) ? center.z : 0);
+        return new Point({
+          x: center.x,
+          y: center.y,
+          z,
+          spatialReference: center.spatialReference || view.spatialReference
+        });
+      }
+
+      function ensureBimReplaceSketchVM() {
+        if (bimReplaceSketchVM) return bimReplaceSketchVM;
+        bimReplaceSketchVM = new SketchViewModel({
+          view,
+          layer: bimReplacementLayer,
+          updateOnGraphicClick: true,
+          defaultUpdateOptions: {
+            tool: "transform",
+            toggleToolOnClick: false,
+            enableRotation: true,
+            enableScaling: false,
+            preserveAspectRatio: true,
+            multipleSelectionEnabled: false
+          }
+        });
+        bimReplaceSketchVM.on("update", (event) => {
+          if (event.state === "active") return;
+          if (event.state === "complete") {
+            setBimReplaceStatus("Model position updated.");
+          } else if (event.state === "cancel") {
+            setBimReplaceStatus("Edit canceled.");
+          }
+        });
+        return bimReplaceSketchVM;
+      }
+
+      function showBimReplaceControls(show) {
+        if (!bimReplaceControlsEl) return;
+        bimReplaceControlsEl.style.display = show ? "block" : "none";
+      }
+
+      function removeBimReplacement(options = {}) {
+        const { restoreOverlay = true, keepStatus = false } = options;
+        if (bimReplaceSketchVM) {
+          try {
+            bimReplaceSketchVM.cancel();
+          } catch (err) {
+            // ignore cancel errors
+          }
+        }
+        bimReplacementLayer.removeAll();
+        bimReplaceGraphic = null;
+        if (bimReplaceObjectUrl) {
+          URL.revokeObjectURL(bimReplaceObjectUrl);
+          bimReplaceObjectUrl = null;
+        }
+        if (bimReplaceFileInput) bimReplaceFileInput.value = "";
+        if (restoreOverlay) setBimOverlayTargetHidden(false);
+        if (!keepStatus) setBimReplaceStatus("Model removed.");
+        showBimReplaceControls(false);
+      }
+
+      function startBimReplacementEdit(tool) {
+        if (!bimReplaceGraphic) return;
+        const sketchVM = ensureBimReplaceSketchVM();
+        sketchVM.cancel();
+        sketchVM.update(bimReplaceGraphic, {
+          tool,
+          toggleToolOnClick: false,
+          enableRotation: tool === "transform",
+          enableScaling: false,
+          preserveAspectRatio: true,
+          multipleSelectionEnabled: false
+        });
+        if (tool === "move") {
+          setBimReplaceStatus("Move mode: drag the GLB model.");
+        } else {
+          setBimReplaceStatus("Rotate mode: use the transform ring.");
+        }
+      }
+
+      async function loadBimReplacementFromFile(file) {
+        if (!file) return;
+        const anchorPoint = await resolveBimReplaceAnchorPoint();
+        if (!anchorPoint) {
+          setBimReplaceStatus("Could not find target building geometry.");
+          return;
+        }
+        if (bimReplaceSketchVM) {
+          bimReplaceSketchVM.cancel();
+        }
+        if (bimReplaceObjectUrl) {
+          URL.revokeObjectURL(bimReplaceObjectUrl);
+          bimReplaceObjectUrl = null;
+        }
+        bimReplaceObjectUrl = URL.createObjectURL(file);
+        setBimOverlayTargetHidden(true);
+        bimReplacementLayer.removeAll();
+        bimReplaceGraphic = new Graphic({
+          geometry: anchorPoint,
+          attributes: {
+            objektidentitet: BIM_REPLACE_TARGET_ID,
+            objectId: BIM_REPLACE_TARGET_ID,
+            source: "glb-replacement",
+            fileName: file.name
+          },
+          symbol: {
+            type: "point-3d",
+            symbolLayers: [{
+              type: "object",
+              resource: { href: bimReplaceObjectUrl },
+              heading: 0
+            }]
+          }
+        });
+        bimReplacementLayer.add(bimReplaceGraphic);
+        showBimReplaceControls(true);
+        setBimReplaceStatus(`Loaded ${file.name}.`);
+        startBimReplacementEdit("move");
+      }
+
+      window.startMapBimReplacement = function () {
+        if (typeof closeBuildingInfoModal === "function") closeBuildingInfoModal();
+        if (!bimReplaceFileInput) {
+          setBimReplaceStatus("No GLB file input available.");
+          showBimReplaceControls(true);
+          return;
+        }
+        showBimReplaceControls(true);
+        setBimReplaceStatus("Select a GLB file.");
+        bimReplaceFileInput.click();
+      };
+
+      bimReplaceFileInput?.addEventListener("change", (event) => {
+        const file = event?.target?.files?.[0];
+        if (!file) return;
+        loadBimReplacementFromFile(file);
+      });
+      bimReplaceLoadBtn?.addEventListener("click", () => window.startMapBimReplacement?.());
+      bimReplaceMoveBtn?.addEventListener("click", () => startBimReplacementEdit("move"));
+      bimReplaceRotateBtn?.addEventListener("click", () => startBimReplacementEdit("transform"));
+      bimReplaceRemoveBtn?.addEventListener("click", () => removeBimReplacement({ restoreOverlay: true }));
+      window.addEventListener("beforeunload", () => {
+        if (bimReplaceObjectUrl) URL.revokeObjectURL(bimReplaceObjectUrl);
+      });
+      view.whenLayerView(buildingFootprints).then((layerView) => {
+        buildingFootprintsLayerView = layerView;
+        applyBimFootprintMask();
+      }).catch((err) => {
+        console.warn("Could not get building layer view for BIM mask", err);
+      });
       function tryInitPm25(attempt = 0) {
         if (typeof window.initPm25Live === "function") {
           window.initPm25Live({ view, GraphicsLayer, Graphic, FeatureLayer });
@@ -2060,7 +2294,11 @@ Maintain safe distance
         if (e.target && e.target.id === "biClose") closeBuildingInfoModal();
         if (e.target && e.target.id === "biCloseFooter") closeBuildingInfoModal();
         if (e.target && e.target.id === "biOpenBim") {
-          if (window.openBimModal) window.openBimModal();
+          if (window.startMapBimReplacement) {
+            window.startMapBimReplacement();
+          } else if (window.openBimModal) {
+            window.openBimModal();
+          }
         }
         if (e.target && e.target.id === "biOpenElSim") {
           if (typeof window.openIoTSimulation === "function") {
@@ -2825,6 +3063,7 @@ Maintain safe distance
             const graphic = new Graphic({
               geometry: f.geometry,
               attributes: f.attributes || {},
+              visible: !hiddenBimOverlayIds.has(id),
               symbol: {
                 type: "polygon-3d",
                 symbolLayers: [{
@@ -5401,6 +5640,10 @@ Maintain safe distance
 
   <script>
     window.openBimModal = function () {
+      if (typeof window.startMapBimReplacement === "function") {
+        window.startMapBimReplacement();
+        return;
+      }
       const modal = document.getElementById("bimModal");
       const frame = document.getElementById("bimFrame");
       if (!modal || !frame) return;
