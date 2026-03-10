@@ -1268,8 +1268,9 @@ Maintain safe distance
       "esri/Graphic",
       "esri/widgets/Home",
       "esri/widgets/Locate",
-      "esri/widgets/Sketch/SketchViewModel"
-    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, WebTileLayer, esriConfig, geometryEngine, webMercatorUtils, Point, externalRenderers, Polyline, Polygon, GraphicsLayer, Graphic, Home, Locate, SketchViewModel) {
+      "esri/widgets/Sketch/SketchViewModel",
+      "esri/widgets/Slice"
+    ], function (Map, SceneView, SceneLayer, GeoJSONLayer, FeatureLayer, WebTileLayer, esriConfig, geometryEngine, webMercatorUtils, Point, externalRenderers, Polyline, Polygon, GraphicsLayer, Graphic, Home, Locate, SketchViewModel, Slice) {
 
       const RESROBOT_KEY = window.RESROBOT_KEY || "";
       const ORS_KEY = window.ORS_KEY || "";
@@ -1633,10 +1634,14 @@ Maintain safe distance
       let pendingBimTargetObjectId = DEFAULT_BIM_REPLACE_TARGET_ID;
       let suppressBimMenuOpenUntil = 0;
       let buildingTypeFilterValue = "";
-      let bimViewerDetachedForClip = false;
-      let bimViewerOriginalParent = null;
-      let bimViewerOriginalNextSibling = null;
-      let bimPreviewSourceKey = "";
+      let sliceWidget = null;
+      let sliceWidgetContainer = null;
+      let sliceActiveObjectId = "";
+      if (bimReplaceClipControlsEl) {
+        bimReplaceClipControlsEl.querySelectorAll(".bim-replace-clip-slider").forEach((el) => {
+          el.style.display = "none";
+        });
+      }
 
       function getDefaultClipState() {
         return { enabled: false, x: 0, y: 0, z: 0 };
@@ -1681,6 +1686,9 @@ Maintain safe distance
         if (bimReplaceClipX) bimReplaceClipX.value = String(Number(clipState.x || 0));
         if (bimReplaceClipY) bimReplaceClipY.value = String(Number(clipState.y || 0));
         if (bimReplaceClipZ) bimReplaceClipZ.value = String(Number(clipState.z || 0));
+        if (bimReplaceClipBtn) {
+          bimReplaceClipBtn.textContent = clipState.enabled ? "Stop Clip" : "Clip";
+        }
       }
 
       function setActiveBimObject(objectId, options = {}) {
@@ -1962,7 +1970,7 @@ Maintain safe distance
           if (model?.graphic) {
             model.lastGeometry = serializePoint(model.graphic.geometry);
           }
-          if (bimReplaceClipControlsEl?.style.display !== "none") {
+          if (model?.clipState?.enabled) {
             applyClipToBimViewerForActiveModel();
           }
           if (event.state === "complete") {
@@ -1999,8 +2007,7 @@ Maintain safe distance
 
       function hideBimReplaceMenu() {
         showBimReplaceControls(false);
-        setBimViewerClipPreview(false);
-        bimPreviewSourceKey = "";
+        clearActiveSlice();
         suppressBimMenuOpenUntil = Date.now() + 150;
       }
 
@@ -2013,106 +2020,101 @@ Maintain safe distance
         };
       }
 
-      function positionBimViewerClipPreview() {
-        const panel = document.getElementById("bimViewerPanel");
-        if (!panel || !panel.classList.contains("bim-viewer-floating-preview")) return;
-        const model = getActiveBimModel();
-        const point = model?.graphic?.geometry;
-        const headerHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-height")) || 64;
-        const margin = 12;
-        const width = Math.min(360, Math.max(240, Math.round(window.innerWidth * 0.28)));
-        const height = Math.min(260, Math.max(180, Math.round(window.innerHeight * 0.24)));
-        panel.style.width = `${width}px`;
-        panel.style.height = `${height}px`;
-        panel.style.right = "auto";
-
-        let left = margin;
-        let top = headerHeight + margin;
-        try {
-          if (point && view?.toScreen) {
-            const screen = view.toScreen(point);
-            if (screen && Number.isFinite(screen.x) && Number.isFinite(screen.y)) {
-              left = Math.round(screen.x + 18);
-              top = Math.round(screen.y - height / 2);
-            }
-          }
-        } catch (err) {
-          // fallback to default top-left placement
-        }
-
-        const minLeft = Math.max(56 + 8, margin);
-        const maxLeft = Math.max(minLeft, window.innerWidth - width - margin);
-        const minTop = headerHeight + margin;
-        const maxTop = Math.max(minTop, window.innerHeight - height - margin);
-        panel.style.left = `${Math.min(Math.max(left, minLeft), maxLeft)}px`;
-        panel.style.top = `${Math.min(Math.max(top, minTop), maxTop)}px`;
+      function ensureSliceWidget() {
+        if (sliceWidget) return sliceWidget;
+        sliceWidgetContainer = document.createElement("div");
+        sliceWidgetContainer.id = "mapSliceWidgetContainer";
+        sliceWidgetContainer.style.display = "none";
+        view.ui.add(sliceWidgetContainer, "top-right");
+        sliceWidget = new Slice({
+          view,
+          container: sliceWidgetContainer
+        });
+        return sliceWidget;
       }
 
-      function setBimViewerClipPreview(enabled) {
-        const panel = document.getElementById("bimViewerPanel");
-        if (!panel) return;
-        if (enabled && !bimViewerDetachedForClip) {
-          bimViewerOriginalParent = panel.parentNode;
-          bimViewerOriginalNextSibling = panel.nextSibling;
-          document.body.appendChild(panel);
-          bimViewerDetachedForClip = true;
-        }
-        if (enabled) {
-          panel.classList.add("is-open");
-          panel.classList.add("bim-viewer-floating-preview");
-          positionBimViewerClipPreview();
-          setBimReplaceStatus("Clip preview opened.");
-        } else {
-          panel.classList.remove("bim-viewer-floating-preview");
-          panel.classList.remove("is-open");
-          panel.style.left = "";
-          panel.style.top = "";
-          panel.style.right = "";
-          panel.style.width = "";
-          panel.style.height = "";
-          if (bimViewerDetachedForClip && bimViewerOriginalParent) {
-            bimViewerOriginalParent.insertBefore(panel, bimViewerOriginalNextSibling);
+      function clearActiveSlice() {
+        if (!sliceWidget) return;
+        const vm = sliceWidget.viewModel;
+        const clearMethodNames = ["clear", "reset"];
+        for (const methodName of clearMethodNames) {
+          const method = vm && vm[methodName];
+          if (typeof method !== "function") continue;
+          try {
+            method.call(vm);
+          } catch (err) {
+            // continue to next strategy
           }
-          bimViewerDetachedForClip = false;
         }
+        if (sliceWidgetContainer) sliceWidgetContainer.style.display = "none";
+        sliceActiveObjectId = "";
+      }
+
+      function startSliceAtPoint(point) {
+        const widget = ensureSliceWidget();
+        const vm = widget?.viewModel;
+        if (!vm) return false;
+        const startMethodNames = ["newSlice", "createSlice", "start", "startNewSlice"];
+        for (const methodName of startMethodNames) {
+          const method = vm[methodName];
+          if (typeof method !== "function") continue;
+          try {
+            method.call(vm, point);
+            return true;
+          } catch (err) {
+            try {
+              method.call(vm);
+              return true;
+            } catch (innerErr) {
+              // continue to next strategy
+            }
+          }
+        }
+        return false;
       }
 
       function applyClipToBimViewerForActiveModel() {
         const model = getActiveBimModel();
-        if (!model || !window.BIMViewer?.ensureModelLoaded) {
-          setBimReplaceStatus("Clip viewer is not available.");
-          return;
-        }
-        const sourceUrl = model.dataUrl || model.sourceUrl;
-        if (!sourceUrl) {
-          setBimReplaceStatus("Load model first.");
+        if (!model?.graphic?.geometry) {
+          setBimReplaceStatus("Load a model for this object first.");
           return;
         }
         const clipState = getClipStateFromMenu();
         model.clipState = clipState;
-        const previewKey = `${model.objectId}|${sourceUrl}`;
-        if (bimPreviewSourceKey !== previewKey) {
-          bimPreviewSourceKey = previewKey;
-          window.BIMViewer.ensureModelLoaded(sourceUrl, { clipState })
-            .then(() => {
-              positionBimViewerClipPreview();
-              setBimReplaceStatus("Clip updated (X/Y/Z).");
-            })
-            .catch(() => setBimReplaceStatus("Could not open clip preview."));
-        } else {
-          window.BIMViewer.applyClipState?.(clipState);
-          positionBimViewerClipPreview();
-          setBimReplaceStatus("Clip updated (X/Y/Z).");
+        if (!clipState.enabled) {
+          if (sliceActiveObjectId === model.objectId || sliceActiveObjectId === "") {
+            clearActiveSlice();
+          }
+          setBimReplaceStatus("Clip disabled.");
+          return;
         }
+        const started = startSliceAtPoint(model.graphic.geometry);
+        if (!started) {
+          setBimReplaceStatus("Could not start map slicing.");
+          return;
+        }
+        if (sliceWidgetContainer) sliceWidgetContainer.style.display = "none";
+        sliceActiveObjectId = model.objectId;
+        setBimReplaceStatus("Clip enabled. Adjust the slice plane in the map.");
       }
 
       function toggleClipControls() {
-        if (!bimReplaceClipControlsEl) return;
-        const show = bimReplaceClipControlsEl.style.display === "none";
-        bimReplaceClipControlsEl.style.display = show ? "block" : "none";
-        setBimViewerClipPreview(show);
-        if (!show) bimPreviewSourceKey = "";
-        if (show) applyClipToBimViewerForActiveModel();
+        const model = getActiveBimModel();
+        if (!model) {
+          setBimReplaceStatus("Select a model first.");
+          return;
+        }
+        const enabled = !(model.clipState?.enabled);
+        model.clipState = { ...getDefaultClipState(), ...(model.clipState || {}), enabled };
+        if (bimReplaceClipEnable) bimReplaceClipEnable.checked = enabled;
+        if (bimReplaceClipControlsEl) bimReplaceClipControlsEl.style.display = enabled ? "block" : "none";
+        if (enabled) {
+          applyClipToBimViewerForActiveModel();
+        } else {
+          clearActiveSlice();
+          setBimReplaceStatus("Clip disabled.");
+        }
+        updateBimClipControlsFromActiveModel();
       }
 
       function bindActiveObjectToMenu(objectId, options = {}) {
@@ -2120,8 +2122,10 @@ Maintain safe distance
         const model = getActiveBimModel();
         if (model) {
           setBimReplaceStatus(options.statusText || `Model selected: ${model.fileName}`);
-          if (bimReplaceClipControlsEl?.style.display !== "none") {
+          if (model.clipState?.enabled) {
             applyClipToBimViewerForActiveModel();
+          } else if (sliceActiveObjectId && sliceActiveObjectId !== model.objectId) {
+            clearActiveSlice();
           }
         } else if (options.statusText) {
           setBimReplaceStatus(options.statusText);
@@ -2139,6 +2143,7 @@ Maintain safe distance
         if (model.graphic) bimReplacementLayer.remove(model.graphic);
         cleanupModelObjectUrl(model);
         bimModelsById.delete(id);
+        if (sliceActiveObjectId === id) clearActiveSlice();
         if (options.removePersisted !== false) removePersistedBimModel(id);
         setObjectGisHidden(id, false);
         if (activeBimObjectId === id) {
@@ -2251,7 +2256,6 @@ Maintain safe distance
         el.addEventListener("input", applyClipToBimViewerForActiveModel);
         el.addEventListener("change", applyClipToBimViewerForActiveModel);
       });
-      window.addEventListener("resize", positionBimViewerClipPreview);
 
       window.addEventListener("beforeunload", () => {
         bimModelsById.forEach((model) => cleanupModelObjectUrl(model));
