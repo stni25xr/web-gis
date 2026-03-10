@@ -828,7 +828,7 @@
       <button id="bimReplaceRotate" type="button">Rotate</button>
       <button id="bimReplaceCancel" type="button">Cancel</button>
       <button id="bimReplaceToggleGis" type="button">Hide GIS</button>
-      <button id="bimReplaceClip" type="button">Clip X/Y/Z</button>
+      <button id="bimReplaceClip" type="button">Clip</button>
       <button id="bimReplaceRemove" type="button">Remove</button>
     </div>
     <div id="bimReplaceClipControls" class="bim-replace-clip-controls" style="display:none;">
@@ -1338,6 +1338,8 @@ Maintain safe distance
       map.add(bimBuildingLayer);
       const bimReplacementLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 0 } });
       map.add(bimReplacementLayer);
+      const bimClipLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 0 } });
+      map.add(bimClipLayer);
       const busDashLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 4 } });
       map.add(busDashLayer);
       const coordLayer = new GraphicsLayer({ elevationInfo: { mode: "absolute-height" } });
@@ -1668,6 +1670,26 @@ Maintain safe distance
         return getBimModelForObject(activeBimObjectId);
       }
 
+      function isBimModelLayer(layer) {
+        return layer === bimReplacementLayer || layer === bimClipLayer;
+      }
+
+      function moveModelGraphicToLayer(model, targetLayer) {
+        if (!model?.graphic || !targetLayer) return;
+        const currentLayer = model.graphic.layer;
+        if (currentLayer === targetLayer) return;
+        if (currentLayer && typeof currentLayer.remove === "function") {
+          currentLayer.remove(model.graphic);
+        }
+        targetLayer.add(model.graphic);
+      }
+
+      function ensureModelInDefaultLayer(objectId) {
+        const model = getBimModelForObject(objectId);
+        if (!model) return;
+        moveModelGraphicToLayer(model, bimReplacementLayer);
+      }
+
       function updateBimMenuObjectLabel() {
         if (!bimReplaceObjectIdEl) return;
         bimReplaceObjectIdEl.textContent = `Object: ${activeBimObjectId || "-"}`;
@@ -1836,8 +1858,12 @@ Maintain safe distance
       function upsertBimModel(modelLike, options = {}) {
         const objectId = String(modelLike?.objectId || "").trim();
         if (!objectId || !modelLike?.sourceUrl || !modelLike?.point) return null;
+        if (sliceActiveObjectId === objectId) {
+          clearActiveSlice();
+        }
         const existing = getBimModelForObject(objectId);
         if (existing?.graphic) bimReplacementLayer.remove(existing.graphic);
+        if (existing?.graphic?.layer === bimClipLayer) bimClipLayer.remove(existing.graphic);
         if (existing && existing.objectUrl && existing.objectUrl !== modelLike.objectUrl) {
           cleanupModelObjectUrl(existing);
         }
@@ -1988,6 +2014,14 @@ Maintain safe distance
           setBimReplaceStatus("Load a model for this object first.");
           return;
         }
+        if (model.clipState?.enabled) {
+          model.clipState = { ...getDefaultClipState(), ...(model.clipState || {}), enabled: false };
+          if (bimReplaceClipEnable) bimReplaceClipEnable.checked = false;
+          if (bimReplaceClipControlsEl) bimReplaceClipControlsEl.style.display = "none";
+          clearActiveSlice();
+          updateBimClipControlsFromActiveModel();
+        }
+        ensureModelInDefaultLayer(model.objectId);
         const sketchVM = ensureBimReplaceSketchVM();
         sketchVM.cancel();
         sketchVM.update(model.graphic, {
@@ -2030,23 +2064,29 @@ Maintain safe distance
           view,
           container: sliceWidgetContainer
         });
+        const excluded = map.allLayers.toArray().filter((layer) => layer !== bimClipLayer);
+        if (sliceWidget.viewModel) sliceWidget.viewModel.excludedLayers = excluded;
+        if ("excludedLayers" in sliceWidget) sliceWidget.excludedLayers = excluded;
         return sliceWidget;
       }
 
       function clearActiveSlice() {
-        if (!sliceWidget) return;
-        const vm = sliceWidget.viewModel;
-        const clearMethodNames = ["clear", "reset"];
-        for (const methodName of clearMethodNames) {
-          const method = vm && vm[methodName];
-          if (typeof method !== "function") continue;
-          try {
-            method.call(vm);
-          } catch (err) {
-            // continue to next strategy
+        const clippedId = sliceActiveObjectId;
+        if (sliceWidget) {
+          const vm = sliceWidget.viewModel;
+          const clearMethodNames = ["clear", "reset"];
+          for (const methodName of clearMethodNames) {
+            const method = vm && vm[methodName];
+            if (typeof method !== "function") continue;
+            try {
+              method.call(vm);
+            } catch (err) {
+              // continue to next strategy
+            }
           }
         }
         if (sliceWidgetContainer) sliceWidgetContainer.style.display = "none";
+        if (clippedId) ensureModelInDefaultLayer(clippedId);
         sliceActiveObjectId = "";
       }
 
@@ -2088,8 +2128,13 @@ Maintain safe distance
           setBimReplaceStatus("Clip disabled.");
           return;
         }
+        if (sliceActiveObjectId && sliceActiveObjectId !== model.objectId) {
+          ensureModelInDefaultLayer(sliceActiveObjectId);
+        }
+        moveModelGraphicToLayer(model, bimClipLayer);
         const started = startSliceAtPoint(model.graphic.geometry);
         if (!started) {
+          ensureModelInDefaultLayer(model.objectId);
           setBimReplaceStatus("Could not start map slicing.");
           return;
         }
@@ -2140,7 +2185,12 @@ Maintain safe distance
         if (bimReplaceSketchVM) {
           try { bimReplaceSketchVM.cancel(); } catch (err) { /* ignore */ }
         }
-        if (model.graphic) bimReplacementLayer.remove(model.graphic);
+        if (model.graphic?.layer && typeof model.graphic.layer.remove === "function") {
+          model.graphic.layer.remove(model.graphic);
+        } else if (model.graphic) {
+          bimReplacementLayer.remove(model.graphic);
+          bimClipLayer.remove(model.graphic);
+        }
         cleanupModelObjectUrl(model);
         bimModelsById.delete(id);
         if (sliceActiveObjectId === id) clearActiveSlice();
@@ -2198,7 +2248,7 @@ Maintain safe distance
             sourceUrl: dataUrl,
             dataUrl,
             hideGis: item.hideGis !== false,
-            clipState: item.clipState || getDefaultClipState()
+            clipState: { ...getDefaultClipState(), ...(item.clipState || {}), enabled: false }
           }, { select: false, openMenu: false });
         }
       }
@@ -5761,7 +5811,7 @@ Maintain safe distance
         }
       view.hitTest(event).then((hit) => {
         if (Date.now() < suppressBimMenuOpenUntil) return;
-        const bimModelHit = hit.results.find((r) => r.graphic && r.graphic.layer === bimReplacementLayer);
+        const bimModelHit = hit.results.find((r) => r.graphic && isBimModelLayer(r.graphic.layer));
         if (bimModelHit) {
           const objectId = String(
             bimModelHit.graphic.attributes?.objectId
