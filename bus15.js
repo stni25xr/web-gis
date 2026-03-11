@@ -5,6 +5,7 @@
   };
   const BUS_GROUND_OFFSET_METERS = 6;
   const BUS_SIM_SPEED_MULTIPLIER = 1;
+  const GTFS_ROUTE_JOIN_MAX_METERS = 900;
   const HARD_FALLBACK_LOOP = [
     [14.2620, 57.7722],
     [14.2642, 57.7737],
@@ -32,8 +33,8 @@
   };
   const DEMO_LINE_ROUTES = {
     "15": {
-      outStopIds: ["1420", "1415", "1414", "1413", "1419", "1418", "1417", "1416", "1415", "1420"],
-      inStopIds: ["1420", "1412", "1018", "1420"]
+      outStopIds: ["1422", "1229", "1228", "1419", "1413", "1414", "1415", "1420", "1412", "1018"],
+      inStopIds: ["1018", "1412", "1420", "1415", "1414", "1413", "1419", "1228", "1229", "1422"]
     },
     "2": {
       outStopIds: ["1420", "1415", "1414", "1413", "1419", "1228", "1229", "1422"],
@@ -45,19 +46,18 @@
     "15": {
       lineShortName: "15",
       label: "15",
-      stopNames: { a: "Öxnehaga", b: "Esplanaden" },
-      headwayMinutes: 10,
-      loopMinutes: 30,
-      // +1 bus compared to previous count
+      stopNames: { a: "Lövhagsgatan", b: "Kungsporten" },
+      headwayMinutes: 20,
+      loopMinutes: 80,
       busCount: 4,
       colors: ["#ff6b00", "#10b981", "#2563eb"]
     },
     "2": {
       lineShortName: "2",
       label: "2",
-      stopNames: null,
+      stopNames: { a: "Oxhagsskolan", b: "Lövhagsgatan" },
       headwayMinutes: 10,
-      loopMinutes: 30,
+      loopMinutes: 40,
       busCount: 4,
       colors: ["#f97316", "#14b8a6", "#8b5cf6", "#0ea5e9"]
     }
@@ -181,8 +181,8 @@
     if (outStops.length < 2 || inStops.length < 2) return null;
     const outRaw = outStops.map((s) => [s.lon, s.lat]);
     const inRaw = inStops.map((s) => [s.lon, s.lat]);
-    const outRoute = await resolveRoadRoute(outRaw, `bus_demo_${lineShortName}_out_v2`);
-    const inRoute = await resolveRoadRoute(inRaw, `bus_demo_${lineShortName}_in_v2`);
+    const outRoute = await resolveRoadRoute(outRaw, `bus_demo_${lineShortName}_out_v3`);
+    const inRoute = await resolveRoadRoute(inRaw, `bus_demo_${lineShortName}_in_v3`);
     if (!Array.isArray(outRoute) || outRoute.length < 2 || !Array.isArray(inRoute) || inRoute.length < 2) {
       return null;
     }
@@ -282,6 +282,21 @@
     const p2 = toRad(lat2);
     const h = Math.sin(dLat / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dLon / 2) ** 2;
     return 2 * R * Math.asin(Math.sqrt(h));
+  }
+
+  function routePairLooksValid(routes) {
+    const outRoute = routes?.out?.route;
+    const inRoute = routes?.in?.route;
+    if (!Array.isArray(outRoute) || outRoute.length < 2 || !Array.isArray(inRoute) || inRoute.length < 2) {
+      return false;
+    }
+    const outStart = outRoute[0];
+    const outEnd = outRoute[outRoute.length - 1];
+    const inStart = inRoute[0];
+    const inEnd = inRoute[inRoute.length - 1];
+    const joinOutToIn = haversineMeters(outEnd, inStart);
+    const joinInToOut = haversineMeters(inEnd, outStart);
+    return joinOutToIn <= GTFS_ROUTE_JOIN_MAX_METERS && joinInToOut <= GTFS_ROUTE_JOIN_MAX_METERS;
   }
 
   function buildGeoSampler(routePoints) {
@@ -525,6 +540,12 @@
           lineShortName: opts.lineShortName,
           stopNames: opts.stopNames
         });
+        if (!routes || !routePairLooksValid(routes)) {
+          if (routes) {
+            console.warn(`Bus ${opts.label}: GTFS shapes invalid pair, using local route fallback`);
+          }
+          routes = null;
+        }
       } catch (e) {
         routes = null;
       }
@@ -533,7 +554,7 @@
     if (!routes || !routes.out?.route || !routes.in?.route) {
       routes = await buildDemoLineRoutes(opts.lineShortName);
       if (routes?.out?.route?.length >= 2 && routes?.in?.route?.length >= 2) {
-        statusLine(lineState, `Bus ${opts.label}: Simulating från Oxhagsskolan (lokal demo-rutt)`);
+        statusLine(lineState, `Bus ${opts.label}: Simulating (lokal låst rutt)`);
       } else {
         const points = HARD_FALLBACK_LOOP.slice();
         statusLine(lineState, `Bus ${opts.label}: Simulating (hard fallback route)`);
