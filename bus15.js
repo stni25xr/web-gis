@@ -3,6 +3,7 @@
     updateMs: 5000,
     dwellMs: 5000
   };
+  const BUS_GROUND_OFFSET_METERS = 1;
 
   const LINES = {
     "15": {
@@ -341,7 +342,7 @@
       config: opts,
       enabled: true,
       statusEl: null,
-      layer: new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 6 } }),
+      layer: new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: BUS_GROUND_OFFSET_METERS } }),
       routeLayer: new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 }, visible: false }),
       routeLayer2: new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 }, visible: false }),
       samplers: { out: null, in: null, loop: null },

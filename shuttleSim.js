@@ -9,6 +9,8 @@
   const AVG_SPEED_MPS = (CRUISE_MIN_MPS + CRUISE_MAX_MPS) / 2;
   const CRUISE_WAVE_METERS = 140;
   const SHOW_SHUTTLE_ROUTE = true;
+  const SHUTTLE_GROUND_OFFSET_METERS = 1;
+  const ENABLE_SHUTTLE_FALLBACK_DOT = false;
   const STATION = { latitude: 57.77101, longitude: 14.26968 };
   const HEALTHCARE = { latitude: 57.77468, longitude: 14.26546 };
   const HEALTHCARE_LABEL = "Vårdcentralen (57.77468, 14.26546)";
@@ -118,7 +120,9 @@
       this.shuttleGraphic = null;
       this.shuttleFallbackGraphic = null;
       this.shuttleRouteGraphic = null;
-      this.shuttleLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 6 } });
+      this.shuttleLayer = new GraphicsLayer({
+        elevationInfo: { mode: "relative-to-ground", offset: SHUTTLE_GROUND_OFFSET_METERS }
+      });
       this.map.add(this.shuttleLayer);
       if (typeof this.map.reorder === "function") {
         this.map.reorder(this.shuttleLayer, this.map.layers.length - 1);
@@ -167,9 +171,14 @@
           type: SHUTTLE_TYPE
         },
         symbol: this.buildShuttleFallbackSymbol({ moving: false }),
-        visible: true
+        visible: this.shouldShowFallback()
       });
-      this.shuttleLayer.addMany([this.shuttleFallbackGraphic, this.shuttleGraphic]);
+      if (ENABLE_SHUTTLE_FALLBACK_DOT) {
+        this.shuttleLayer.addMany([this.shuttleFallbackGraphic, this.shuttleGraphic]);
+      } else {
+        this.shuttleFallbackGraphic = null;
+        this.shuttleLayer.add(this.shuttleGraphic);
+      }
       this.applyShuttleVisual(false);
     }
 
@@ -184,7 +193,12 @@
         : this.buildShuttleSymbol2D({ moving });
       if (this.shuttleFallbackGraphic) {
         this.shuttleFallbackGraphic.symbol = this.buildShuttleFallbackSymbol({ moving });
+        this.shuttleFallbackGraphic.visible = this.shouldShowFallback();
       }
+    }
+
+    shouldShowFallback() {
+      return ENABLE_SHUTTLE_FALLBACK_DOT && !(this.view && this.view.type === "3d");
     }
 
     showModal(title, message) {
@@ -362,7 +376,7 @@
           latitude: STATION.latitude,
           spatialReference: { wkid: 4326 }
         });
-        this.shuttleFallbackGraphic.visible = true;
+        this.shuttleFallbackGraphic.visible = this.shouldShowFallback();
       }
       window.shuttleCurrentRoute = null;
       window.shuttleAnimationState = null;
@@ -393,7 +407,7 @@
           latitude: STATION.latitude,
           spatialReference: { wkid: 4326 }
         });
-        this.shuttleFallbackGraphic.visible = true;
+        this.shuttleFallbackGraphic.visible = this.shouldShowFallback();
       }
       window.shuttleCurrentRoute = null;
       window.shuttleAnimationState = null;
@@ -646,7 +660,7 @@
             this.shuttleGraphic.visible = true;
             if (this.shuttleFallbackGraphic) {
               this.shuttleFallbackGraphic.geometry = nextPoint;
-              this.shuttleFallbackGraphic.visible = true;
+              this.shuttleFallbackGraphic.visible = this.shouldShowFallback();
             }
             this.debugTick(pt);
           }
@@ -681,7 +695,6 @@
       const size = moving ? 10 : 10;
       return {
         type: "point-3d",
-        verticalOffset: { screenLength: 30, maxWorldLength: 60, minWorldLength: 10 },
         symbolLayers: [{
           type: "icon",
           resource: { primitive: "circle" },
@@ -716,7 +729,6 @@
     buildShuttleFallback3D({ moving }) {
       return {
         type: "point-3d",
-        verticalOffset: { screenLength: 44, maxWorldLength: 84, minWorldLength: 18 },
         symbolLayers: [{
           type: "icon",
           resource: { primitive: "circle" },
