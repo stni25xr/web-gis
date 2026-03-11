@@ -630,51 +630,6 @@
           <div id="oxnehagaExportStatus" class="export-status">Redo</div>
         </div>
       </details>
-      <details class="switch-group">
-        <summary class="switch-group-title">BIM‑viewer</summary>
-        <div class="export-block">
-          <button id="bimViewerToggle" type="button" class="export-btn">Visa BIM‑viewer</button>
-          <label style="display:block;margin-top:8px;font-size:12px;color:#94a3b8;">Ladda GLB</label>
-          <input id="bimViewerFile" type="file" accept=".glb" />
-          <button id="bimViewerClearFile" type="button" class="export-btn" style="margin-top:8px;">Ta bort modell</button>
-        </div>
-        <div id="bimViewerPanel" aria-label="BIM viewer">
-          <div class="bim-viewer-header">
-            <div>BIM‑viewer</div>
-            <div class="bim-viewer-actions">
-              <button id="bimViewerMove" type="button">Move</button>
-              <button id="bimViewerRotate" type="button">Rotate</button>
-              <button id="bimViewerClose" type="button" aria-label="Close BIM viewer">✕</button>
-            </div>
-          </div>
-          <div class="bim-viewer-body">
-            <div id="bimView" data-model=""></div>
-            <div class="bim-viewer-controls">
-              <div style="display:flex;align-items:center;gap:8px;">
-                <label style="display:flex;align-items:center;gap:6px;">
-                  <input id="bimClipToggle" type="checkbox" />
-                  Clip
-                </label>
-                <button id="bimViewerReset" type="button" style="margin-left:auto;">Reset</button>
-                <button id="bimViewerClear" type="button">Remove</button>
-              </div>
-              <div id="bimViewerStatus" style="font-size:12px;color:#94a3b8;"></div>
-              <div class="bim-slider">
-                <span>X</span>
-                <input id="bimClipX" type="range" min="-50" max="50" step="1" value="0" />
-              </div>
-              <div class="bim-slider">
-                <span>Y</span>
-                <input id="bimClipY" type="range" min="-50" max="50" step="1" value="0" />
-              </div>
-              <div class="bim-slider">
-                <span>Z</span>
-                <input id="bimClipZ" type="range" min="-50" max="50" step="1" value="0" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </details>
     </div>
   </aside>
 
@@ -765,12 +720,12 @@
             </div>
             <div class="miniCard">
               <details data-section="blue">
-                <summary class="panel-title">Övrigt infomation</summary>
+                <summary class="panel-title">3D‑modell (BIM)</summary>
                 <div class="panel-body">
-                  <div class="muted" style="margin-bottom:6px;">Ambulans, räddningstjänst och polis.</div>
-                  <div id="blueHint" class="muted">Välj trygghet och mät för att se beräknad framkomst.</div>
-                  <div id="blueList" style="font-size:13px;color:#0f172a;"></div>
-                  <div class="muted" style="margin-top:6px;">Isochroner visas inte i denna vy ännu.</div>
+                  <div class="muted" style="margin-bottom:6px;">Ladda upp en 3D‑modell via byggnadsflödet:</div>
+                  <div class="muted">1) Klicka på en byggnad i kartan.</div>
+                  <div class="muted">2) Klicka på <strong>Building information</strong>.</div>
+                  <div class="muted">3) Klicka på <strong>Se BIM model</strong>.</div>
                 </div>
               </details>
             </div>
@@ -5613,7 +5568,7 @@ Maintain safe distance
           setSafeListHtml("", except !== "blue");
         }
         if (except !== "blue") {
-          if (blueHint) blueHint.textContent = "Välj trygghet och mät för att se beräknad framkomst.";
+          if (blueHint) blueHint.textContent = "Klicka på byggnad → Building information → Se BIM model.";
           if (blueList) blueList.innerHTML = "";
         }
       }

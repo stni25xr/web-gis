@@ -1832,7 +1832,18 @@ body.shuttle-dashboard-open {
   background: transparent;
   color: #cbd5e1;
   font-size: 16px;
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
   cursor: pointer;
+  pointer-events: auto;
+}
+
+.guide-chat-header button:hover,
+.guide-chat-header button:focus-visible {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .guide-chat-messages {

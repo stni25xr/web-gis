@@ -19,7 +19,7 @@
     callShuttle: { label: "Call shuttle" },
     shuttleDashboard: { label: "Shuttle dashboard" },
     house3d: { label: "Se hus i 3D" },
-    uploadHouse: { label: "Ladda husmodell" },
+    uploadHouse: { label: "Se BIM‑modell" },
     windLive: { label: "Vind live" },
     cloudLive: { label: "Molnighet live" },
     digital: { label: "Digital City" },
@@ -52,11 +52,6 @@
     const openInfoSection = (section) => {
       const details = document.querySelector(`#info-panel details[data-section="${section}"]`);
       if (details) details.open = true;
-    };
-
-    const clickById = (id) => {
-      const el = document.getElementById(id);
-      if (el && typeof el.click === "function") el.click();
     };
 
     const log = (name, value) => {
@@ -110,6 +105,7 @@
 
     const openChat = () => {
       panel.hidden = false;
+      panel.style.display = "flex";
       toggleBtn.setAttribute("aria-expanded", "true");
       ensureGreeting();
       input.focus();
@@ -118,6 +114,7 @@
 
     const closeChat = () => {
       panel.hidden = true;
+      panel.style.display = "none";
       toggleBtn.setAttribute("aria-expanded", "false");
       log("chat_close");
     };
@@ -152,7 +149,7 @@
               "5) Call shuttle från kartans popup\n" +
               "6) Öppna Shuttle dashboard\n" +
               "7) Kolla hus i 3D-kartan\n" +
-              "8) Ladda husmodell (GLB)\n" +
+              "8) Se BIM‑modell via Building information\n" +
               "9) Se vindanimation live\n" +
               "10) Se molnighet live"
           );
@@ -210,10 +207,10 @@
           setQuickActions(["uploadHouse", "documents", "overview"]);
           return;
         case "uploadHouse":
-          openDigitalPanel();
-          clickById("bimViewerToggle");
-          addMessage("bot", "Jag öppnade DIGITAL CITY. Under BIM-viewer kan du ladda en egen GLB-husmodell och visa den i vyn.");
-          setQuickActions(["house3d", "documents", "digital"]);
+          openInfoPanel();
+          openInfoSection("blue");
+          addMessage("bot", "För 3D-modell: klicka på en byggnad, välj Building information och klicka sedan Se BIM model.");
+          setQuickActions(["house3d", "documents", "overview"]);
           return;
         case "windLive":
           openDigitalPanel();
@@ -233,8 +230,8 @@
           return;
         case "digital":
           openDigitalPanel();
-          addMessage("bot", "DIGITAL CITY är öppen: här styr du vind live, moln live, PM2.5, BIM-viewer och export/simuleringar.");
-          setQuickActions(["windLive", "cloudLive", "uploadHouse", "overview"]);
+          addMessage("bot", "DIGITAL CITY är öppen: här styr du vind live, moln live, PM2.5 och simuleringar.");
+          setQuickActions(["windLive", "cloudLive", "overview"]);
           return;
         default:
           addMessage("bot", "Jag förstod inte helt. Testa: vad kan vi göra, service, blåljus, buss, shuttle, hus 3D, vind eller moln.");
@@ -261,7 +258,7 @@
       if (/(call.*shuttle|boka.*shuttle|bestall.*shuttle)/.test(text)) return "callShuttle";
       if (/(shuttle.*dashboard|dashboard.*shuttle)/.test(text)) return "shuttleDashboard";
       if (/(hus.*3d|3d.*hus|kolla.*hus|mitt hus)/.test(text)) return "house3d";
-      if (/(ladda.*hus|ladda.*modell|glb|upload)/.test(text)) return "uploadHouse";
+      if (/(ladda.*hus|ladda.*modell|glb|upload|se.*bim|bim model)/.test(text)) return "uploadHouse";
       if (/(vind|wind)/.test(text)) return "windLive";
       if (/(moln|molnighet|cloud)/.test(text)) return "cloudLive";
       if (/(bygg|bim|objekt|modell)/.test(text)) return "house3d";
@@ -274,11 +271,15 @@
     };
 
     toggleBtn.addEventListener("click", () => {
-      if (panel.hidden) openChat();
+      if (panel.hidden || panel.style.display === "none") openChat();
       else closeChat();
     });
 
-    closeBtn.addEventListener("click", closeChat);
+    closeBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      closeChat();
+    });
 
     form.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -296,5 +297,7 @@
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && !panel.hidden) closeChat();
     });
+
+    if (panel.hidden) panel.style.display = "none";
   });
 })();
