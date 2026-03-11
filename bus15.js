@@ -584,17 +584,21 @@
 
   function updatePopup(view, graphic, info) {
     const vehicleId = info.vehicleId || ((info.line && info.busId) ? `${info.line}-${info.busId}` : (info.busId || "-"));
-    view.popup.open({
+    const popupHtml = `
+      <div><b>Buss-ID:</b> ${vehicleId}</div>
+      <div><b>Linje:</b> ${info.line || "-"}</div>
+      <div><b>Direction:</b> ${info.direction}</div>
+      <div><b>Segment:</b> ${info.segment}</div>
+      <div><b>Next stop:</b> ${info.nextStop} (${info.eta} min)</div>
+      <div style="margin-top:6px;font-size:11px;color:#64748b;">Source: ${info.source}</div>
+    `;
+    graphic.popupTemplate = {
       title: `Buss ${vehicleId}`,
-      location: graphic.geometry,
-      content: `
-        <div><b>Buss-ID:</b> ${vehicleId}</div>
-        <div><b>Linje:</b> ${info.line || "-"}</div>
-        <div><b>Direction:</b> ${info.direction}</div>
-        <div><b>Segment:</b> ${info.segment}</div>
-        <div><b>Next stop:</b> ${info.nextStop} (${info.eta} min)</div>
-        <div style="margin-top:6px;font-size:11px;color:#64748b;">Source: ${info.source}</div>
-      `
+      content: popupHtml
+    };
+    view.popup.open({
+      features: [graphic],
+      location: graphic.geometry
     });
   }
 
@@ -861,6 +865,9 @@
         ctx.view.hitTest(event, { include: busLayers }).then((hit) => {
           const result = hit.results.find((r) => r?.graphic && busLayers.includes(r.graphic.layer));
           if (!result || !result.graphic) return;
+          if (typeof event.stopPropagation === "function") {
+            event.stopPropagation();
+          }
           const g = result.graphic;
           const info = g.attributes || {};
           // Force popup refresh so repeated clicks on the same bus always respond.
