@@ -263,20 +263,24 @@
   <link rel="stylesheet" href="./ui-2026.css" />
 </head>
 <body class="app">
-  <!-- DEMO LOGIN OVERLAY (client-side only) -->
+  <!-- DEMO INTRO OVERLAY -->
   <div id="loginOverlay" class="login-overlay" aria-hidden="false">
     <div class="login-card" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
-      <h1 id="loginTitle" class="login-title">UIM Demo stni25xr </h1>
-      <div class="login-field">
-        <label for="loginEmail">E‑post (stni25xr@student.ju.se)</label>
-        <input id="loginEmail" type="email" autocomplete="username" placeholder="Bill.Gates@mi31b.io" />
+      <div class="intro-car" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M4 9a1 1 0 1 0 0 2 1 1 0 0 0 0-2m8 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2"/>
+          <path d="M1 11a1 1 0 0 0 1 1h1a2 2 0 1 0 4 0h2a2 2 0 1 0 4 0h1a1 1 0 0 0 1-1V9.5a.5.5 0 0 0-.276-.447l-1.5-.75A.5.5 0 0 0 13 8.25V6a1 1 0 0 0-1-1H4.236a1 1 0 0 0-.894.553L1.382 9.447A.5.5 0 0 0 1 9.894zm2.447-4.724A.5.5 0 0 1 3.894 6H12v2H2.309z"/>
+        </svg>
       </div>
-      <div class="login-field">
-        <label for="loginPassword">Lösenord (password)</label>
-        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="******" />
+      <h1 id="loginTitle" class="login-title">BLUE demo</h1>
+      <div class="intro-subtitle">Välkommen. Här är en kort intro innan du börjar.</div>
+      <div class="intro-list">
+        <div>• De rörliga prickarna är buss 2 och 15 i området.</div>
+        <div>• Du kan följa hela deras rutt i kartan.</div>
+        <div>• För BIM: klicka byggnad → Building information → Se BIM model.</div>
       </div>
-      <div id="loginError" class="login-error" role="alert" aria-live="polite"></div>
-      <button id="loginBtn" type="button" class="login-btn">Logga in</button>
+      <div class="intro-note">Guidechatten kan svara på frågor om sidan.</div>
+      <button id="introStartBtn" type="button" class="login-btn">Starta demo</button>
     </div>
   </div>
 
@@ -579,7 +583,7 @@
     </div>
     <div class="sidebar-footer">
       <button id="restartDemoBtn" type="button" class="demo-reset-btn">Starta om demo</button>
-      <button id="logoutBtn" type="button" class="logout-btn">Logga ut</button>
+      <button id="logoutBtn" type="button" class="logout-btn">Visa intro</button>
     </div>
   </aside>
 
@@ -6838,79 +6842,58 @@ Maintain safe distance
     restartDemoBtn?.addEventListener("click", resetDemoWithoutReload);
   </script>
   <script>
-    // Demo-only login gate (client-side)
+    // Demo intro overlay (no login)
     document.addEventListener("DOMContentLoaded", () => {
       const overlay = document.getElementById("loginOverlay");
-      const card = overlay?.querySelector(".login-card");
-      const email = document.getElementById("loginEmail");
-      const password = document.getElementById("loginPassword");
-      const btn = document.getElementById("loginBtn");
-      const error = document.getElementById("loginError");
-      const logoutBtn = document.getElementById("logoutBtn");
+      const startBtn = document.getElementById("introStartBtn");
+      const introBtn = document.getElementById("logoutBtn");
+      let introTimer = null;
 
-      const VALID_EMAIL = "stni25xr@student.ju.se";
-      const VALID_PASS = "password";
-      let loggedIn = false;
-
-      const resetLoginFields = () => {
-        if (email) email.value = "";
-        if (password) password.value = "";
-        if (error) error.textContent = "";
-      };
-
-      const showLoginOverlay = () => {
+      const showIntroOverlay = () => {
         if (!overlay) return;
-        resetLoginFields();
+        if (introTimer) {
+          clearTimeout(introTimer);
+          introTimer = null;
+        }
         overlay.style.display = "flex";
+        overlay.classList.remove("is-hidden", "is-exiting-right");
+        overlay.classList.add("is-entering");
         requestAnimationFrame(() => {
-          overlay.classList.remove("is-hidden");
+          overlay.setAttribute("aria-hidden", "false");
         });
-        loggedIn = false;
+        introTimer = setTimeout(() => {
+          overlay.classList.remove("is-entering");
+          introTimer = null;
+        }, 550);
       };
 
-      const hideLoginOverlay = () => {
+      const hideIntroOverlay = () => {
         if (!overlay) return;
+        if (introTimer) {
+          clearTimeout(introTimer);
+          introTimer = null;
+        }
+        overlay.classList.remove("is-entering");
+        overlay.classList.add("is-exiting-right");
         overlay.classList.add("is-hidden");
+        overlay.setAttribute("aria-hidden", "true");
         setTimeout(() => {
           overlay.style.display = "none";
+          overlay.classList.remove("is-exiting-right");
           if (window.view) {
             window.view.resize();
             if (typeof window.view.requestRender === "function") window.view.requestRender();
           }
-        }, 450);
-        loggedIn = true;
+        }, 420);
       };
 
-      const tryLogin = () => {
-        if (!email || !password || !overlay || !card) return;
-        const ok = email.value.trim() === VALID_EMAIL && password.value === VALID_PASS;
-        if (ok) {
-          if (error) error.textContent = "";
-          hideLoginOverlay();
-        } else {
-          if (error) error.textContent = "Fel e‑post eller lösenord";
-          card.classList.remove("is-shake");
-          void card.offsetWidth;
-          card.classList.add("is-shake");
-        }
-      };
-
-      btn?.addEventListener("click", tryLogin);
-      [email, password].forEach((el) => {
-        el?.addEventListener("keydown", (e) => {
-          if (e.key === "Enter") tryLogin();
-        });
+      startBtn?.addEventListener("click", hideIntroOverlay);
+      introBtn?.addEventListener("click", () => {
+        window.stopSimTime?.();
+        showIntroOverlay();
       });
 
-      logoutBtn?.addEventListener("click", () => {
-        if (loggedIn) {
-          window.stopSimTime?.();
-          showLoginOverlay();
-        } else {
-          window.stopSimTime?.();
-          showLoginOverlay();
-        }
-      });
+      showIntroOverlay();
     });
   </script>
   <script src="./local-guide-chat.js"></script>
