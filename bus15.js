@@ -54,6 +54,15 @@
       loopMinutes: 40,
       busCount: 3,
       preferGtfs: false,
+      // Weekday departures from Lövhagsgatan based on provided timetable image.
+      clockDepartureRules: [
+        { hours: [4], minutes: [48] },
+        { hours: [5], minutes: [18, 48] },
+        { hours: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19], minutes: [8, 28, 48] },
+        { hours: [20, 21, 22, 23], minutes: [13, 43] },
+        { hours: [0, 1], minutes: [43] }
+      ],
+      clockWeekdaysOnly: true,
       colors: ["#9ca3af", "#6b7280", "#4b5563", "#d1d5db"]
     },
     "2": {
@@ -720,6 +729,50 @@
     }));
   }
 
+  function getClockDepartureMinutesForHour(config, hour) {
+    const rules = Array.isArray(config?.clockDepartureRules) ? config.clockDepartureRules : [];
+    if (!rules.length) return [];
+    const mins = [];
+    rules.forEach((rule) => {
+      const hours = Array.isArray(rule?.hours) ? rule.hours : [];
+      if (!hours.includes(hour)) return;
+      const mm = Array.isArray(rule?.minutes) ? rule.minutes : [];
+      mm.forEach((m) => {
+        const n = Number(m);
+        if (Number.isFinite(n) && n >= 0 && n <= 59) mins.push(n);
+      });
+    });
+    return Array.from(new Set(mins)).sort((a, b) => a - b);
+  }
+
+  function getActiveClockDepartures(now, config, loopMs) {
+    if (config?.clockWeekdaysOnly) {
+      const day = new Date(now).getDay();
+      if (day === 0 || day === 6) return [];
+    }
+    const lookbackMs = Math.max(loopMs + 5 * 60 * 1000, 60 * 60 * 1000);
+    const departures = [];
+    for (let dayOffset = -1; dayOffset <= 1; dayOffset++) {
+      const base = new Date(now);
+      base.setDate(base.getDate() + dayOffset);
+      base.setSeconds(0, 0);
+      for (let h = 0; h < 24; h++) {
+        const minutes = getClockDepartureMinutesForHour(config, h);
+        if (!minutes.length) continue;
+        minutes.forEach((m) => {
+          const d = new Date(base);
+          d.setHours(h, m, 0, 0);
+          const ts = d.getTime();
+          if (ts > now) return;
+          const age = now - ts;
+          if (age >= 0 && age <= lookbackMs) departures.push(ts);
+        });
+      }
+    }
+    const uniq = Array.from(new Set(departures)).sort((a, b) => a - b);
+    return uniq;
+  }
+
   function updateLine(ctx, lineState, now) {
     if (!lineState.enabled) return;
     const { Graphic } = ctx;
@@ -738,11 +791,27 @@
     const stopDistances = lineState.loopStopDistances || [];
     const stopCount = stopDistances.length;
     const travelMs = Math.max(0, loopMs - DEFAULTS.dwellMs * stopCount);
-    const buses = buildBusList(config);
+    const clockDepartures = getActiveClockDepartures(now, config, loopMs);
+    const useClockDepartures = clockDepartures.length > 0;
+    const buses = useClockDepartures
+      ? clockDepartures.map((depTs, idx) => {
+          const hh = String(new Date(depTs).getHours()).padStart(2, "0");
+          const mm = String(new Date(depTs).getMinutes()).padStart(2, "0");
+          return {
+            id: `T${depTs}`,
+            vehicleId: `${config.label}-${hh}${mm}`,
+            color: config.colors[idx % config.colors.length],
+            phaseMs: now - depTs
+          };
+        })
+      : buildBusList(config);
+    const nextGraphics = new Map();
 
     buses.forEach((bus) => {
       const simNow = (now - state.startMs) * BUS_SIM_SPEED_MULTIPLIER;
-      const t = ((simNow - bus.offsetMs) % loopMs + loopMs) % loopMs;
+      const t = useClockDepartures
+        ? ((bus.phaseMs % loopMs) + loopMs) % loopMs
+        : ((simNow - bus.offsetMs) % loopMs + loopMs) % loopMs;
       let dist = 0;
       if (stopCount >= 2 && travelMs > 0) {
         let remaining = t;
@@ -791,17 +860,24 @@
       } else {
         g.geometry = pt;
       }
+      nextGraphics.set(bus.id, g);
       g.attributes = {
         line: config.label,
         direction: dirName,
         nextStop,
         segment,
         eta: eta ? Math.max(1, Math.round(eta.eta / 60)) : "?",
-        source: "Simulated",
+        source: useClockDepartures ? "Timetable" : "Simulated",
         busId: bus.id,
         vehicleId: bus.vehicleId
       };
     });
+
+    lineState.graphics.forEach((entry, id) => {
+      if (nextGraphics.has(id)) return;
+      lineState.layer.remove(entry);
+    });
+    lineState.graphics = nextGraphics;
   }
 
   async function initBus15Layer(ctx, options = {}) {
