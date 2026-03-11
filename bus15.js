@@ -855,15 +855,21 @@
     }
 
     if (!state.clickHandle) {
-      state.clickHandle = ctx.view.on("click", (event) => {
-        ctx.view.hitTest(event).then((hit) => {
-          const result = hit.results.find((r) => {
-            return r.graphic && [...state.lines.values()].some((line) => r.graphic.layer === line.layer);
-          });
-          if (!result) return;
+      state.clickHandle = ctx.view.on("immediate-click", (event) => {
+        const busLayers = [...state.lines.values()].map((line) => line.layer).filter(Boolean);
+        if (!busLayers.length) return;
+        ctx.view.hitTest(event, { include: busLayers }).then((hit) => {
+          const result = hit.results.find((r) => r?.graphic && busLayers.includes(r.graphic.layer));
+          if (!result || !result.graphic) return;
           const g = result.graphic;
           const info = g.attributes || {};
+          // Force popup refresh so repeated clicks on the same bus always respond.
+          if (ctx.view.popup?.visible && ctx.view.popup?.selectedFeature === g) {
+            ctx.view.popup.close();
+          }
           updatePopup(ctx.view, g, info);
+        }).catch(() => {
+          // ignore hit-test race errors
         });
       });
     }
