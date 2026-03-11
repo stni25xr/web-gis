@@ -50,9 +50,9 @@
       lineShortName: "15",
       label: "15",
       stopNames: { a: "Lövhagsgatan", b: "Esplanaden" },
-      headwayMinutes: 20,
-      loopMinutes: 80,
-      busCount: 4,
+      headwayMinutes: 10,
+      loopMinutes: 40,
+      busCount: 2,
       preferGtfs: false,
       colors: ["#9ca3af", "#6b7280", "#4b5563", "#d1d5db"]
     },
@@ -60,9 +60,9 @@
       lineShortName: "2",
       label: "2",
       stopNames: { a: "Hisingsängens vändplan", b: "Oxhagsskolan" },
-      headwayMinutes: 10,
-      loopMinutes: 80,
-      busCount: 4,
+      headwayMinutes: 20,
+      loopMinutes: 40,
+      busCount: 2,
       preferGtfs: false,
       colors: ["#16a34a", "#22c55e", "#15803d", "#86efac"]
     }
