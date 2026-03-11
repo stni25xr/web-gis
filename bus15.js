@@ -73,6 +73,20 @@
       loopMinutes: 40,
       busCount: 2,
       preferGtfs: false,
+      // Weekday departures from Hisingsängens vändplan based on provided timetable image.
+      clockDepartureRules: [
+        { hours: [11], minutes: [20, 30, 40, 50] },
+        { hours: [12, 13, 14, 15, 16, 17, 18], minutes: [0, 10, 20, 30, 40, 50] },
+        { hours: [19], minutes: [5, 20, 35, 50] },
+        { hours: [20], minutes: [5, 21, 36, 51] },
+        { hours: [21], minutes: [6, 26, 46] },
+        { hours: [22], minutes: [6, 26, 46] },
+        { hours: [23], minutes: [6, 26, 46] },
+        { hours: [0], minutes: [6, 26, 46] },
+        { hours: [1], minutes: [6, 26, 46] },
+        { hours: [2], minutes: [6, 25] }
+      ],
+      clockWeekdaysOnly: true,
       colors: ["#16a34a", "#22c55e", "#15803d", "#86efac"]
     }
   };
@@ -793,8 +807,10 @@
     const travelMs = Math.max(0, loopMs - DEFAULTS.dwellMs * stopCount);
     const clockDepartures = getActiveClockDepartures(now, config, loopMs);
     const useClockDepartures = clockDepartures.length > 0;
+    const fleetCap = Math.max(1, Number(config.busCount) || 1);
+    const activeDepartures = useClockDepartures ? clockDepartures.slice(-fleetCap) : [];
     const buses = useClockDepartures
-      ? clockDepartures.map((depTs, idx) => {
+      ? activeDepartures.map((depTs, idx) => {
           const hh = String(new Date(depTs).getHours()).padStart(2, "0");
           const mm = String(new Date(depTs).getMinutes()).padStart(2, "0");
           return {
