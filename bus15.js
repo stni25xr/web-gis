@@ -40,8 +40,8 @@
       inStopIds: ["1018", "1412", "1420", "1415", "1414", "1413", "1419", "1228", "1229", "1422"]
     },
     "2": {
-      outStopIds: ["2001", "2002", "2003", "1420"],
-      inStopIds: ["1420", "2003", "2002", "2001"]
+      outStopIds: ["1422", "1229", "1228", "1419", "1413", "1414", "1415", "1420", "1412", "1018"],
+      inStopIds: ["1018", "1412", "1420", "1415", "1414", "1413", "1419", "1228", "1229", "1422"]
     }
   };
 
@@ -54,17 +54,17 @@
       loopMinutes: 80,
       busCount: 4,
       preferGtfs: true,
-      colors: ["#ff6b00", "#10b981", "#2563eb"]
+      colors: ["#9ca3af", "#6b7280", "#4b5563", "#d1d5db"]
     },
     "2": {
       lineShortName: "2",
       label: "2",
-      stopNames: { a: "Hisingsängens vändplan", b: "Oxhagsskolan" },
+      stopNames: { a: "Oxhagsskolan", b: "Kungsporten" },
       headwayMinutes: 10,
-      loopMinutes: 80,
+      loopMinutes: 60,
       busCount: 4,
-      preferGtfs: true,
-      colors: ["#f97316", "#14b8a6", "#8b5cf6", "#0ea5e9"]
+      preferGtfs: false,
+      colors: ["#16a34a", "#22c55e", "#15803d", "#86efac"]
     }
   };
 
