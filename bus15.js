@@ -42,6 +42,7 @@
   };
   const OXHAGSSKOLAN_COORD = [14.26059093300006, 57.77735702400008];
   const OXNEHAGA_CENTRUM_COORD = [14.264104008000061, 57.775388269000075];
+  const HISINGSANGEN_COORD = [14.269915089000051, 57.763623099000029];
 
   const LINES = {
     "15": {
@@ -66,6 +67,14 @@
       anchorStopNeedle: "oxhag",
       anchorCoord: OXHAGSSKOLAN_COORD,
       alignToClock: true,
+      scheduleMode: "two-terminal-clock",
+      terminalAName: "Hisingsängens vändplan",
+      terminalACoord: HISINGSANGEN_COORD,
+      terminalBName: "Oxhagsskolan",
+      terminalBCoord: OXHAGSSKOLAN_COORD,
+      terminalADepartMinutes: [10, 20, 30],
+      terminalBDepartMinutes: [48, 58, 8],
+      travelMinutesOneWay: 38,
       colors: ["#f97316", "#14b8a6", "#8b5cf6", "#0ea5e9"]
     }
   };
@@ -390,6 +399,33 @@
     return dedup;
   }
 
+  function latestClockMinuteMs(nowMs, minuteOfHour) {
+    const d = new Date(nowMs);
+    const m = ((Number(minuteOfHour) % 60) + 60) % 60;
+    d.setSeconds(0, 0);
+    d.setMinutes(m);
+    let ts = d.getTime();
+    if (ts > nowMs) ts -= 60 * 60 * 1000;
+    return ts;
+  }
+
+  function routeDirectionMap(opts, routes) {
+    const out = routes?.out?.route || [];
+    const inn = routes?.in?.route || [];
+    if (out.length < 2 || inn.length < 2) return null;
+    const outStart = out[0];
+    const outEnd = out[out.length - 1];
+    const a = Array.isArray(opts.terminalACoord) ? opts.terminalACoord : null;
+    const b = Array.isArray(opts.terminalBCoord) ? opts.terminalBCoord : null;
+    if (!a || !b) return null;
+    const scoreOutAtoB = haversineMeters(outStart, a) + haversineMeters(outEnd, b);
+    const scoreOutBtoA = haversineMeters(outStart, b) + haversineMeters(outEnd, a);
+    if (scoreOutAtoB <= scoreOutBtoA) {
+      return { outIsAtoB: true };
+    }
+    return { outIsAtoB: false };
+  }
+
   async function loadGtfsShapes({ JSZip, key, lineShortName, stopNames }) {
     const url = `https://opendata.samtrafiken.se/gtfs/jlt/jlt.zip?key=${encodeURIComponent(key)}`;
     const res = await fetch(url);
@@ -560,10 +596,12 @@
       routeLayer: new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 }, visible: false }),
       routeLayer2: new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 }, visible: false }),
       samplers: { out: null, in: null, loop: null },
+      directionSamplers: { AtoB: null, BtoA: null },
       stopSeq: { out: [], in: [] },
       loopStops: [],
       loopStopDistances: [],
       anchorDistanceM: 0,
+      scheduleFleet: [],
       graphics: new Map()
     };
 
@@ -642,6 +680,43 @@
       if (!Number.isFinite(lineState.anchorDistanceM)) lineState.anchorDistanceM = 0;
     }
 
+    const dirMap = routeDirectionMap(opts, routes);
+    if (dirMap?.outIsAtoB === true) {
+      lineState.directionSamplers.AtoB = lineState.samplers.out;
+      lineState.directionSamplers.BtoA = lineState.samplers.in;
+    } else if (dirMap?.outIsAtoB === false) {
+      lineState.directionSamplers.AtoB = lineState.samplers.in;
+      lineState.directionSamplers.BtoA = lineState.samplers.out;
+    } else {
+      lineState.directionSamplers.AtoB = lineState.samplers.out;
+      lineState.directionSamplers.BtoA = lineState.samplers.in;
+    }
+
+    if (opts.scheduleMode === "two-terminal-clock") {
+      const nowMs = Date.now();
+      const depA = Array.isArray(opts.terminalADepartMinutes) ? opts.terminalADepartMinutes : [];
+      const depB = Array.isArray(opts.terminalBDepartMinutes) ? opts.terminalBDepartMinutes : [];
+      const colors = Array.isArray(opts.colors) && opts.colors.length ? opts.colors : ["#f97316"];
+      const fleet = [];
+      depA.forEach((minute, idx) => {
+        fleet.push({
+          id: `A${idx + 1}`,
+          origin: "A",
+          seedDepartureMs: latestClockMinuteMs(nowMs, minute),
+          color: colors[idx % colors.length]
+        });
+      });
+      depB.forEach((minute, idx) => {
+        fleet.push({
+          id: `B${idx + 1}`,
+          origin: "B",
+          seedDepartureMs: latestClockMinuteMs(nowMs, minute),
+          color: colors[(idx + depA.length) % colors.length]
+        });
+      });
+      lineState.scheduleFleet = fleet;
+    }
+
     return lineState;
   }
 
@@ -655,8 +730,90 @@
     }));
   }
 
+  function updateLineTwoTerminalClock(ctx, lineState, now) {
+    const { Graphic } = ctx;
+    const { config } = lineState;
+    const samplerAtoB = lineState.directionSamplers?.AtoB;
+    const samplerBtoA = lineState.directionSamplers?.BtoA;
+    if (!samplerAtoB || !samplerBtoA) return;
+    const travelMs = Math.max(1, Number(config.travelMinutesOneWay || 38) * 60 * 1000);
+    const cycleMs = travelMs * 2;
+    const termA = String(config.terminalAName || "Terminal A");
+    const termB = String(config.terminalBName || "Terminal B");
+    const fleet = Array.isArray(lineState.scheduleFleet) ? lineState.scheduleFleet : [];
+    if (!fleet.length) return;
+
+    const nextGraphics = new Map();
+    fleet.forEach((bus) => {
+      const since = now - Number(bus.seedDepartureMs || now);
+      const phase = ((since % cycleMs) + cycleMs) % cycleMs;
+      const outbound = phase < travelMs;
+      const legMs = outbound ? phase : (phase - travelMs);
+      const frac = Math.max(0, Math.min(1, legMs / travelMs));
+      let sampler = null;
+      let segment = "";
+      let nextStop = "";
+
+      if (bus.origin === "A") {
+        if (outbound) {
+          sampler = samplerAtoB;
+          segment = `${termA} → ${termB}`;
+          nextStop = termB;
+        } else {
+          sampler = samplerBtoA;
+          segment = `${termB} → ${termA}`;
+          nextStop = termA;
+        }
+      } else {
+        if (outbound) {
+          sampler = samplerBtoA;
+          segment = `${termB} → ${termA}`;
+          nextStop = termA;
+        } else {
+          sampler = samplerAtoB;
+          segment = `${termA} → ${termB}`;
+          nextStop = termB;
+        }
+      }
+      if (!sampler || !Number.isFinite(sampler.total) || sampler.total <= 0) return;
+      const dist = frac * sampler.total;
+      const pt = sampler.toGeo(dist);
+      if (!pt) return;
+      const etaMin = Math.max(1, Math.round((travelMs - legMs) / 60000));
+
+      let g = lineState.graphics.get(bus.id);
+      if (!g) {
+        g = createBusGraphic(Graphic, pt, bus.color);
+        lineState.graphics.set(bus.id, g);
+        lineState.layer.add(g);
+      } else {
+        g.geometry = pt;
+      }
+      g.attributes = {
+        line: config.label,
+        direction: segment,
+        nextStop,
+        segment,
+        eta: etaMin,
+        source: "Clock schedule",
+        busId: bus.id
+      };
+      nextGraphics.set(bus.id, g);
+    });
+
+    lineState.graphics.forEach((entry, id) => {
+      if (nextGraphics.has(id)) return;
+      lineState.layer.remove(entry);
+    });
+    lineState.graphics = nextGraphics;
+  }
+
   function updateLine(ctx, lineState, now) {
     if (!lineState.enabled) return;
+    if (lineState?.config?.scheduleMode === "two-terminal-clock") {
+      updateLineTwoTerminalClock(ctx, lineState, now);
+      return;
+    }
     const { Graphic } = ctx;
     const { config } = lineState;
     const loopSampler = lineState.samplers.loop;
