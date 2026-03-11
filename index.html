@@ -7131,6 +7131,19 @@ Maintain safe distance
       let introVideoFallbackTimer = null;
       let introVideoDurationMs = 0;
 
+      const enforceIntroVideoMuted = () => {
+        if (!introVideo) return;
+        introVideo.defaultMuted = true;
+        introVideo.muted = true;
+        introVideo.volume = 0;
+        const tracks = introVideo.audioTracks;
+        if (tracks && typeof tracks.length === "number") {
+          for (let i = 0; i < tracks.length; i += 1) {
+            tracks[i].enabled = false;
+          }
+        }
+      };
+
       const clearIntroTimers = () => {
         if (introAnimTimer) {
           clearTimeout(introAnimTimer);
@@ -7149,7 +7162,7 @@ Maintain safe distance
             introVideo.currentTime = 0;
           } catch (_) {}
         }
-        introVideo.muted = true;
+        enforceIntroVideoMuted();
         const promise = introVideo.play();
         if (promise && typeof promise.catch === "function") {
           promise.catch(() => {});
@@ -7194,9 +7207,16 @@ Maintain safe distance
       };
 
       introVideo?.addEventListener("loadedmetadata", () => {
+        enforceIntroVideoMuted();
         if (Number.isFinite(introVideo.duration) && introVideo.duration > 0) {
           introVideoDurationMs = Math.round(introVideo.duration * 1000);
         }
+      });
+      introVideo?.addEventListener("volumechange", () => {
+        enforceIntroVideoMuted();
+      });
+      introVideo?.addEventListener("play", () => {
+        enforceIntroVideoMuted();
       });
       introVideo?.addEventListener("ended", () => {
         showIntroMessageOverlay();
@@ -7242,6 +7262,7 @@ Maintain safe distance
       });
 
       if (introVideo) {
+        enforceIntroVideoMuted();
         try {
           introVideo.currentTime = 0;
         } catch (_) {}
