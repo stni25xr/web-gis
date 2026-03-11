@@ -1374,16 +1374,36 @@ Maintain safe distance
       map.add(emergencyBusLayer);
 
       const EMERGENCY_BUS_DEMO_ENABLED = true;
-      const EMERGENCY_BUS_LOOP = [
-        [14.2619, 57.7722],
-        [14.2644, 57.7737],
-        [14.2675, 57.7737],
-        [14.2697, 57.7721],
-        [14.2693, 57.7701],
-        [14.2668, 57.7693],
-        [14.2637, 57.7697],
-        [14.2622, 57.7710],
-        [14.2619, 57.7722]
+      const EMERGENCY_BUS_STOPS = {
+        1018: [14.261092639000026, 57.781745461000071], // Kungsporten
+        1412: [14.263372397000069, 57.779142051000065], // Hästhagsgatan
+        1420: [14.260590933000060, 57.777357024000082], // Oxhagsskolan
+        1415: [14.259698622000030, 57.775424382000040], // Öxnegården
+        1414: [14.264104008000061, 57.775388269000075], // Öxnehaga centrum
+        1413: [14.268596427000034, 57.774886093000077], // Lahagsgatan
+        1419: [14.268249268000034, 57.771191051000073], // Kalvhagsgatan
+        1418: [14.264283418000048, 57.771573884000077], // Kohagsgatan
+        1417: [14.258814077000068, 57.771740692000037], // Rishagsgatan
+        1416: [14.256665254000040, 57.773645170000066], // Öxnehaga idrottsplats
+        1228: [14.269413961000055, 57.769885116000069], // Lövhagen
+        1229: [14.271560191000049, 57.766830973000083], // Stekelvägen
+        1422: [14.269915089000051, 57.763623099000029]  // Lövhagsgatan
+      };
+      const EMERGENCY_BUS_LINES = [
+        {
+          line: "15",
+          busCount: 4,
+          speedMps: 14,
+          color: [239, 68, 68, 0.98],
+          stopIds: [1018, 1412, 1420, 1415, 1414, 1413, 1419, 1418, 1417, 1416, 1415, 1420, 1018]
+        },
+        {
+          line: "2",
+          busCount: 5,
+          speedMps: 16,
+          color: [37, 99, 235, 0.98],
+          stopIds: [1414, 1413, 1419, 1228, 1229, 1422, 1229, 1228, 1419, 1413, 1414, 1415, 1420, 1018, 1412, 1414]
+        }
       ];
       let emergencyBusAnim = null;
 
@@ -1434,46 +1454,49 @@ Maintain safe distance
         };
       }
 
+      function routeFromStopIds(stopIds) {
+        if (!Array.isArray(stopIds) || stopIds.length < 2) return null;
+        const route = stopIds
+          .map((id) => EMERGENCY_BUS_STOPS[id])
+          .filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+        return route.length >= 2 ? route : null;
+      }
+
       function startEmergencyBusDemo() {
         if (!EMERGENCY_BUS_DEMO_ENABLED || emergencyBusAnim) return;
-        const sampler = buildEmergencySampler(EMERGENCY_BUS_LOOP);
-        if (!sampler) return;
-        const busCount = 5;
-        const speedMps = 18;
-        const colors = [
-          [239, 68, 68, 0.98],
-          [249, 115, 22, 0.98],
-          [16, 185, 129, 0.98],
-          [37, 99, 235, 0.98],
-          [168, 85, 247, 0.98]
-        ];
-        const offsets = [];
-        const graphics = [];
-        for (let i = 0; i < busCount; i++) {
-          const offset = (i / busCount) * sampler.total;
-          offsets.push(offset);
-          graphics.push(new Graphic({
-            geometry: sampler.toPoint(offset),
-            symbol: {
-              type: "simple-marker",
-              style: "circle",
-              color: colors[i % colors.length],
-              size: 12,
-              outline: { color: [255, 255, 255, 0.96], width: 1.6 }
-            }
-          }));
+        const entries = [];
+        for (const lineCfg of EMERGENCY_BUS_LINES) {
+          const route = routeFromStopIds(lineCfg.stopIds);
+          const sampler = buildEmergencySampler(route || []);
+          if (!sampler) continue;
+          for (let i = 0; i < lineCfg.busCount; i++) {
+            const offset = (i / Math.max(1, lineCfg.busCount)) * sampler.total;
+            const pointGraphic = new Graphic({
+              geometry: sampler.toPoint(offset),
+              attributes: { line: lineCfg.line, demo: "emergency-route-follow" },
+              symbol: {
+                type: "simple-marker",
+                style: "circle",
+                color: lineCfg.color,
+                size: 12,
+                outline: { color: [255, 255, 255, 0.96], width: 1.6 }
+              }
+            });
+            entries.push({ sampler, offset, speedMps: lineCfg.speedMps, graphic: pointGraphic });
+          }
         }
-        emergencyBusLayer.addMany(graphics);
+        if (!entries.length) return;
+        emergencyBusLayer.addMany(entries.map((e) => e.graphic));
         if (typeof map.reorder === "function") map.reorder(emergencyBusLayer, map.layers.length - 1);
 
         let last = performance.now();
         const tick = (now) => {
           const dt = Math.max(0, Math.min(0.2, (now - last) / 1000));
           last = now;
-          for (let i = 0; i < graphics.length; i++) {
-            offsets[i] = (offsets[i] + speedMps * dt) % sampler.total;
-            graphics[i].geometry = sampler.toPoint(offsets[i]);
-          }
+          entries.forEach((entry) => {
+            entry.offset = (entry.offset + entry.speedMps * dt) % entry.sampler.total;
+            entry.graphic.geometry = entry.sampler.toPoint(entry.offset);
+          });
           if (typeof map.reorder === "function") map.reorder(emergencyBusLayer, map.layers.length - 1);
           if (view && typeof view.requestRender === "function") view.requestRender();
           emergencyBusAnim = requestAnimationFrame(tick);
