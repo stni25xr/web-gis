@@ -71,7 +71,7 @@
       stopNames: { a: "Hisingsängens vändplan", b: "Oxhagsskolan" },
       headwayMinutes: 20,
       loopMinutes: 40,
-      busCount: 2,
+      busCount: 4,
       preferGtfs: false,
       // Weekday departures from Hisingsängens vändplan based on provided timetable image.
       clockDepartureRules: [
