@@ -40,8 +40,8 @@
       inStopIds: ["1018", "1412", "1420", "1415", "1414", "1413", "1419", "1228", "1229", "1422"]
     },
     "2": {
-      outStopIds: ["1422", "1229", "1228", "1419", "1413", "1414", "1415", "1420", "1412", "1018"],
-      inStopIds: ["1018", "1412", "1420", "1415", "1414", "1413", "1419", "1228", "1229", "1422"]
+      outStopIds: ["2001", "2002", "2003", "1420"],
+      inStopIds: ["1420", "2003", "2002", "2001"]
     }
   };
 
@@ -59,11 +59,11 @@
     "2": {
       lineShortName: "2",
       label: "2",
-      stopNames: { a: "Oxhagsskolan", b: "Kungsporten" },
+      stopNames: { a: "Hisingsängens vändplan", b: "Oxhagsskolan" },
       headwayMinutes: 10,
-      loopMinutes: 60,
+      loopMinutes: 80,
       busCount: 4,
-      preferGtfs: false,
+      preferGtfs: true,
       colors: ["#16a34a", "#22c55e", "#15803d", "#86efac"]
     }
   };
@@ -583,11 +583,13 @@
   }
 
   function updatePopup(view, graphic, info) {
+    const vehicleId = info.vehicleId || ((info.line && info.busId) ? `${info.line}-${info.busId}` : (info.busId || "-"));
     view.popup.open({
-      title: `Line ${info.line || ""}`,
+      title: `Buss ${vehicleId}`,
       location: graphic.geometry,
       content: `
-        <div><b>Bus:</b> ${info.busId || "-"}</div>
+        <div><b>Buss-ID:</b> ${vehicleId}</div>
+        <div><b>Linje:</b> ${info.line || "-"}</div>
         <div><b>Direction:</b> ${info.direction}</div>
         <div><b>Segment:</b> ${info.segment}</div>
         <div><b>Next stop:</b> ${info.nextStop} (${info.eta} min)</div>
@@ -708,6 +710,7 @@
     }
     return offsets.map((offsetMs, idx) => ({
       id: ids[idx] || String(idx + 1),
+      vehicleId: `${config.label}-${ids[idx] || String(idx + 1)}`,
       color: config.colors[idx % config.colors.length],
       offsetMs
     }));
@@ -791,7 +794,8 @@
         segment,
         eta: eta ? Math.max(1, Math.round(eta.eta / 60)) : "?",
         source: "Simulated",
-        busId: bus.id
+        busId: bus.id,
+        vehicleId: bus.vehicleId
       };
     });
   }
