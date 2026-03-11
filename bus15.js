@@ -521,8 +521,8 @@
   }
 
   async function initBus15Layer(ctx, options = {}) {
-    if (!ctx || !ctx.map) return;
-    if (state.lines.size) return;
+    if (!ctx || !ctx.map) return false;
+    if (state.lines.size) return true;
     state.widgetEl = document.getElementById("bus15Widget");
     state.startMs = Date.now();
 
@@ -530,9 +530,19 @@
     const lineKeys = Object.keys(LINES);
     for (const key of lineKeys) {
       const config = { ...LINES[key], ...(lineOverrides[key] || {}) };
-      const lineState = await buildLineState(ctx, config, {});
+      let lineState = null;
+      try {
+        lineState = await buildLineState(ctx, config, {});
+      } catch (e) {
+        console.warn(`Bus ${config.label}: init failed`, e);
+      }
       if (!lineState) continue;
       state.lines.set(key, lineState);
+    }
+
+    if (!state.lines.size) {
+      console.warn("Bus live init: no lines created, will allow retry");
+      return false;
     }
 
     const line15 = state.lines.get("15");
@@ -586,12 +596,17 @@
       state.raf = requestAnimationFrame(tick);
     };
     if (!state.raf) tick();
+    return true;
   }
 
   window.initBus15Layer = initBus15Layer;
   if (window.__pendingBus15InitCtx && !window.__bus15InitDone) {
-    window.initBus15Layer(window.__pendingBus15InitCtx);
-    window.__bus15InitDone = true;
-    window.__pendingBus15InitCtx = null;
+    Promise.resolve(window.initBus15Layer(window.__pendingBus15InitCtx)).then((ok) => {
+      if (ok === false) return;
+      window.__bus15InitDone = true;
+      window.__pendingBus15InitCtx = null;
+    }).catch((err) => {
+      console.warn("Deferred bus init failed", err);
+    });
   }
 })();
