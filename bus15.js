@@ -334,13 +334,11 @@
     return new Graphic({
       geometry: point,
       symbol: {
-        type: "point-3d",
-        symbolLayers: [{
-          type: "icon",
-          resource: { primitive: "circle" },
-          size: 10,
-          material: { color }
-        }]
+        type: "simple-marker",
+        style: "circle",
+        color,
+        size: 11,
+        outline: { color: [255, 255, 255, 0.95], width: 1.5 }
       }
     });
   }
@@ -364,6 +362,9 @@
     };
 
     map.addMany([lineState.routeLayer, lineState.routeLayer2, lineState.layer]);
+    if (typeof map.reorder === "function") {
+      map.reorder(lineState.layer, map.layers.length - 1);
+    }
 
     const key = window.TRAFIKLAB_API_KEY || window.GTFS_STATIC_KEY || "";
     let routes = null;
@@ -558,8 +559,9 @@
 
     const toggle15 = document.getElementById("swBus15Live");
     if (toggle15 && line15) {
-      line15.enabled = toggle15.checked;
-      line15.layer.visible = line15.enabled;
+      toggle15.checked = true;
+      line15.enabled = true;
+      line15.layer.visible = true;
       toggle15.addEventListener("change", () => {
         line15.enabled = toggle15.checked;
         line15.layer.visible = line15.enabled;
@@ -569,8 +571,9 @@
 
     const toggle2 = document.getElementById("swBus2Live");
     if (toggle2 && line2) {
-      line2.enabled = toggle2.checked;
-      line2.layer.visible = line2.enabled;
+      toggle2.checked = true;
+      line2.enabled = true;
+      line2.layer.visible = true;
       toggle2.addEventListener("change", () => {
         line2.enabled = toggle2.checked;
         line2.layer.visible = line2.enabled;
@@ -595,6 +598,11 @@
     const tick = () => {
       const now = Date.now();
       state.lines.forEach((lineState) => updateLine(ctx, lineState, now));
+      state.lines.forEach((lineState) => {
+        if (typeof ctx.map?.reorder === "function") {
+          ctx.map.reorder(lineState.layer, ctx.map.layers.length - 1);
+        }
+      });
       if (now - state.lastStatusUpdate > 1000) {
         state.lastStatusUpdate = now;
         updateWidget();
