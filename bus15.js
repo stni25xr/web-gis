@@ -32,8 +32,8 @@
   };
   const DEMO_LINE_ROUTES = {
     "15": {
-      outStopIds: ["1420", "1415", "1414", "1413", "1419", "1418", "1417", "1416", "1415", "1420"],
-      inStopIds: ["1420", "1412", "1018", "1420"]
+      outStopIds: ["1422", "1229", "1228", "1419", "1413", "1414", "1415", "1420", "1412", "1018"],
+      inStopIds: ["1018", "1412", "1420", "1415", "1414", "1413", "1419", "1228", "1229", "1422"]
     },
     "2": {
       outStopIds: ["1420", "1415", "1414", "1413", "1419", "1228", "1229", "1422"],
@@ -43,18 +43,30 @@
   const OXHAGSSKOLAN_COORD = [14.26059093300006, 57.77735702400008];
   const OXNEHAGA_CENTRUM_COORD = [14.264104008000061, 57.775388269000075];
   const HISINGSANGEN_COORD = [14.269915089000051, 57.763623099000029];
+  const LOVHAGSGATAN_COORD = [14.269915089000051, 57.763623099000029];
+  const ESPLANADEN_PROXY_COORD = [14.261092639000026, 57.781745461000071];
 
   const LINES = {
     "15": {
       lineShortName: "15",
       label: "15",
-      stopNames: { a: "Öxnehaga", b: "Esplanaden" },
+      stopNames: { a: "Lövhagsgatan", b: "Esplanaden" },
       headwayMinutes: 20,
-      loopMinutes: 60,
-      busCount: 3,
-      anchorStopNeedle: "centrum",
-      anchorCoord: OXNEHAGA_CENTRUM_COORD,
-      alignToClock: true,
+      loopMinutes: 80,
+      busCount: 4,
+      scheduleMode: "two-terminal-clock",
+      terminalAName: "Lövhagsgatan",
+      terminalACoord: LOVHAGSGATAN_COORD,
+      terminalBName: "Esplanaden",
+      terminalBCoord: ESPLANADEN_PROXY_COORD,
+      terminalABaseMinute: 8,
+      terminalASlotOffsetsMinutes: [0, 20, 40, 60],
+      travelMinutesOneWay: 24,
+      terminalADwellMinutes: 16,
+      terminalBDwellMinutes: 16,
+      timepointMidName: "Öxnehaga centrum",
+      timepointMidCoord: OXNEHAGA_CENTRUM_COORD,
+      timepointMidMinutesFromA: 6,
       colors: ["#ff6b00", "#10b981", "#2563eb"]
     },
     "2": {
@@ -601,6 +613,7 @@
       loopStops: [],
       loopStopDistances: [],
       anchorDistanceM: 0,
+      midDistanceAtoB: null,
       scheduleFleet: [],
       graphics: new Map()
     };
@@ -692,28 +705,67 @@
       lineState.directionSamplers.BtoA = lineState.samplers.in;
     }
 
+    const midCoord = Array.isArray(opts.timepointMidCoord) ? opts.timepointMidCoord : null;
+    if (midCoord && lineState.directionSamplers.AtoB) {
+      const midDist = distanceOnSampler(
+        lineState.directionSamplers.AtoB,
+        webMercatorUtils,
+        Number(midCoord[0]),
+        Number(midCoord[1])
+      );
+      if (Number.isFinite(midDist)) lineState.midDistanceAtoB = midDist;
+    }
+
     if (opts.scheduleMode === "two-terminal-clock") {
       const nowMs = Date.now();
       const depA = Array.isArray(opts.terminalADepartMinutes) ? opts.terminalADepartMinutes : [];
       const depB = Array.isArray(opts.terminalBDepartMinutes) ? opts.terminalBDepartMinutes : [];
+      const slotA = Array.isArray(opts.terminalASlotOffsetsMinutes) ? opts.terminalASlotOffsetsMinutes : [];
+      const slotB = Array.isArray(opts.terminalBSlotOffsetsMinutes) ? opts.terminalBSlotOffsetsMinutes : [];
       const colors = Array.isArray(opts.colors) && opts.colors.length ? opts.colors : ["#f97316"];
       const fleet = [];
-      depA.forEach((minute, idx) => {
-        fleet.push({
-          id: `A${idx + 1}`,
-          origin: "A",
-          seedDepartureMs: latestClockMinuteMs(nowMs, minute),
-          color: colors[idx % colors.length]
+      if (slotA.length && Number.isFinite(Number(opts.terminalABaseMinute))) {
+        const base = latestClockMinuteMs(nowMs, Number(opts.terminalABaseMinute));
+        slotA.forEach((offsetMin, idx) => {
+          fleet.push({
+            id: `A${idx + 1}`,
+            origin: "A",
+            seedDepartureMs: base - Math.max(0, Number(offsetMin) || 0) * 60 * 1000,
+            color: colors[idx % colors.length]
+          });
         });
-      });
-      depB.forEach((minute, idx) => {
-        fleet.push({
-          id: `B${idx + 1}`,
-          origin: "B",
-          seedDepartureMs: latestClockMinuteMs(nowMs, minute),
-          color: colors[(idx + depA.length) % colors.length]
+      } else {
+        depA.forEach((minute, idx) => {
+          fleet.push({
+            id: `A${idx + 1}`,
+            origin: "A",
+            seedDepartureMs: latestClockMinuteMs(nowMs, minute),
+            color: colors[idx % colors.length]
+          });
         });
-      });
+      }
+      if (slotB.length && Number.isFinite(Number(opts.terminalBBaseMinute))) {
+        const base = latestClockMinuteMs(nowMs, Number(opts.terminalBBaseMinute));
+        const bColorOffset = fleet.length;
+        slotB.forEach((offsetMin, idx) => {
+          fleet.push({
+            id: `B${idx + 1}`,
+            origin: "B",
+            seedDepartureMs: base - Math.max(0, Number(offsetMin) || 0) * 60 * 1000,
+            color: colors[(idx + bColorOffset) % colors.length]
+          });
+        });
+      } else {
+        const bColorOffset = fleet.length;
+        depB.forEach((minute, idx) => {
+          fleet.push({
+            id: `B${idx + 1}`,
+            origin: "B",
+            seedDepartureMs: latestClockMinuteMs(nowMs, minute),
+            color: colors[(idx + bColorOffset) % colors.length]
+          });
+        });
+      }
       lineState.scheduleFleet = fleet;
     }
 
@@ -737,49 +789,119 @@
     const samplerBtoA = lineState.directionSamplers?.BtoA;
     if (!samplerAtoB || !samplerBtoA) return;
     const travelMs = Math.max(1, Number(config.travelMinutesOneWay || 38) * 60 * 1000);
-    const cycleMs = travelMs * 2;
+    const dwellAMs = Math.max(0, Number(config.terminalADwellMinutes || 0) * 60 * 1000);
+    const dwellBMs = Math.max(0, Number(config.terminalBDwellMinutes || 0) * 60 * 1000);
+    const cycleMs = travelMs + dwellBMs + travelMs + dwellAMs;
     const termA = String(config.terminalAName || "Terminal A");
     const termB = String(config.terminalBName || "Terminal B");
     const fleet = Array.isArray(lineState.scheduleFleet) ? lineState.scheduleFleet : [];
     if (!fleet.length) return;
+    const midName = String(config.timepointMidName || "");
+    const midMinutesFromA = Math.max(0, Number(config.timepointMidMinutesFromA || 0) * 60 * 1000);
+    const midDistAtoBRaw = Number(lineState.midDistanceAtoB);
+    const midDistAtoB = Number.isFinite(midDistAtoBRaw)
+      ? Math.max(0, Math.min(samplerAtoB.total, midDistAtoBRaw))
+      : null;
+    const distanceAtoB = (legMs) => {
+      if (!Number.isFinite(midDistAtoB) || midMinutesFromA <= 0 || midMinutesFromA >= travelMs) {
+        return (Math.max(0, Math.min(travelMs, legMs)) / travelMs) * samplerAtoB.total;
+      }
+      if (legMs <= midMinutesFromA) {
+        return (legMs / midMinutesFromA) * midDistAtoB;
+      }
+      const tailMs = travelMs - midMinutesFromA;
+      const tailLeg = legMs - midMinutesFromA;
+      return midDistAtoB + (tailLeg / tailMs) * (samplerAtoB.total - midDistAtoB);
+    };
+    const distanceBtoA = (legMs) => {
+      if (!Number.isFinite(midDistAtoB) || midMinutesFromA <= 0 || midMinutesFromA >= travelMs) {
+        return (Math.max(0, Math.min(travelMs, legMs)) / travelMs) * samplerBtoA.total;
+      }
+      const midMinutesFromB = travelMs - midMinutesFromA;
+      const midDistFromB = Math.max(0, Math.min(samplerBtoA.total, samplerBtoA.total - midDistAtoB));
+      if (legMs <= midMinutesFromB) {
+        return (legMs / midMinutesFromB) * midDistFromB;
+      }
+      const tailMs = travelMs - midMinutesFromB;
+      const tailLeg = legMs - midMinutesFromB;
+      return midDistFromB + (tailLeg / tailMs) * (samplerBtoA.total - midDistFromB);
+    };
 
     const nextGraphics = new Map();
     fleet.forEach((bus) => {
       const since = now - Number(bus.seedDepartureMs || now);
       const phase = ((since % cycleMs) + cycleMs) % cycleMs;
-      const outbound = phase < travelMs;
-      const legMs = outbound ? phase : (phase - travelMs);
-      const frac = Math.max(0, Math.min(1, legMs / travelMs));
       let sampler = null;
       let segment = "";
       let nextStop = "";
+      let dist = 0;
+      let etaMs = travelMs;
 
       if (bus.origin === "A") {
-        if (outbound) {
+        if (phase < travelMs) {
+          const leg = phase;
           sampler = samplerAtoB;
+          dist = distanceAtoB(leg);
           segment = `${termA} → ${termB}`;
           nextStop = termB;
-        } else {
+          etaMs = travelMs - leg;
+        } else if (phase < travelMs + dwellBMs) {
+          sampler = samplerAtoB;
+          dist = samplerAtoB.total;
+          segment = `Stopp vid ${termB}`;
+          nextStop = termB;
+          etaMs = (travelMs + dwellBMs) - phase;
+        } else if (phase < travelMs + dwellBMs + travelMs) {
+          const leg = phase - (travelMs + dwellBMs);
           sampler = samplerBtoA;
+          dist = distanceBtoA(leg);
           segment = `${termB} → ${termA}`;
           nextStop = termA;
+          etaMs = travelMs - leg;
+        } else {
+          sampler = samplerAtoB;
+          dist = 0;
+          segment = `Stopp vid ${termA}`;
+          nextStop = termA;
+          etaMs = cycleMs - phase;
         }
       } else {
-        if (outbound) {
+        if (phase < travelMs) {
+          const leg = phase;
           sampler = samplerBtoA;
+          dist = distanceBtoA(leg);
           segment = `${termB} → ${termA}`;
           nextStop = termA;
-        } else {
+          etaMs = travelMs - leg;
+        } else if (phase < travelMs + dwellAMs) {
+          sampler = samplerBtoA;
+          dist = samplerBtoA.total;
+          segment = `Stopp vid ${termA}`;
+          nextStop = termA;
+          etaMs = (travelMs + dwellAMs) - phase;
+        } else if (phase < travelMs + dwellAMs + travelMs) {
+          const leg = phase - (travelMs + dwellAMs);
           sampler = samplerAtoB;
+          dist = distanceAtoB(leg);
           segment = `${termA} → ${termB}`;
           nextStop = termB;
+          etaMs = travelMs - leg;
+        } else {
+          sampler = samplerBtoA;
+          dist = 0;
+          segment = `Stopp vid ${termB}`;
+          nextStop = termB;
+          etaMs = cycleMs - phase;
         }
       }
+
       if (!sampler || !Number.isFinite(sampler.total) || sampler.total <= 0) return;
-      const dist = frac * sampler.total;
       const pt = sampler.toGeo(dist);
       if (!pt) return;
-      const etaMin = Math.max(1, Math.round((travelMs - legMs) / 60000));
+      const etaMin = Math.max(1, Math.round(Math.max(0, etaMs) / 60000));
+      const directionLabel = midName && segment === `${termA} → ${termB}`
+        ? `${segment} (via ${midName})`
+        : segment;
 
       let g = lineState.graphics.get(bus.id);
       if (!g) {
@@ -791,7 +913,7 @@
       }
       g.attributes = {
         line: config.label,
-        direction: segment,
+        direction: directionLabel,
         nextStop,
         segment,
         eta: etaMin,
