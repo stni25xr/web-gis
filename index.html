@@ -802,7 +802,7 @@
     <header class="guide-chat-header">
       <h3>Guidechat</h3>
       <div class="guide-chat-header-actions">
-        <button id="guideChatRestartBtn" type="button" class="guide-chat-restart-btn" aria-label="Soft restart demo">
+        <button id="guideChatRestartBtn" type="button" class="guide-chat-restart-btn" aria-label="Nollställ chat">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16" aria-hidden="true">
             <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
             <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
@@ -6285,7 +6285,6 @@ Maintain safe distance
     const leftTabShuttle = document.getElementById("leftTabShuttle");
     const rightTab = document.getElementById("rightTab");
     const restartDemoBtn = document.getElementById("restartDemoBtn");
-    const guideChatRestartBtn = document.getElementById("guideChatRestartBtn");
     const leftClose = document.getElementById("leftPanelClose");
     const digitalClose = document.getElementById("digitalPanelClose");
     const rightClose = document.getElementById("rightPanelClose");
@@ -6897,10 +6896,6 @@ Maintain safe distance
 
     window.resetDemoWithoutReload = resetDemoWithoutReload;
     restartDemoBtn?.addEventListener("click", runSoftRestart);
-    if (guideChatRestartBtn) {
-      guideChatRestartBtn.dataset.softRestartBound = "1";
-      guideChatRestartBtn.addEventListener("click", runSoftRestart);
-    }
   </script>
   <script>
     // Demo intro overlay (no login)

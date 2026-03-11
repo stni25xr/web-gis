@@ -106,6 +106,17 @@
       setQuickActions(["demoList", "story", "service", "departures", "callShuttle", "windLive"]);
     };
 
+    const resetChatOnly = () => {
+      greeted = false;
+      storyIndex = -1;
+      messagesEl.innerHTML = "";
+      quickEl.innerHTML = "";
+      input.value = "";
+      ensureGreeting();
+      input.focus();
+      log("chat_reset_only");
+    };
+
     const openChat = () => {
       panel.hidden = false;
       panel.style.display = "flex";
@@ -319,20 +330,11 @@
       openChat();
     });
 
-    if (restartBtn && restartBtn.dataset.softRestartBound !== "1") {
+    if (restartBtn) {
       restartBtn.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
-        if (typeof window.resetDemoWithoutReload === "function") {
-          window.resetDemoWithoutReload();
-          return;
-        }
-        const sidebarRestartBtn = document.getElementById("restartDemoBtn");
-        if (sidebarRestartBtn && typeof sidebarRestartBtn.click === "function") {
-          sidebarRestartBtn.click();
-          return;
-        }
-        window.location.reload();
+        resetChatOnly();
       });
     }
 
