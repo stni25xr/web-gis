@@ -87,6 +87,9 @@
       terminalADepartMinutes: [10, 20, 30],
       terminalBDepartMinutes: [48, 58, 8],
       travelMinutesOneWay: 38,
+      terminalADwellMinutes: 22,
+      terminalBDwellMinutes: 22,
+      hideWaitingAtTerminals: true,
       colors: ["#f97316", "#14b8a6", "#8b5cf6", "#0ea5e9"]
     }
   };
@@ -846,6 +849,7 @@
           nextStop = termB;
           etaMs = travelMs - leg;
         } else if (phase < travelMs + dwellBMs) {
+          if (config.hideWaitingAtTerminals) return;
           sampler = samplerAtoB;
           dist = samplerAtoB.total;
           segment = `Stopp vid ${termB}`;
@@ -859,6 +863,7 @@
           nextStop = termA;
           etaMs = travelMs - leg;
         } else {
+          if (config.hideWaitingAtTerminals) return;
           sampler = samplerAtoB;
           dist = 0;
           segment = `Stopp vid ${termA}`;
@@ -874,6 +879,7 @@
           nextStop = termA;
           etaMs = travelMs - leg;
         } else if (phase < travelMs + dwellAMs) {
+          if (config.hideWaitingAtTerminals) return;
           sampler = samplerBtoA;
           dist = samplerBtoA.total;
           segment = `Stopp vid ${termA}`;
@@ -887,6 +893,7 @@
           nextStop = termB;
           etaMs = travelMs - leg;
         } else {
+          if (config.hideWaitingAtTerminals) return;
           sampler = samplerBtoA;
           dist = 0;
           segment = `Stopp vid ${termB}`;
