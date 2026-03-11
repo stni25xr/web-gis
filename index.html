@@ -578,6 +578,7 @@
     </div>
     </div>
     <div class="sidebar-footer">
+      <button id="restartDemoBtn" type="button" class="demo-reset-btn">Starta om demo</button>
       <button id="logoutBtn" type="button" class="logout-btn">Logga ut</button>
     </div>
   </aside>
@@ -720,8 +721,14 @@
             </div>
             <div class="miniCard">
               <details data-section="blue">
-                <summary class="panel-title">3D‑modell (BIM)</summary>
+                <summary class="panel-title">BIM & buss live</summary>
                 <div class="panel-body">
+                  <div class="muted" style="margin-bottom:6px;">
+                    De rörliga prickarna i kartan är busslinje 2 och 15 som kör i området.
+                  </div>
+                  <div class="muted" style="margin-bottom:6px;">
+                    Du kan följa hela deras rutt/itinerär i simuleringen.
+                  </div>
                   <div class="muted" style="margin-bottom:6px;">Ladda upp en 3D‑modell via byggnadsflödet:</div>
                   <div class="muted">1) Klicka på en byggnad i kartan.</div>
                   <div class="muted">2) Klicka på <strong>Building information</strong>.</div>
@@ -1923,7 +1930,7 @@ Maintain safe distance
           console.warn("Could not build model data URL", err);
         }
         if (!dataUrl) {
-          setBimReplaceStatus("Could not save model data.");
+          setBimReplaceStatus("Could not save model data. Filen kan vara för stor.");
           return;
         }
         const objectId = model.objectId;
@@ -1943,7 +1950,7 @@ Maintain safe distance
           setBimReplaceStatus(`Saved model for ${objectId}.`);
         } catch (err) {
           console.warn("Could not persist BIM model", err);
-          setBimReplaceStatus("Save failed (storage limit).");
+          setBimReplaceStatus("Save failed: storage limit reached. Större GLB kräver backend/databas.");
         }
       }
 
@@ -5568,7 +5575,7 @@ Maintain safe distance
           setSafeListHtml("", except !== "blue");
         }
         if (except !== "blue") {
-          if (blueHint) blueHint.textContent = "Klicka på byggnad → Building information → Se BIM model.";
+          if (blueHint) blueHint.textContent = "Prickarna är buss 2 och 15. BIM: klicka byggnad → Building information → Se BIM model.";
           if (blueList) blueList.innerHTML = "";
         }
       }
@@ -6243,6 +6250,7 @@ Maintain safe distance
     const leftTabDigital = document.getElementById("leftTabDigital");
     const leftTabShuttle = document.getElementById("leftTabShuttle");
     const rightTab = document.getElementById("rightTab");
+    const restartDemoBtn = document.getElementById("restartDemoBtn");
     const leftClose = document.getElementById("leftPanelClose");
     const digitalClose = document.getElementById("digitalPanelClose");
     const rightClose = document.getElementById("rightPanelClose");
@@ -6784,6 +6792,50 @@ Maintain safe distance
       stopSim();
       dispatchSimEvent();
     };
+
+    function resetDemoWithoutReload() {
+      closeAll();
+      clearRoute();
+      clearSafetyRoute();
+      clearServiceFlow();
+      clearSupportFlows();
+      resetNearest();
+      clearDepartures();
+
+      window.infoFlowController?.clearAllNonBus?.();
+      window.clearPoliceRoute?.();
+      window.stopPoliceDriveAnimation?.();
+      window.hideAlarmModal?.();
+      window.hideIncidentModal?.();
+      window.hideShuttleModal?.();
+
+      const routeColorModalEl = document.getElementById("routeColorModal");
+      if (routeColorModalEl) routeColorModalEl.style.display = "none";
+
+      ["pm25Toggle", "cloudToggle", "windToggle"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el || !el.checked) return;
+        el.checked = false;
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+
+      const guidePanel = document.getElementById("guideChatPanel");
+      const guideToggle = document.getElementById("guideChatToggle");
+      if (guidePanel) {
+        guidePanel.hidden = true;
+        guidePanel.style.display = "none";
+      }
+      if (guideToggle) guideToggle.setAttribute("aria-expanded", "false");
+
+      startSimNow();
+      saveClick({
+        type: "event",
+        name: "demo_restart",
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    restartDemoBtn?.addEventListener("click", resetDemoWithoutReload);
   </script>
   <script>
     // Demo-only login gate (client-side)
