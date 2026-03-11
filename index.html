@@ -812,6 +812,23 @@
   <div id="sceneView" role="main" aria-label="3D‑karta"></div>
   <div id="windBlueTint" class="wind-blue-tint hidden" aria-hidden="true"></div>
   <div id="bus15Widget" aria-live="polite">Bus simulation: init...</div>
+  <button id="guideChatToggle" class="guide-chat-toggle" type="button" aria-label="Öppna hjälpchat" aria-controls="guideChatPanel" aria-expanded="false">
+    <img src="./assets/chatbot-avatar.svg" alt="" aria-hidden="true" />
+    <span class="sr-only">Öppna hjälpchat</span>
+  </button>
+  <section id="guideChatPanel" class="guide-chat" aria-label="Sidhjälp chat" hidden>
+    <header class="guide-chat-header">
+      <h3>Guidechat</h3>
+      <button id="guideChatClose" type="button" aria-label="Stäng chat">✕</button>
+    </header>
+    <div id="guideChatMessages" class="guide-chat-messages" aria-live="polite"></div>
+    <div id="guideChatQuick" class="guide-chat-quick" aria-label="Snabbval"></div>
+    <form id="guideChatForm" class="guide-chat-form">
+      <label for="guideChatInput" class="sr-only">Skriv en fråga</label>
+      <input id="guideChatInput" type="text" placeholder="Skriv t.ex.: vad kan vi göra, buss, shuttle..." autocomplete="off" />
+      <button type="submit">Skicka</button>
+    </form>
+  </section>
   <div id="iotContainer" style="display:none;"></div>
   <input id="bimReplaceFile" type="file" accept=".glb,.gbl" style="display:none;" />
   <div id="bimReplaceControls" class="bim-replace-controls" style="display:none;" aria-label="GLB replace controls">
@@ -6889,6 +6906,7 @@ Maintain safe distance
       });
     });
   </script>
+  <script src="./local-guide-chat.js"></script>
   <script type="module" src="./electricity-sim.js"></script>
   <script type="module" src="./bus15.js"></script>
 </body>
