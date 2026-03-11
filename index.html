@@ -1370,6 +1370,116 @@ Maintain safe distance
       map.add(busDashLayer);
       const coordLayer = new GraphicsLayer({ elevationInfo: { mode: "absolute-height" } });
       map.add(coordLayer);
+      const emergencyBusLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 8 } });
+      map.add(emergencyBusLayer);
+
+      const EMERGENCY_BUS_DEMO_ENABLED = true;
+      const EMERGENCY_BUS_LOOP = [
+        [14.2619, 57.7722],
+        [14.2644, 57.7737],
+        [14.2675, 57.7737],
+        [14.2697, 57.7721],
+        [14.2693, 57.7701],
+        [14.2668, 57.7693],
+        [14.2637, 57.7697],
+        [14.2622, 57.7710],
+        [14.2619, 57.7722]
+      ];
+      let emergencyBusAnim = null;
+
+      function emergencyDistanceMeters(a, b) {
+        const [lon1, lat1] = a;
+        const [lon2, lat2] = b;
+        const toRad = (v) => (v * Math.PI) / 180;
+        const R = 6371000;
+        const dLat = toRad(lat2 - lat1);
+        const dLon = toRad(lon2 - lon1);
+        const p1 = toRad(lat1);
+        const p2 = toRad(lat2);
+        const h = Math.sin(dLat / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dLon / 2) ** 2;
+        return 2 * R * Math.asin(Math.sqrt(h));
+      }
+
+      function buildEmergencySampler(loop) {
+        if (!Array.isArray(loop) || loop.length < 2) return null;
+        const path = loop
+          .map((p) => [Number(p[0]), Number(p[1])])
+          .filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+        if (path.length < 2) return null;
+        const cum = [0];
+        let total = 0;
+        for (let i = 1; i < path.length; i++) {
+          total += emergencyDistanceMeters(path[i - 1], path[i]);
+          cum[i] = total;
+        }
+        if (total <= 0) return null;
+        const pointAt = (dist) => {
+          if (dist <= 0) return path[0];
+          if (dist >= total) return path[path.length - 1];
+          let i = 1;
+          while (i < cum.length && cum[i] < dist) i++;
+          const prev = cum[i - 1];
+          const segLen = cum[i] - prev;
+          const t = segLen === 0 ? 0 : (dist - prev) / segLen;
+          const p0 = path[i - 1];
+          const p1 = path[i];
+          return [p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t];
+        };
+        return {
+          total,
+          toPoint: (dist) => {
+            const p = pointAt(dist);
+            return { type: "point", longitude: p[0], latitude: p[1], spatialReference: { wkid: 4326 } };
+          }
+        };
+      }
+
+      function startEmergencyBusDemo() {
+        if (!EMERGENCY_BUS_DEMO_ENABLED || emergencyBusAnim) return;
+        const sampler = buildEmergencySampler(EMERGENCY_BUS_LOOP);
+        if (!sampler) return;
+        const busCount = 5;
+        const speedMps = 18;
+        const colors = [
+          [239, 68, 68, 0.98],
+          [249, 115, 22, 0.98],
+          [16, 185, 129, 0.98],
+          [37, 99, 235, 0.98],
+          [168, 85, 247, 0.98]
+        ];
+        const offsets = [];
+        const graphics = [];
+        for (let i = 0; i < busCount; i++) {
+          const offset = (i / busCount) * sampler.total;
+          offsets.push(offset);
+          graphics.push(new Graphic({
+            geometry: sampler.toPoint(offset),
+            symbol: {
+              type: "simple-marker",
+              style: "circle",
+              color: colors[i % colors.length],
+              size: 12,
+              outline: { color: [255, 255, 255, 0.96], width: 1.6 }
+            }
+          }));
+        }
+        emergencyBusLayer.addMany(graphics);
+        if (typeof map.reorder === "function") map.reorder(emergencyBusLayer, map.layers.length - 1);
+
+        let last = performance.now();
+        const tick = (now) => {
+          const dt = Math.max(0, Math.min(0.2, (now - last) / 1000));
+          last = now;
+          for (let i = 0; i < graphics.length; i++) {
+            offsets[i] = (offsets[i] + speedMps * dt) % sampler.total;
+            graphics[i].geometry = sampler.toPoint(offsets[i]);
+          }
+          if (typeof map.reorder === "function") map.reorder(emergencyBusLayer, map.layers.length - 1);
+          if (view && typeof view.requestRender === "function") view.requestRender();
+          emergencyBusAnim = requestAnimationFrame(tick);
+        };
+        emergencyBusAnim = requestAnimationFrame(tick);
+      }
 
       const defaultCenterLat = 57.77328;
       const defaultCenterLon = 14.26315;
@@ -1396,6 +1506,7 @@ Maintain safe distance
       const homeWidget = new Home({ view });
       const locateWidget = new Locate({ view });
       view.ui.add([homeWidget, locateWidget], "top-left");
+      view.when(() => startEmergencyBusDemo());
 
       function syncLighting() {
         if (!view?.environment?.lighting) return;
