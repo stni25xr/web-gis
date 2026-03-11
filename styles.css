@@ -176,7 +176,7 @@ html, body, body.app {
   justify-content: center;
   z-index: 20000;
   overflow: hidden;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.35s ease, background 0.35s ease;
 }
 
 .login-overlay::before,
@@ -186,15 +186,45 @@ html, body, body.app {
   inset: 0;
   pointer-events: none;
   z-index: 1;
+  transition: opacity 0.35s ease;
 }
 
-.login-overlay::before {
+.login-overlay.is-video-phase::before {
   background: linear-gradient(to top, rgba(2, 6, 23, 0.86) 0%, rgba(2, 6, 23, 0.26) 45%, rgba(2, 6, 23, 0.65) 100%);
+  opacity: 1;
 }
 
-.login-overlay::after {
-  background: radial-gradient(circle at 18% 24%, rgba(14, 165, 233, 0.2) 0%, transparent 45%),
-              radial-gradient(circle at 84% 80%, rgba(37, 99, 235, 0.2) 0%, transparent 50%);
+.login-overlay.is-video-phase::after {
+  opacity: 0;
+}
+
+.login-overlay.is-message-phase {
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(2px);
+}
+
+.login-overlay.is-message-phase::before,
+.login-overlay.is-message-phase::after {
+  width: 42vmax;
+  height: 42vmax;
+  border-radius: 999px;
+  inset: auto;
+  filter: blur(24px);
+  opacity: 0.28;
+}
+
+.login-overlay.is-message-phase::before {
+  right: -12vmax;
+  top: -14vmax;
+  background: radial-gradient(circle at center, #38bdf8 0%, transparent 68%);
+  animation: intro-blob-a 10s ease-in-out infinite;
+}
+
+.login-overlay.is-message-phase::after {
+  left: -16vmax;
+  bottom: -16vmax;
+  background: radial-gradient(circle at center, #1d4ed8 0%, transparent 70%);
+  animation: intro-blob-b 12s ease-in-out infinite;
 }
 
 .login-overlay.is-hidden {
@@ -203,61 +233,69 @@ html, body, body.app {
 }
 
 .login-overlay.is-exiting-corner {
-  background: #020617;
+  background: rgba(15, 23, 42, 0.06);
 }
 
 .login-card {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  display: block;
-  transform: scale(1);
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  transform: translateX(0) scale(1);
   opacity: 1;
-  transition: transform 0.42s ease, opacity 0.42s ease;
+  transition: transform 0.46s cubic-bezier(0.22, 0.78, 0.25, 1), opacity 0.32s ease;
 }
 
-.login-overlay.is-entering .intro-content {
-  animation: intro-card-enter 0.56s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+.login-overlay.is-entering.is-message-phase .intro-content {
+  animation: intro-card-enter 0.52s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .login-overlay.is-exiting-corner .login-card {
-  transform: scale(1.03);
+  transform: translate(min(46vw, 620px), min(36vh, 380px)) scale(0.64) rotate(-7deg);
   opacity: 0;
 }
 
 .intro-content {
   position: absolute;
   left: 50%;
-  bottom: clamp(18px, 5vh, 48px);
-  transform: translateX(-50%);
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0.96);
   z-index: 2;
-  width: min(760px, calc(100vw - 24px));
-  background: linear-gradient(165deg, rgba(255, 255, 255, 0.93) 0%, rgba(248, 251, 255, 0.88) 100%);
+  width: min(420px, 92vw);
+  background: linear-gradient(165deg, #ffffff 0%, #f8fbff 100%);
   border-radius: 18px;
-  padding: clamp(14px, 2.2vw, 24px);
+  padding: 28px 26px;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
+  box-shadow: 0 28px 72px rgba(15, 23, 42, 0.28);
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  backdrop-filter: blur(4px);
+  gap: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.32s ease, opacity 0.32s ease;
+}
+
+.login-overlay.is-message-phase .intro-content {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
 }
 
 .login-overlay.is-exiting-corner .intro-content {
-  transform: translateX(-50%) translateY(22px) scale(0.96);
+  transform: translate(-50%, -50%) translateY(26px) scale(0.92);
   opacity: 0;
 }
 
 .login-title {
-  margin: 0;
-  font-size: clamp(24px, 3.2vw, 34px);
+  margin: 0 0 6px 0;
+  font-size: 28px;
   font-weight: 700;
   color: #0f172a;
   text-align: center;
 }
 
 .intro-video {
-  position: absolute;
+  position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
@@ -265,28 +303,66 @@ html, body, body.app {
   object-position: center;
   background: #0f172a;
   z-index: 0;
+  transition: opacity 0.35s ease;
+}
+
+.login-overlay.is-message-phase .intro-video {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.intro-car {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+  color: #0f172a;
+  background: #dbeafe;
+  border: 1px solid #bfdbfe;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.login-overlay.is-message-phase .intro-content:hover .intro-car {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.22);
 }
 
 .intro-subtitle {
   margin: 0;
-  max-width: 62ch;
-  font-size: clamp(15px, 1.5vw, 18px);
-  line-height: 1.45;
+  font-size: 14px;
   color: #334155;
-  text-align: left;
+  text-align: center;
 }
+
+.intro-list {
+  font-size: 13px;
+  color: #0f172a;
+  line-height: 1.4;
+  display: grid;
+  gap: 4px;
+}
+
+.login-overlay.is-entering.is-message-phase .intro-list > div {
+  animation: intro-list-item 0.5s ease both;
+}
+
+.login-overlay.is-entering.is-message-phase .intro-list > div:nth-child(1) { animation-delay: 0.08s; }
+.login-overlay.is-entering.is-message-phase .intro-list > div:nth-child(2) { animation-delay: 0.14s; }
+.login-overlay.is-entering.is-message-phase .intro-list > div:nth-child(3) { animation-delay: 0.2s; }
+.login-overlay.is-entering.is-message-phase .intro-list > div:nth-child(4) { animation-delay: 0.26s; }
 
 .intro-note {
   margin: 0;
-  font-size: clamp(12px, 1.2vw, 14px);
+  font-size: 12px;
   color: #475569;
-  text-align: left;
+  text-align: center;
 }
 
 .intro-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .login-field {
@@ -317,11 +393,11 @@ html, body, body.app {
 }
 
 .login-btn {
-  margin-top: 2px;
+  margin-top: 6px;
   border: 0;
   border-radius: 12px;
-  padding: 13px 14px;
-  font-size: 16px;
+  padding: 12px 14px;
+  font-size: 15px;
   font-weight: 700;
   color: #fff;
   cursor: pointer;
@@ -349,8 +425,8 @@ html, body, body.app {
 .intro-wow-btn {
   border: 1px solid #cbd5e1;
   border-radius: 12px;
-  padding: 12px 12px;
-  font-size: 14px;
+  padding: 10px 12px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   color: #0f172a;
@@ -367,20 +443,13 @@ html, body, body.app {
 
 @media (max-width: 720px) {
   .intro-content {
-    width: calc(100vw - 18px);
-    bottom: 10px;
-    padding: 14px;
+    width: min(420px, 92vw);
+    padding: 20px 16px;
     border-radius: 14px;
-    gap: 8px;
   }
 
   .intro-actions {
     grid-template-columns: 1fr;
-  }
-
-  .intro-subtitle,
-  .intro-note {
-    text-align: center;
   }
 }
 
@@ -405,11 +474,11 @@ html, body, body.app {
 
 @keyframes intro-card-enter {
   0% {
-    transform: translateX(36px) scale(0.95);
+    transform: translate(-50%, -50%) translateX(36px) scale(0.95);
     opacity: 0;
   }
   100% {
-    transform: translateX(0) scale(1);
+    transform: translate(-50%, -50%) translateX(0) scale(1);
     opacity: 1;
   }
 }
