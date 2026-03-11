@@ -1349,6 +1349,7 @@ Maintain safe distance
       const map = new Map({ basemap: "osm", ground: "world-elevation" });
 
       const MOVING_DOT_OFFSET_METERS = 1;
+      const BUS_MOVING_OFFSET_METERS = 3;
       const routeLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: MOVING_DOT_OFFSET_METERS } });
       map.add(routeLayer);
       window.__routeEyeOffset = routeLayer?.elevationInfo?.offset ?? 1.7;
@@ -1356,7 +1357,7 @@ Maintain safe distance
       map.add(safetyRouteLayer);
       const policeDriveLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: MOVING_DOT_OFFSET_METERS } });
       map.add(policeDriveLayer);
-      const bus15Layer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: MOVING_DOT_OFFSET_METERS } });
+      const bus15Layer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: BUS_MOVING_OFFSET_METERS } });
       map.add(bus15Layer);
       const bimMarkerLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 3 } });
       map.add(bimMarkerLayer);
@@ -1366,7 +1367,7 @@ Maintain safe distance
       map.add(bimReplacementLayer);
       const bimClipLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 0 } });
       map.add(bimClipLayer);
-      const busDashLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: MOVING_DOT_OFFSET_METERS } });
+      const busDashLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: BUS_MOVING_OFFSET_METERS } });
       map.add(busDashLayer);
       const coordLayer = new GraphicsLayer({ elevationInfo: { mode: "absolute-height" } });
       map.add(coordLayer);

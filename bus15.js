@@ -3,7 +3,7 @@
     updateMs: 5000,
     dwellMs: 5000
   };
-  const BUS_GROUND_OFFSET_METERS = 1;
+  const BUS_GROUND_OFFSET_METERS = 3;
 
   const LINES = {
     "15": {
