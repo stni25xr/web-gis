@@ -522,6 +522,7 @@
 
   async function initBus15Layer(ctx, options = {}) {
     if (!ctx || !ctx.map) return;
+    if (state.lines.size) return;
     state.widgetEl = document.getElementById("bus15Widget");
     state.startMs = Date.now();
 
@@ -588,4 +589,9 @@
   }
 
   window.initBus15Layer = initBus15Layer;
+  if (window.__pendingBus15InitCtx && !window.__bus15InitDone) {
+    window.initBus15Layer(window.__pendingBus15InitCtx);
+    window.__bus15InitDone = true;
+    window.__pendingBus15InitCtx = null;
+  }
 })();

@@ -3798,8 +3798,12 @@ Maintain safe distance
       });
       map.add(bus);
       bus.when(() => {
-        if (window.initBus15Layer) {
-          window.initBus15Layer({ view, map, GraphicsLayer, Graphic, Polyline, webMercatorUtils, busLayer: bus });
+        const busInitCtx = { view, map, GraphicsLayer, Graphic, Polyline, webMercatorUtils, busLayer: bus };
+        window.__pendingBus15InitCtx = busInitCtx;
+        if (window.initBus15Layer && !window.__bus15InitDone) {
+          window.initBus15Layer(busInitCtx);
+          window.__bus15InitDone = true;
+          window.__pendingBus15InitCtx = null;
         }
       });
 
