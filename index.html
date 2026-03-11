@@ -266,21 +266,25 @@
   <!-- DEMO INTRO OVERLAY -->
   <div id="loginOverlay" class="login-overlay" aria-hidden="false">
     <div class="login-card" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
-      <div class="intro-car" aria-hidden="true">
-        <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M4 9a1 1 0 1 0 0 2 1 1 0 0 0 0-2m8 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2"/>
-          <path d="M1 11a1 1 0 0 0 1 1h1a2 2 0 1 0 4 0h2a2 2 0 1 0 4 0h1a1 1 0 0 0 1-1V9.5a.5.5 0 0 0-.276-.447l-1.5-.75A.5.5 0 0 0 13 8.25V6a1 1 0 0 0-1-1H4.236a1 1 0 0 0-.894.553L1.382 9.447A.5.5 0 0 0 1 9.894zm2.447-4.724A.5.5 0 0 1 3.894 6H12v2H2.309z"/>
-        </svg>
+      <div class="intro-video-shell">
+        <video
+          id="introVideo"
+          class="intro-video"
+          autoplay
+          muted
+          playsinline
+          preload="auto"
+          controls
+          controlslist="nodownload noplaybackrate"
+          aria-label="Kort välkomstvideo"
+        >
+          <source src="./assets/videos/Skapa_Bakgrundsvideo_Med_Animation.mp4" type="video/mp4" />
+          Din webbläsare stödjer inte videoformatet.
+        </video>
       </div>
       <h1 id="loginTitle" class="login-title">BLUE demo</h1>
-      <div class="intro-subtitle">Välkommen. Här är en kort intro innan du börjar.</div>
-      <div class="intro-list">
-        <div>• De rörliga prickarna är buss 2 och 15 i området.</div>
-        <div>• Du kan följa hela deras rutt i kartan.</div>
-        <div>• Du kan beställa en shuttle bus direkt i kartan (Call shuttle).</div>
-        <div>• För BIM: klicka byggnad → Building information → Se BIM model.</div>
-      </div>
-      <div class="intro-note">Guidechatten kan svara på frågor om sidan.</div>
+      <div class="intro-subtitle">Välkommen. Titta gärna på den korta videon och tryck sedan på Starta demo.</div>
+      <div class="intro-note">Du kan alltid öppna intro igen med knappen Visa intro.</div>
       <div class="intro-actions">
         <button id="introStartBtn" type="button" class="login-btn">Starta demo</button>
         <button id="introShuttleBtn" type="button" class="intro-wow-btn">Wow: öppna Shuttle dashboard</button>
@@ -6904,7 +6908,25 @@ Maintain safe distance
       const startBtn = document.getElementById("introStartBtn");
       const shuttleBtn = document.getElementById("introShuttleBtn");
       const introBtn = document.getElementById("logoutBtn");
+      const introVideo = document.getElementById("introVideo");
       let introTimer = null;
+
+      const playIntroVideo = () => {
+        if (!introVideo) return;
+        try {
+          introVideo.currentTime = 0;
+        } catch (_) {}
+        introVideo.muted = true;
+        const promise = introVideo.play();
+        if (promise && typeof promise.catch === "function") {
+          promise.catch(() => {});
+        }
+      };
+
+      const pauseIntroVideo = () => {
+        if (!introVideo) return;
+        introVideo.pause();
+      };
 
       const showIntroOverlay = () => {
         if (!overlay) return;
@@ -6917,6 +6939,7 @@ Maintain safe distance
         overlay.classList.add("is-entering");
         requestAnimationFrame(() => {
           overlay.setAttribute("aria-hidden", "false");
+          playIntroVideo();
         });
         introTimer = setTimeout(() => {
           overlay.classList.remove("is-entering");
@@ -6934,6 +6957,7 @@ Maintain safe distance
         overlay.classList.add("is-exiting-corner");
         overlay.classList.add("is-hidden");
         overlay.setAttribute("aria-hidden", "true");
+        pauseIntroVideo();
         setTimeout(() => {
           overlay.style.display = "none";
           overlay.classList.remove("is-exiting-corner");
