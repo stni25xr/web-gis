@@ -5,7 +5,6 @@
   };
   const BUS_GROUND_OFFSET_METERS = 6;
   const BUS_SIM_SPEED_MULTIPLIER = 1;
-  const PREFER_LOCAL_LOCKED_ROUTES = true;
   const GTFS_ROUTE_JOIN_MAX_METERS = 900;
   const HARD_FALLBACK_LOOP = [
     [14.2620, 57.7722],
@@ -47,10 +46,11 @@
     "15": {
       lineShortName: "15",
       label: "15",
-      stopNames: { a: "Lövhagsgatan", b: "Kungsporten" },
+      stopNames: { a: "Lövhagsgatan", b: "Esplanaden" },
       headwayMinutes: 20,
       loopMinutes: 80,
       busCount: 4,
+      preferGtfs: true,
       colors: ["#ff6b00", "#10b981", "#2563eb"]
     },
     "2": {
@@ -60,6 +60,7 @@
       headwayMinutes: 10,
       loopMinutes: 40,
       busCount: 4,
+      preferGtfs: false,
       colors: ["#f97316", "#14b8a6", "#8b5cf6", "#0ea5e9"]
     }
   };
@@ -71,6 +72,12 @@
     lastStatusUpdate: 0,
     startMs: 0,
     clickHandle: null
+  };
+
+  const gtfsStaticCache = {
+    key: "",
+    data: null,
+    promise: null
   };
 
   function statusLine(lineState, text) {
@@ -388,24 +395,73 @@
     return dedup;
   }
 
+  async function loadGtfsStaticTables({ JSZip, key }) {
+    if (!key || !JSZip) return null;
+    if (gtfsStaticCache.key === key && gtfsStaticCache.data) {
+      return gtfsStaticCache.data;
+    }
+    if (gtfsStaticCache.key === key && gtfsStaticCache.promise) {
+      return gtfsStaticCache.promise;
+    }
+    gtfsStaticCache.key = key;
+    gtfsStaticCache.promise = (async () => {
+      const url = `https://opendata.samtrafiken.se/gtfs/jlt/jlt.zip?key=${encodeURIComponent(key)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`GTFS static HTTP ${res.status}`);
+      const buf = await res.arrayBuffer();
+      const zip = await JSZip.loadAsync(buf);
+      const [routesText, tripsText, shapesText, stopsText, stopTimesText] = await Promise.all([
+        zip.file("routes.txt").async("string"),
+        zip.file("trips.txt").async("string"),
+        zip.file("shapes.txt").async("string"),
+        zip.file("stops.txt").async("string"),
+        zip.file("stop_times.txt").async("string")
+      ]);
+      return {
+        routes: parseCsv(routesText),
+        trips: parseCsv(tripsText),
+        shapes: parseCsv(shapesText),
+        stops: parseCsv(stopsText),
+        stopTimes: parseCsv(stopTimesText)
+      };
+    })();
+    try {
+      gtfsStaticCache.data = await gtfsStaticCache.promise;
+      return gtfsStaticCache.data;
+    } finally {
+      gtfsStaticCache.promise = null;
+    }
+  }
+
+  function readCachedGtfsShapes(cacheKey) {
+    try {
+      const raw = localStorage.getItem(cacheKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed?.out?.route) || !Array.isArray(parsed?.in?.route)) return null;
+      if (parsed.out.route.length < 2 || parsed.in.route.length < 2) return null;
+      return parsed;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writeCachedGtfsShapes(cacheKey, shapes) {
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(shapes));
+    } catch (_) {
+      // ignore storage errors
+    }
+  }
+
   async function loadGtfsShapes({ JSZip, key, lineShortName, stopNames }) {
-    const url = `https://opendata.samtrafiken.se/gtfs/jlt/jlt.zip?key=${encodeURIComponent(key)}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`GTFS static HTTP ${res.status}`);
-    const buf = await res.arrayBuffer();
-    const zip = await JSZip.loadAsync(buf);
-    const [routesText, tripsText, shapesText, stopsText, stopTimesText] = await Promise.all([
-      zip.file("routes.txt").async("string"),
-      zip.file("trips.txt").async("string"),
-      zip.file("shapes.txt").async("string"),
-      zip.file("stops.txt").async("string"),
-      zip.file("stop_times.txt").async("string")
-    ]);
-    const routes = parseCsv(routesText);
-    const trips = parseCsv(tripsText);
-    const shapes = parseCsv(shapesText);
-    const stops = parseCsv(stopsText);
-    const stopTimes = parseCsv(stopTimesText);
+    const cacheKey = `gtfs_shapes_${String(lineShortName)}_${String(stopNames?.a || "")}_${String(stopNames?.b || "")}_v1`;
+    const cachedShapes = readCachedGtfsShapes(cacheKey);
+    if (cachedShapes) return cachedShapes;
+
+    const tables = await loadGtfsStaticTables({ JSZip, key });
+    if (!tables) return null;
+    const { routes, trips, shapes, stops, stopTimes } = tables;
 
     const routeIds = new Set();
     routes.forEach((r) => {
@@ -503,10 +559,14 @@
       return pts.map((p) => [p.lon, p.lat]);
     };
 
-    return {
+    const result = {
       out: { route: toRoute(dir0.shapeId), stops: dir0.stopSeq },
       in: { route: toRoute(dir1.shapeId), stops: dir1.stopSeq }
     };
+    if (!Array.isArray(result?.out?.route) || !Array.isArray(result?.in?.route)) return null;
+    if (result.out.route.length < 2 || result.in.route.length < 2) return null;
+    writeCachedGtfsShapes(cacheKey, result);
+    return result;
   }
 
   function etaToNextStop(progress, stopCount, travelMinutes) {
@@ -570,12 +630,9 @@
     }
 
     let routes = null;
-    if (PREFER_LOCAL_LOCKED_ROUTES) {
-      routes = await buildDemoLineRoutes(opts.lineShortName);
-    }
-
+    const wantsGtfs = opts.preferGtfs !== false;
     const key = window.TRAFIKLAB_API_KEY || window.GTFS_STATIC_KEY || "";
-    if ((!routes || !routes.out?.route || !routes.in?.route) && key && window.JSZip) {
+    if (wantsGtfs && key && window.JSZip) {
       try {
         routes = await loadGtfsShapes({
           JSZip: window.JSZip,
@@ -595,9 +652,7 @@
     }
 
     if (!routes || !routes.out?.route || !routes.in?.route) {
-      if (!PREFER_LOCAL_LOCKED_ROUTES) {
-        routes = await buildDemoLineRoutes(opts.lineShortName);
-      }
+      routes = await buildDemoLineRoutes(opts.lineShortName);
       if (routes?.out?.route?.length >= 2 && routes?.in?.route?.length >= 2) {
         statusLine(lineState, `Bus ${opts.label}: Simulating (lokal låst rutt)`);
       } else {
