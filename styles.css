@@ -473,22 +473,27 @@ html, body, body.app {
 .demo-reset-btn {
   width: 70%;
   margin: 0 auto;
-  border: 1px solid #334155;
+  border: 0;
   border-radius: 10px;
   padding: 6px 10px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
-  background: var(--app-surface, #f7f8fa);
-  color: #0f172a;
+  background: transparent;
+  color: var(--app-text, #101828);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
 }
 
+.demo-reset-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
 .demo-reset-btn:hover {
-  background: #ffffff;
+  text-decoration: underline;
 }
 
 /* ===== Retractable panels ===== */
@@ -1990,19 +1995,33 @@ body.shuttle-dashboard-open {
 
 .guide-chat-hide-toggle {
   position: fixed;
-  right: 16px;
-  bottom: calc(clamp(72px, 3cm, 112px) + 12px);
-  width: 24px;
-  height: 24px;
+  right: 10px;
+  bottom: calc(clamp(72px, 3cm, 112px) + 10px);
+  width: 30px;
+  height: 30px;
   z-index: 10051;
-  border: 1px solid var(--app-border, #dfe4ea);
-  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.22);
+  border-radius: 9px;
   background: var(--app-surface, #f7f8fa);
   color: #0f172a;
-  display: inline-grid;
-  place-items: center;
+  font-size: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  padding: 0;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(2px);
+  pointer-events: none;
+  transition: opacity 0.15s ease, visibility 0.15s ease, transform 0.15s ease, background 0.15s ease;
+}
+
+.guide-chat-hide-toggle svg {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .guide-chat-hide-toggle:hover,
@@ -2010,22 +2029,36 @@ body.shuttle-dashboard-open {
   background: #ffffff;
 }
 
+.guide-chat-toggle:hover + .guide-chat-hide-toggle,
+.guide-chat-toggle:focus-visible + .guide-chat-hide-toggle,
+.guide-chat-hide-toggle:hover,
+.guide-chat-hide-toggle:focus-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
 .guide-chat-mini-tab {
   position: fixed;
-  right: 20px;
+  right: 0;
   bottom: 20px;
-  width: 52px;
+  width: 58px;
   height: 52px;
   z-index: 10050;
   border: 1px solid var(--app-border, #dfe4ea);
-  border-radius: 12px;
+  border-radius: 12px 0 0 12px;
   background: var(--app-surface, #f7f8fa);
   color: #0f172a;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
+  text-align: center;
+  line-height: 1;
+  padding: 0;
   display: none;
-  place-items: center;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2);
 }
@@ -2093,18 +2126,34 @@ body.shuttle-dashboard-open {
 }
 
 .guide-chat-restart-btn {
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--app-border, #dfe4ea) !important;
+  width: 38px;
+  height: 38px;
+  border: 0 !important;
   border-radius: 8px !important;
-  background: var(--app-surface, #f7f8fa) !important;
-  color: #0f172a !important;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
+  background: transparent !important;
+  color: #e2e8f0 !important;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.guide-chat-restart-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+#guideChatClose {
+  color: #e2e8f0;
+}
+
+#guideChatClose svg {
+  width: 19px;
+  height: 19px;
+  display: block;
 }
 
 .guide-chat-restart-btn:hover,
 .guide-chat-restart-btn:focus-visible {
-  background: #ffffff !important;
+  background: rgba(255, 255, 255, 0.14) !important;
 }
 
 .guide-chat-messages {
@@ -2205,12 +2254,12 @@ body.shuttle-dashboard-open {
   }
 
   .guide-chat-hide-toggle {
-    right: 10px;
-    bottom: 82px;
+    right: 6px;
+    bottom: 80px;
   }
 
   .guide-chat-mini-tab {
-    right: 12px;
+    right: 0;
     bottom: 12px;
   }
 
@@ -2220,5 +2269,14 @@ body.shuttle-dashboard-open {
     width: auto;
     bottom: 92px;
     max-height: 60vh;
+  }
+}
+
+@media (hover: none) {
+  .guide-chat-hide-toggle {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
   }
 }
