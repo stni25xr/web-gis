@@ -6285,6 +6285,7 @@ Maintain safe distance
     const leftTabShuttle = document.getElementById("leftTabShuttle");
     const rightTab = document.getElementById("rightTab");
     const restartDemoBtn = document.getElementById("restartDemoBtn");
+    const guideChatRestartBtn = document.getElementById("guideChatRestartBtn");
     const leftClose = document.getElementById("leftPanelClose");
     const digitalClose = document.getElementById("digitalPanelClose");
     const rightClose = document.getElementById("rightPanelClose");
@@ -6883,8 +6884,23 @@ Maintain safe distance
       });
     }
 
+    const runSoftRestart = (event) => {
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      try {
+        resetDemoWithoutReload();
+      } catch (error) {
+        console.error("Soft restart failed:", error);
+        window.location.reload();
+      }
+    };
+
     window.resetDemoWithoutReload = resetDemoWithoutReload;
-    restartDemoBtn?.addEventListener("click", resetDemoWithoutReload);
+    restartDemoBtn?.addEventListener("click", runSoftRestart);
+    if (guideChatRestartBtn) {
+      guideChatRestartBtn.dataset.softRestartBound = "1";
+      guideChatRestartBtn.addEventListener("click", runSoftRestart);
+    }
   </script>
   <script>
     // Demo intro overlay (no login)

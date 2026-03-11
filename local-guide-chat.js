@@ -319,15 +319,22 @@
       openChat();
     });
 
-    restartBtn?.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (typeof window.resetDemoWithoutReload === "function") {
-        window.resetDemoWithoutReload();
-        closeChat();
-        addMessage("bot", "Demo återställd. Du kan börja om från startläget.");
-      }
-    });
+    if (restartBtn && restartBtn.dataset.softRestartBound !== "1") {
+      restartBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof window.resetDemoWithoutReload === "function") {
+          window.resetDemoWithoutReload();
+          return;
+        }
+        const sidebarRestartBtn = document.getElementById("restartDemoBtn");
+        if (sidebarRestartBtn && typeof sidebarRestartBtn.click === "function") {
+          sidebarRestartBtn.click();
+          return;
+        }
+        window.location.reload();
+      });
+    }
 
     closeBtn.addEventListener("click", (event) => {
       event.preventDefault();
