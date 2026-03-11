@@ -5597,6 +5597,7 @@ Maintain safe distance
         svcList.innerHTML = "";
         lastSvcMeasurePoint = null;
       }
+      window.clearServiceFlow = clearServiceFlow;
       function clearSupportFlows(except = null) {
         if (except !== "car") {
           clearSafetyRoute();
@@ -5611,6 +5612,7 @@ Maintain safe distance
           if (blueList) blueList.innerHTML = "";
         }
       }
+      window.clearSupportFlows = clearSupportFlows;
 
       function resetNearest() {
         nearHint.textContent = "Klicka på kartan för att mäta";
@@ -6600,8 +6602,8 @@ Maintain safe distance
     function closeRight() {
       rightOpen = false;
       updateUI();
-      clearServiceFlow();
-      clearSupportFlows();
+      window.clearServiceFlow?.();
+      window.clearSupportFlows?.();
       window.infoFlowController?.clearAllNonBus?.();
       if (typeof window.stopPoliceDriveAnimation === "function") {
         window.stopPoliceDriveAnimation();
@@ -6633,8 +6635,8 @@ Maintain safe distance
       document.body.classList.remove("shuttle-dashboard-open");
       stopShuttleTelemetrySimulation();
       updateUI();
-      clearServiceFlow();
-      clearSupportFlows();
+      window.clearServiceFlow?.();
+      window.clearSupportFlows?.();
     }
 
     leftTabMain?.addEventListener("click", openLeft);
@@ -6827,12 +6829,12 @@ Maintain safe distance
 
     function resetDemoWithoutReload() {
       closeAll();
-      clearRoute();
-      clearSafetyRoute();
-      clearServiceFlow();
-      clearSupportFlows();
-      resetNearest();
-      clearDepartures();
+      window.clearRoute?.();
+      window.clearSafetyRoute?.();
+      window.clearServiceFlow?.();
+      window.clearSupportFlows?.();
+      window.resetNearest?.();
+      window.clearDepartures?.();
 
       window.infoFlowController?.clearAllNonBus?.();
       window.clearPoliceRoute?.();
