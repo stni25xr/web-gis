@@ -266,28 +266,27 @@
   <!-- DEMO INTRO OVERLAY -->
   <div id="loginOverlay" class="login-overlay" aria-hidden="false">
     <div class="login-card" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
-      <div class="intro-video-shell">
-        <video
-          id="introVideo"
-          class="intro-video"
-          autoplay
-          muted
-          playsinline
-          preload="auto"
-          controls
-          controlslist="nodownload noplaybackrate"
-          aria-label="Kort välkomstvideo"
-        >
-          <source src="./assets/videos/Skapa_Bakgrundsvideo_Med_Animation.mp4" type="video/mp4" />
-          Din webbläsare stödjer inte videoformatet.
-        </video>
-      </div>
-      <h1 id="loginTitle" class="login-title">BLUE demo</h1>
-      <div class="intro-subtitle">Välkommen. Titta gärna på den korta videon och tryck sedan på Starta demo.</div>
-      <div class="intro-note">Du kan alltid öppna intro igen med knappen Visa intro.</div>
-      <div class="intro-actions">
-        <button id="introStartBtn" type="button" class="login-btn">Starta demo</button>
-        <button id="introShuttleBtn" type="button" class="intro-wow-btn">Wow: öppna Shuttle dashboard</button>
+      <video
+        id="introVideo"
+        class="intro-video"
+        autoplay
+        muted
+        loop
+        playsinline
+        preload="auto"
+        aria-label="Kort välkomstvideo"
+      >
+        <source src="./assets/videos/Skapa_Bakgrundsvideo_Med_Animation.mp4" type="video/mp4" />
+        Din webbläsare stödjer inte videoformatet.
+      </video>
+      <div class="intro-content">
+        <h1 id="loginTitle" class="login-title">BLUE demo</h1>
+        <div class="intro-subtitle">Välkommen. Titta gärna en kort stund och tryck sedan på Starta demo.</div>
+        <div class="intro-note">Du kan alltid öppna intro igen med knappen Visa intro.</div>
+        <div class="intro-actions">
+          <button id="introStartBtn" type="button" class="login-btn">Starta demo</button>
+          <button id="introShuttleBtn" type="button" class="intro-wow-btn">Wow: öppna Shuttle dashboard</button>
+        </div>
       </div>
     </div>
   </div>
