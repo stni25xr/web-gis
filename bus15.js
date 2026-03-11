@@ -5,6 +5,7 @@
   };
   const BUS_GROUND_OFFSET_METERS = 6;
   const BUS_SIM_SPEED_MULTIPLIER = 1;
+  const PREFER_LOCAL_LOCKED_ROUTES = true;
   const GTFS_ROUTE_JOIN_MAX_METERS = 900;
   const HARD_FALLBACK_LOOP = [
     [14.2620, 57.7722],
@@ -253,6 +254,7 @@
       return bestDist;
     };
     return {
+      kind: "webmercator",
       total,
       distanceAtPoint,
       toGeo: (dist) => {
@@ -340,6 +342,7 @@
       return cum[bestI] || 0;
     };
     return {
+      kind: "geographic",
       total,
       distanceAtPoint,
       toGeo: (dist) => {
@@ -347,6 +350,42 @@
         return { type: "point", longitude: p[0], latitude: p[1], spatialReference: { wkid: 4326 } };
       }
     };
+  }
+
+  function distanceOnSampler(sampler, webMercatorUtils, lon, lat) {
+    if (!sampler || !Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+    if (sampler.kind === "geographic") {
+      const d = sampler.distanceAtPoint([lon, lat]);
+      return Number.isFinite(d) ? d : null;
+    }
+    const wm = webMercatorUtils.geographicToWebMercator({
+      type: "point",
+      longitude: lon,
+      latitude: lat,
+      spatialReference: { wkid: 4326 }
+    });
+    if (!wm || !Number.isFinite(wm.x) || !Number.isFinite(wm.y)) return null;
+    const d = sampler.distanceAtPoint([wm.x, wm.y]);
+    return Number.isFinite(d) ? d : null;
+  }
+
+  function normalizeLoopStopDistances(distances, loopLen) {
+    if (!Array.isArray(distances) || !Number.isFinite(loopLen) || loopLen <= 0) return [];
+    const normalized = distances
+      .map((d) => Number(d))
+      .filter((d) => Number.isFinite(d))
+      .map((d) => {
+        let v = d % loopLen;
+        if (v < 0) v += loopLen;
+        return v;
+      })
+      .sort((a, b) => a - b);
+    if (normalized.length < 2) return [];
+    const dedup = [];
+    normalized.forEach((d) => {
+      if (!dedup.length || Math.abs(d - dedup[dedup.length - 1]) > 1) dedup.push(d);
+    });
+    return dedup;
   }
 
   async function loadGtfsShapes({ JSZip, key, lineShortName, stopNames }) {
@@ -530,9 +569,13 @@
       map.reorder(lineState.layer, map.layers.length - 1);
     }
 
-    const key = window.TRAFIKLAB_API_KEY || window.GTFS_STATIC_KEY || "";
     let routes = null;
-    if (key && window.JSZip) {
+    if (PREFER_LOCAL_LOCKED_ROUTES) {
+      routes = await buildDemoLineRoutes(opts.lineShortName);
+    }
+
+    const key = window.TRAFIKLAB_API_KEY || window.GTFS_STATIC_KEY || "";
+    if ((!routes || !routes.out?.route || !routes.in?.route) && key && window.JSZip) {
       try {
         routes = await loadGtfsShapes({
           JSZip: window.JSZip,
@@ -552,7 +595,9 @@
     }
 
     if (!routes || !routes.out?.route || !routes.in?.route) {
-      routes = await buildDemoLineRoutes(opts.lineShortName);
+      if (!PREFER_LOCAL_LOCKED_ROUTES) {
+        routes = await buildDemoLineRoutes(opts.lineShortName);
+      }
       if (routes?.out?.route?.length >= 2 && routes?.in?.route?.length >= 2) {
         statusLine(lineState, `Bus ${opts.label}: Simulating (lokal låst rutt)`);
       } else {
@@ -583,19 +628,10 @@
     lineState.loopStops = lineState.stopSeq.out.concat(lineState.stopSeq.in.slice(1));
 
     if (lineState.samplers.loop && lineState.loopStops.length) {
-      const wmStops = lineState.loopStops
-        .map((s) => {
-          if (!Number.isFinite(s.lon) || !Number.isFinite(s.lat)) return null;
-          const wm = webMercatorUtils.geographicToWebMercator({
-            type: "point",
-            longitude: s.lon,
-            latitude: s.lat,
-            spatialReference: { wkid: 4326 }
-          });
-          return wm ? [wm.x, wm.y] : null;
-        })
-        .filter(Boolean);
-      lineState.loopStopDistances = wmStops.map((p) => lineState.samplers.loop.distanceAtPoint(p));
+      const rawStopDistances = lineState.loopStops
+        .map((s) => distanceOnSampler(lineState.samplers.loop, webMercatorUtils, Number(s.lon), Number(s.lat)))
+        .filter((d) => Number.isFinite(d));
+      lineState.loopStopDistances = normalizeLoopStopDistances(rawStopDistances, lineState.samplers.loop.total);
     }
 
     return lineState;
@@ -643,7 +679,7 @@
       const simNow = (now - state.startMs) * BUS_SIM_SPEED_MULTIPLIER;
       const t = ((simNow - bus.offsetMs) % loopMs + loopMs) % loopMs;
       let dist = 0;
-      if (stopCount >= 2) {
+      if (stopCount >= 2 && travelMs > 0) {
         let remaining = t;
         for (let i = 0; i < stopCount; i++) {
           const cur = stopDistances[i];
