@@ -40,16 +40,20 @@
       inStopIds: ["1422", "1229", "1228", "1419", "1413", "1414", "1415", "1420"]
     }
   };
+  const OXHAGSSKOLAN_COORD = [14.26059093300006, 57.77735702400008];
+  const OXNEHAGA_CENTRUM_COORD = [14.264104008000061, 57.775388269000075];
 
   const LINES = {
     "15": {
       lineShortName: "15",
       label: "15",
       stopNames: { a: "Öxnehaga", b: "Esplanaden" },
-      headwayMinutes: 10,
-      loopMinutes: 30,
-      // +1 bus compared to previous count
-      busCount: 4,
+      headwayMinutes: 20,
+      loopMinutes: 60,
+      busCount: 3,
+      anchorStopNeedle: "centrum",
+      anchorCoord: OXNEHAGA_CENTRUM_COORD,
+      alignToClock: true,
       colors: ["#ff6b00", "#10b981", "#2563eb"]
     },
     "2": {
@@ -57,8 +61,11 @@
       label: "2",
       stopNames: null,
       headwayMinutes: 10,
-      loopMinutes: 30,
-      busCount: 5,
+      loopMinutes: 60,
+      busCount: 6,
+      anchorStopNeedle: "oxhag",
+      anchorCoord: OXHAGSSKOLAN_COORD,
+      alignToClock: true,
       colors: ["#f97316", "#14b8a6", "#8b5cf6", "#0ea5e9"]
     }
   };
@@ -253,6 +260,7 @@
       return bestDist;
     };
     return {
+      kind: "webmercator",
       total,
       distanceAtPoint,
       toGeo: (dist) => {
@@ -325,6 +333,7 @@
       return cum[bestI] || 0;
     };
     return {
+      kind: "geographic",
       total,
       distanceAtPoint,
       toGeo: (dist) => {
@@ -332,6 +341,53 @@
         return { type: "point", longitude: p[0], latitude: p[1], spatialReference: { wkid: 4326 } };
       }
     };
+  }
+
+  function normalizeStopName(name) {
+    return String(name || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  }
+
+  function distanceOnSampler(sampler, webMercatorUtils, lon, lat) {
+    if (!sampler || !Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+    if (sampler.kind === "geographic") {
+      const d = sampler.distanceAtPoint([lon, lat]);
+      return Number.isFinite(d) ? d : null;
+    }
+    const wm = webMercatorUtils.geographicToWebMercator({
+      type: "point",
+      longitude: lon,
+      latitude: lat,
+      spatialReference: { wkid: 4326 }
+    });
+    if (!wm || !Number.isFinite(wm.x) || !Number.isFinite(wm.y)) return null;
+    const d = sampler.distanceAtPoint([wm.x, wm.y]);
+    return Number.isFinite(d) ? d : null;
+  }
+
+  function shiftStopDistancesFromAnchor(stopDistances, anchorDist, loopLen) {
+    if (!Array.isArray(stopDistances) || stopDistances.length < 2 || !Number.isFinite(loopLen) || loopLen <= 0) return [];
+    const shifted = stopDistances
+      .map((d) => {
+        if (!Number.isFinite(d)) return null;
+        let v = d - anchorDist;
+        while (v < 0) v += loopLen;
+        while (v >= loopLen) v -= loopLen;
+        return v;
+      })
+      .filter((v) => Number.isFinite(v))
+      .sort((a, b) => a - b);
+    if (!shifted.length) return [];
+    const dedup = [];
+    shifted.forEach((v) => {
+      if (!dedup.length || Math.abs(v - dedup[dedup.length - 1]) > 1) dedup.push(v);
+    });
+    const hasZero = dedup.some((v) => Math.abs(v) <= 1);
+    if (!hasZero) dedup.unshift(0);
+    return dedup;
   }
 
   async function loadGtfsShapes({ JSZip, key, lineShortName, stopNames }) {
@@ -507,6 +563,7 @@
       stopSeq: { out: [], in: [] },
       loopStops: [],
       loopStopDistances: [],
+      anchorDistanceM: 0,
       graphics: new Map()
     };
 
@@ -533,7 +590,7 @@
     if (!routes || !routes.out?.route || !routes.in?.route) {
       routes = await buildDemoLineRoutes(opts.lineShortName);
       if (routes?.out?.route?.length >= 2 && routes?.in?.route?.length >= 2) {
-        statusLine(lineState, `Bus ${opts.label}: Simulating från Oxhagsskolan (lokal demo-rutt)`);
+        statusLine(lineState, `Bus ${opts.label}: Simulating (lokal demo-rutt)`);
       } else {
         const points = HARD_FALLBACK_LOOP.slice();
         statusLine(lineState, `Bus ${opts.label}: Simulating (hard fallback route)`);
@@ -562,19 +619,27 @@
     lineState.loopStops = lineState.stopSeq.out.concat(lineState.stopSeq.in.slice(1));
 
     if (lineState.samplers.loop && lineState.loopStops.length) {
-      const wmStops = lineState.loopStops
-        .map((s) => {
-          if (!Number.isFinite(s.lon) || !Number.isFinite(s.lat)) return null;
-          const wm = webMercatorUtils.geographicToWebMercator({
-            type: "point",
-            longitude: s.lon,
-            latitude: s.lat,
-            spatialReference: { wkid: 4326 }
-          });
-          return wm ? [wm.x, wm.y] : null;
-        })
-        .filter(Boolean);
-      lineState.loopStopDistances = wmStops.map((p) => lineState.samplers.loop.distanceAtPoint(p));
+      lineState.loopStopDistances = lineState.loopStops
+        .map((s) => distanceOnSampler(lineState.samplers.loop, webMercatorUtils, Number(s.lon), Number(s.lat)))
+        .filter((d) => Number.isFinite(d));
+    }
+
+    if (lineState.samplers.loop) {
+      const needle = normalizeStopName(opts.anchorStopNeedle || "");
+      if (needle && lineState.loopStops.length && lineState.loopStopDistances.length === lineState.loopStops.length) {
+        const idx = lineState.loopStops.findIndex((s) => normalizeStopName(s?.name || "").includes(needle));
+        if (idx >= 0 && Number.isFinite(lineState.loopStopDistances[idx])) {
+          lineState.anchorDistanceM = lineState.loopStopDistances[idx];
+        }
+      }
+      if (!Number.isFinite(lineState.anchorDistanceM) || lineState.anchorDistanceM <= 0) {
+        const anchorCoord = Array.isArray(opts.anchorCoord) ? opts.anchorCoord : null;
+        if (anchorCoord && Number.isFinite(anchorCoord[0]) && Number.isFinite(anchorCoord[1])) {
+          const d = distanceOnSampler(lineState.samplers.loop, webMercatorUtils, anchorCoord[0], anchorCoord[1]);
+          if (Number.isFinite(d)) lineState.anchorDistanceM = d;
+        }
+      }
+      if (!Number.isFinite(lineState.anchorDistanceM)) lineState.anchorDistanceM = 0;
     }
 
     return lineState;
@@ -582,19 +647,11 @@
 
   function buildBusList(config) {
     const ids = ["A", "B", "C", "D", "E", "F", "G"];
-    const offsets = [];
-    const loopMs = Math.max(1, config.loopMinutes * 60 * 1000);
-    const desiredHeadwayMs = Math.max(1, config.headwayMinutes * 60 * 1000);
-    const effectiveHeadwayMs = (desiredHeadwayMs * config.busCount > loopMs)
-      ? (loopMs / Math.max(1, config.busCount))
-      : desiredHeadwayMs;
-    for (let i = 0; i < config.busCount; i++) {
-      offsets.push(i * effectiveHeadwayMs);
-    }
-    return offsets.map((offsetMs, idx) => ({
+    const headwayMs = Math.max(1, Number(config.headwayMinutes || 10) * 60 * 1000);
+    return Array.from({ length: Math.max(1, Number(config.busCount) || 1) }).map((_, idx) => ({
       id: ids[idx] || String(idx + 1),
       color: config.colors[idx % config.colors.length],
-      offsetMs
+      offsetMs: idx * headwayMs
     }));
   }
 
@@ -609,21 +666,31 @@
       console.warn(`Bus ${config.label}: missing route sampler`);
       return;
     }
-    const loopMs = config.loopMinutes * 60 * 1000;
+    const headwayMs = Math.max(1, Number(config.headwayMinutes || 10) * 60 * 1000);
+    const configuredLoopMs = Math.max(1, Number(config.loopMinutes || 30) * 60 * 1000);
+    const scheduledLoopMs = Math.max(configuredLoopMs, headwayMs * Math.max(1, Number(config.busCount) || 1));
+    const loopMs = config.alignToClock ? scheduledLoopMs : configuredLoopMs;
     const loopLen = loopSampler.total;
     const outLen = outSampler.total;
     const inLen = inSampler.total;
-    const stopDistances = lineState.loopStopDistances || [];
+    const anchorDist = Number.isFinite(lineState.anchorDistanceM) ? lineState.anchorDistanceM : 0;
+    const baseStopDistances = lineState.loopStopDistances || [];
+    const stopDistances = config.alignToClock
+      ? shiftStopDistancesFromAnchor(baseStopDistances, anchorDist, loopLen)
+      : baseStopDistances;
     const stopCount = stopDistances.length;
     const travelMs = Math.max(0, loopMs - DEFAULTS.dwellMs * stopCount);
     const buses = buildBusList(config);
 
     buses.forEach((bus) => {
-      const simNow = (now - state.startMs) * BUS_SIM_SPEED_MULTIPLIER;
-      const t = ((simNow - bus.offsetMs) % loopMs + loopMs) % loopMs;
+      const simNow = now * BUS_SIM_SPEED_MULTIPLIER;
+      const phaseNow = config.alignToClock
+        ? simNow
+        : (simNow - state.startMs * BUS_SIM_SPEED_MULTIPLIER);
+      const tPhase = ((phaseNow - bus.offsetMs) % loopMs + loopMs) % loopMs;
       let dist = 0;
       if (stopCount >= 2) {
-        let remaining = t;
+        let remaining = tPhase;
         for (let i = 0; i < stopCount; i++) {
           const cur = stopDistances[i];
           const next = stopDistances[(i + 1) % stopCount];
@@ -645,7 +712,10 @@
           remaining -= segMs;
         }
       } else {
-        dist = (t / loopMs) * loopLen;
+        dist = (tPhase / loopMs) * loopLen;
+      }
+      if (config.alignToClock && loopLen > 0) {
+        dist = (dist + anchorDist) % loopLen;
       }
 
       const pt = loopSampler.toGeo(dist);
