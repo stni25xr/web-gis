@@ -277,10 +277,14 @@
       <div class="intro-list">
         <div>• De rörliga prickarna är buss 2 och 15 i området.</div>
         <div>• Du kan följa hela deras rutt i kartan.</div>
+        <div>• Du kan beställa en shuttle bus direkt i kartan (Call shuttle).</div>
         <div>• För BIM: klicka byggnad → Building information → Se BIM model.</div>
       </div>
       <div class="intro-note">Guidechatten kan svara på frågor om sidan.</div>
-      <button id="introStartBtn" type="button" class="login-btn">Starta demo</button>
+      <div class="intro-actions">
+        <button id="introStartBtn" type="button" class="login-btn">Starta demo</button>
+        <button id="introShuttleBtn" type="button" class="intro-wow-btn">Wow: öppna Shuttle dashboard</button>
+      </div>
     </div>
   </div>
 
@@ -6846,6 +6850,7 @@ Maintain safe distance
     document.addEventListener("DOMContentLoaded", () => {
       const overlay = document.getElementById("loginOverlay");
       const startBtn = document.getElementById("introStartBtn");
+      const shuttleBtn = document.getElementById("introShuttleBtn");
       const introBtn = document.getElementById("logoutBtn");
       let introTimer = null;
 
@@ -6856,7 +6861,7 @@ Maintain safe distance
           introTimer = null;
         }
         overlay.style.display = "flex";
-        overlay.classList.remove("is-hidden", "is-exiting-right");
+        overlay.classList.remove("is-hidden", "is-exiting-corner");
         overlay.classList.add("is-entering");
         requestAnimationFrame(() => {
           overlay.setAttribute("aria-hidden", "false");
@@ -6874,12 +6879,12 @@ Maintain safe distance
           introTimer = null;
         }
         overlay.classList.remove("is-entering");
-        overlay.classList.add("is-exiting-right");
+        overlay.classList.add("is-exiting-corner");
         overlay.classList.add("is-hidden");
         overlay.setAttribute("aria-hidden", "true");
         setTimeout(() => {
           overlay.style.display = "none";
-          overlay.classList.remove("is-exiting-right");
+          overlay.classList.remove("is-exiting-corner");
           if (window.view) {
             window.view.resize();
             if (typeof window.view.requestRender === "function") window.view.requestRender();
@@ -6887,7 +6892,17 @@ Maintain safe distance
         }, 420);
       };
 
-      startBtn?.addEventListener("click", hideIntroOverlay);
+      const startDemo = (openShuttle = false) => {
+        hideIntroOverlay();
+        if (openShuttle) {
+          setTimeout(() => {
+            document.getElementById("leftTabShuttle")?.click();
+          }, 250);
+        }
+      };
+
+      startBtn?.addEventListener("click", () => startDemo(false));
+      shuttleBtn?.addEventListener("click", () => startDemo(true));
       introBtn?.addEventListener("click", () => {
         window.stopSimTime?.();
         showIntroOverlay();
