@@ -17,6 +17,9 @@
     [14.2622, 57.7711]
   ];
   const DEMO_STOPS = {
+    "2001": { name: "Hisingsängens vändplan", coord: [14.142919, 57.794633] },
+    "2002": { name: "Jönköping Resecentrum", coord: [14.164596, 57.784145] },
+    "2003": { name: "Jönköping Ekhagen centrum", coord: [14.226090, 57.777860] },
     "1018": { name: "Kungsporten", coord: [14.261092639000026, 57.781745461000071] },
     "1412": { name: "Hästhagsgatan", coord: [14.263372397000069, 57.779142051000065] },
     "1420": { name: "Huskvarna Oxhagsskolan", coord: [14.26059093300006, 57.77735702400008] },
@@ -37,8 +40,8 @@
       inStopIds: ["1018", "1412", "1420", "1415", "1414", "1413", "1419", "1228", "1229", "1422"]
     },
     "2": {
-      outStopIds: ["1420", "1415", "1414", "1413", "1419", "1228", "1229", "1422"],
-      inStopIds: ["1422", "1229", "1228", "1419", "1413", "1414", "1415", "1420"]
+      outStopIds: ["2001", "2002", "2003", "1420"],
+      inStopIds: ["1420", "2003", "2002", "2001"]
     }
   };
 
@@ -56,11 +59,11 @@
     "2": {
       lineShortName: "2",
       label: "2",
-      stopNames: { a: "Oxhagsskolan", b: "Lövhagsgatan" },
+      stopNames: { a: "Hisingsängens vändplan", b: "Oxhagsskolan" },
       headwayMinutes: 10,
-      loopMinutes: 40,
+      loopMinutes: 80,
       busCount: 4,
-      preferGtfs: false,
+      preferGtfs: true,
       colors: ["#f97316", "#14b8a6", "#8b5cf6", "#0ea5e9"]
     }
   };
@@ -189,8 +192,8 @@
     if (outStops.length < 2 || inStops.length < 2) return null;
     const outRaw = outStops.map((s) => [s.lon, s.lat]);
     const inRaw = inStops.map((s) => [s.lon, s.lat]);
-    const outRoute = await resolveRoadRoute(outRaw, `bus_demo_${lineShortName}_out_v3`);
-    const inRoute = await resolveRoadRoute(inRaw, `bus_demo_${lineShortName}_in_v3`);
+    const outRoute = await resolveRoadRoute(outRaw, `bus_demo_${lineShortName}_out_v4`);
+    const inRoute = await resolveRoadRoute(inRaw, `bus_demo_${lineShortName}_in_v4`);
     if (!Array.isArray(outRoute) || outRoute.length < 2 || !Array.isArray(inRoute) || inRoute.length < 2) {
       return null;
     }
