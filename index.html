@@ -586,7 +586,13 @@
     </div>
     </div>
     <div class="sidebar-footer">
-      <button id="restartDemoBtn" type="button" class="demo-reset-btn">Starta om demo</button>
+      <button id="restartDemoBtn" type="button" class="demo-reset-btn" aria-label="Soft restart demo">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16" aria-hidden="true">
+          <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
+          <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
+        </svg>
+        <span>Soft restart</span>
+      </button>
       <button id="logoutBtn" type="button" class="logout-btn">Visa intro</button>
     </div>
   </aside>
@@ -786,10 +792,20 @@
     <img src="./assets/chatbot-avatar.png" width="96" height="96" alt="" aria-hidden="true" />
     <span class="sr-only">Öppna hjälpchat</span>
   </button>
+  <button id="guideChatHideToggle" class="guide-chat-hide-toggle" type="button" aria-label="Dölj chat-ikon">✕</button>
+  <button id="guideChatMiniTab" class="guide-chat-mini-tab" type="button" aria-label="Visa chat-ikon" hidden>BLUE</button>
   <section id="guideChatPanel" class="guide-chat" aria-label="Sidhjälp chat" hidden>
     <header class="guide-chat-header">
       <h3>Guidechat</h3>
-      <button id="guideChatClose" type="button" aria-label="Stäng chat">✕</button>
+      <div class="guide-chat-header-actions">
+        <button id="guideChatRestartBtn" type="button" class="guide-chat-restart-btn" aria-label="Soft restart demo">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16" aria-hidden="true">
+            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
+            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
+          </svg>
+        </button>
+        <button id="guideChatClose" type="button" aria-label="Stäng chat">✕</button>
+      </div>
     </header>
     <div id="guideChatMessages" class="guide-chat-messages" aria-live="polite"></div>
     <div id="guideChatQuick" class="guide-chat-quick" aria-label="Snabbval"></div>
@@ -6829,11 +6845,25 @@ Maintain safe distance
 
       const guidePanel = document.getElementById("guideChatPanel");
       const guideToggle = document.getElementById("guideChatToggle");
+      const guideHideToggle = document.getElementById("guideChatHideToggle");
+      const guideMiniTab = document.getElementById("guideChatMiniTab");
       if (guidePanel) {
         guidePanel.hidden = true;
         guidePanel.style.display = "none";
       }
-      if (guideToggle) guideToggle.setAttribute("aria-expanded", "false");
+      if (guideToggle) {
+        guideToggle.hidden = false;
+        guideToggle.style.display = "block";
+        guideToggle.setAttribute("aria-expanded", "false");
+      }
+      if (guideHideToggle) {
+        guideHideToggle.hidden = false;
+        guideHideToggle.style.display = "grid";
+      }
+      if (guideMiniTab) {
+        guideMiniTab.hidden = true;
+        guideMiniTab.style.display = "none";
+      }
 
       startSimNow();
       saveClick({
@@ -6843,6 +6873,7 @@ Maintain safe distance
       });
     }
 
+    window.resetDemoWithoutReload = resetDemoWithoutReload;
     restartDemoBtn?.addEventListener("click", resetDemoWithoutReload);
   </script>
   <script>

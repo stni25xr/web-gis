@@ -28,6 +28,9 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     const toggleBtn = document.getElementById("guideChatToggle");
+    const hideToggleBtn = document.getElementById("guideChatHideToggle");
+    const miniTabBtn = document.getElementById("guideChatMiniTab");
+    const restartBtn = document.getElementById("guideChatRestartBtn");
     const panel = document.getElementById("guideChatPanel");
     const closeBtn = document.getElementById("guideChatClose");
     const messagesEl = document.getElementById("guideChatMessages");
@@ -117,6 +120,35 @@
       panel.style.display = "none";
       toggleBtn.setAttribute("aria-expanded", "false");
       log("chat_close");
+    };
+
+    const showLauncher = () => {
+      toggleBtn.hidden = false;
+      toggleBtn.style.display = "block";
+      if (hideToggleBtn) {
+        hideToggleBtn.hidden = false;
+        hideToggleBtn.style.display = "grid";
+      }
+      if (miniTabBtn) {
+        miniTabBtn.hidden = true;
+        miniTabBtn.style.display = "none";
+      }
+      log("chat_launcher_show");
+    };
+
+    const hideLauncher = () => {
+      closeChat();
+      toggleBtn.hidden = true;
+      toggleBtn.style.display = "none";
+      if (hideToggleBtn) {
+        hideToggleBtn.hidden = true;
+        hideToggleBtn.style.display = "none";
+      }
+      if (miniTabBtn) {
+        miniTabBtn.hidden = false;
+        miniTabBtn.style.display = "grid";
+      }
+      log("chat_launcher_hide");
     };
 
     const storyReply = () => {
@@ -275,6 +307,28 @@
       else closeChat();
     });
 
+    hideToggleBtn?.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      hideLauncher();
+    });
+
+    miniTabBtn?.addEventListener("click", (event) => {
+      event.preventDefault();
+      showLauncher();
+      openChat();
+    });
+
+    restartBtn?.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof window.resetDemoWithoutReload === "function") {
+        window.resetDemoWithoutReload();
+        closeChat();
+        addMessage("bot", "Demo återställd. Du kan börja om från startläget.");
+      }
+    });
+
     closeBtn.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -299,5 +353,7 @@
     });
 
     if (panel.hidden) panel.style.display = "none";
+    if (miniTabBtn?.hidden) miniTabBtn.style.display = "none";
+    if (hideToggleBtn) hideToggleBtn.style.display = "grid";
   });
 })();

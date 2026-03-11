@@ -479,12 +479,16 @@ html, body, body.app {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  background: #0f172a;
-  color: #e2e8f0;
+  background: var(--app-surface, #f7f8fa);
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .demo-reset-btn:hover {
-  background: #1e293b;
+  background: #ffffff;
 }
 
 /* ===== Retractable panels ===== */
@@ -1984,6 +1988,54 @@ body.shuttle-dashboard-open {
   box-shadow: 0 14px 30px rgba(15, 23, 42, 0.28);
 }
 
+.guide-chat-hide-toggle {
+  position: fixed;
+  right: 16px;
+  bottom: calc(clamp(72px, 3cm, 112px) + 12px);
+  width: 24px;
+  height: 24px;
+  z-index: 10051;
+  border: 1px solid var(--app-border, #dfe4ea);
+  border-radius: 8px;
+  background: var(--app-surface, #f7f8fa);
+  color: #0f172a;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
+}
+
+.guide-chat-hide-toggle:hover,
+.guide-chat-hide-toggle:focus-visible {
+  background: #ffffff;
+}
+
+.guide-chat-mini-tab {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 52px;
+  height: 52px;
+  z-index: 10050;
+  border: 1px solid var(--app-border, #dfe4ea);
+  border-radius: 12px;
+  background: var(--app-surface, #f7f8fa);
+  color: #0f172a;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  display: none;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2);
+}
+
+.guide-chat-mini-tab:hover,
+.guide-chat-mini-tab:focus-visible {
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
 .guide-chat {
   position: fixed;
   right: 20px;
@@ -2015,6 +2067,12 @@ body.shuttle-dashboard-open {
   font-size: 14px;
 }
 
+.guide-chat-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .guide-chat-header button {
   border: 0;
   background: transparent;
@@ -2032,6 +2090,21 @@ body.shuttle-dashboard-open {
 .guide-chat-header button:hover,
 .guide-chat-header button:focus-visible {
   background: rgba(255, 255, 255, 0.12);
+}
+
+.guide-chat-restart-btn {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--app-border, #dfe4ea) !important;
+  border-radius: 8px !important;
+  background: var(--app-surface, #f7f8fa) !important;
+  color: #0f172a !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
+}
+
+.guide-chat-restart-btn:hover,
+.guide-chat-restart-btn:focus-visible {
+  background: #ffffff !important;
 }
 
 .guide-chat-messages {
@@ -2129,6 +2202,16 @@ body.shuttle-dashboard-open {
     bottom: 12px;
     width: 72px;
     height: 72px;
+  }
+
+  .guide-chat-hide-toggle {
+    right: 10px;
+    bottom: 82px;
+  }
+
+  .guide-chat-mini-tab {
+    right: 12px;
+    bottom: 12px;
   }
 
   .guide-chat {
