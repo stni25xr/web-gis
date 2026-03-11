@@ -1393,16 +1393,20 @@ Maintain safe distance
         {
           line: "15",
           busCount: 4,
-          speedMps: 14,
+          headwayMin: 10,
+          loopMin: 30,
           color: [239, 68, 68, 0.98],
-          stopIds: [1018, 1412, 1420, 1415, 1414, 1413, 1419, 1418, 1417, 1416, 1415, 1420, 1018]
+          startStopId: 1420, // Huskvarna Oxhagsskolan
+          stopIds: [1420, 1415, 1414, 1413, 1419, 1418, 1417, 1416, 1415, 1420, 1412, 1018, 1420]
         },
         {
           line: "2",
           busCount: 5,
-          speedMps: 16,
+          headwayMin: 10,
+          loopMin: 30,
           color: [37, 99, 235, 0.98],
-          stopIds: [1414, 1413, 1419, 1228, 1229, 1422, 1229, 1228, 1419, 1413, 1414, 1415, 1420, 1018, 1412, 1414]
+          startStopId: 1420, // start also anchored at Oxhagsskolan in demo mode
+          stopIds: [1420, 1415, 1414, 1413, 1419, 1228, 1229, 1422, 1229, 1228, 1419, 1413, 1414, 1415, 1420]
         }
       ];
       let emergencyBusAnim = null;
@@ -1462,15 +1466,49 @@ Maintain safe distance
         return route.length >= 2 ? route : null;
       }
 
-      function startEmergencyBusDemo() {
+      async function resolveRoadRoute(lineCfg) {
+        const stopsRoute = routeFromStopIds(lineCfg.stopIds);
+        if (!stopsRoute || stopsRoute.length < 2) return null;
+        const cacheKey = `emergency_bus_road_${lineCfg.line}_v1`;
+        try {
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length >= 2) return parsed;
+          }
+        } catch (_) {}
+        try {
+          const coords = stopsRoute.map((p) => `${p[0]},${p[1]}`).join(";");
+          const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&alternatives=false&steps=false`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`OSRM ${res.status}`);
+          const data = await res.json();
+          const route = data?.routes?.[0]?.geometry?.coordinates;
+          if (Array.isArray(route) && route.length >= 2) {
+            try { localStorage.setItem(cacheKey, JSON.stringify(route)); } catch (_) {}
+            return route;
+          }
+        } catch (err) {
+          console.warn(`Emergency bus line ${lineCfg.line}: OSRM fallback to stop polyline`, err);
+        }
+        return stopsRoute;
+      }
+
+      async function startEmergencyBusDemo() {
         if (!EMERGENCY_BUS_DEMO_ENABLED || emergencyBusAnim) return;
         const entries = [];
         for (const lineCfg of EMERGENCY_BUS_LINES) {
-          const route = routeFromStopIds(lineCfg.stopIds);
+          const route = await resolveRoadRoute(lineCfg);
           const sampler = buildEmergencySampler(route || []);
           if (!sampler) continue;
-          for (let i = 0; i < lineCfg.busCount; i++) {
-            const offset = (i / Math.max(1, lineCfg.busCount)) * sampler.total;
+          const loopSeconds = Math.max(60, Number(lineCfg.loopMin || 30) * 60);
+          const speedMps = sampler.total / loopSeconds;
+          const headwaySeconds = Math.max(60, Number(lineCfg.headwayMin || 10) * 60);
+          const nowSec = Date.now() / 1000;
+          for (let i = 0; i < Math.max(1, lineCfg.busCount); i++) {
+            const departSec = nowSec - i * headwaySeconds;
+            const phase = ((departSec % loopSeconds) + loopSeconds) % loopSeconds;
+            const offset = (phase / loopSeconds) * sampler.total;
             const pointGraphic = new Graphic({
               geometry: sampler.toPoint(offset),
               attributes: { line: lineCfg.line, demo: "emergency-route-follow" },
@@ -1482,7 +1520,7 @@ Maintain safe distance
                 outline: { color: [255, 255, 255, 0.96], width: 1.6 }
               }
             });
-            entries.push({ sampler, offset, speedMps: lineCfg.speedMps, graphic: pointGraphic });
+            entries.push({ sampler, offset, speedMps, graphic: pointGraphic });
           }
         }
         if (!entries.length) return;
@@ -1529,7 +1567,9 @@ Maintain safe distance
       const homeWidget = new Home({ view });
       const locateWidget = new Locate({ view });
       view.ui.add([homeWidget, locateWidget], "top-left");
-      view.when(() => startEmergencyBusDemo());
+      view.when(() => {
+        startEmergencyBusDemo().catch((err) => console.warn("Emergency bus demo failed", err));
+      });
 
       function syncLighting() {
         if (!view?.environment?.lighting) return;
