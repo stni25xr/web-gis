@@ -1424,10 +1424,16 @@ Maintain safe distance
         fillOpacity: 0.25
       };
 
+      function requestViewRefresh(targetView) {
+        const v = targetView || view;
+        if (!v) return;
+        if (typeof v.resize === "function") v.resize();
+        if (typeof v.requestRender === "function") v.requestRender();
+      }
+
       function refreshViewSize() {
         if (!view) return;
-        view.resize();
-        if (typeof view.requestRender === "function") view.requestRender();
+        requestViewRefresh(view);
       }
       window.refreshViewSize = refreshViewSize;
 
@@ -3816,8 +3822,11 @@ Maintain safe distance
         });
       }
 
+      const busInitCtx = { view, map, GraphicsLayer, Graphic, Polyline, webMercatorUtils, busLayer: bus };
+      window.__pendingBus15InitCtx = busInitCtx;
+      tryInitBus15Layer(busInitCtx, 0);
+
       bus.when(() => {
-        const busInitCtx = { view, map, GraphicsLayer, Graphic, Polyline, webMercatorUtils, busLayer: bus };
         window.__pendingBus15InitCtx = busInitCtx;
         tryInitBus15Layer(busInitCtx, 0);
       });
@@ -6591,8 +6600,7 @@ Maintain safe distance
       if (window.view && typeof window.refreshViewSize === "function") {
         window.refreshViewSize();
       } else if (window.view) {
-        window.view.resize();
-        if (typeof window.view.requestRender === "function") window.view.requestRender();
+        requestViewRefresh(window.view);
       }
     }
 
@@ -6700,8 +6708,7 @@ Maintain safe distance
         if (window.view && typeof window.refreshViewSize === "function") {
           window.refreshViewSize();
         } else if (window.view) {
-          window.view.resize();
-          if (typeof window.view.requestRender === "function") window.view.requestRender();
+          requestViewRefresh(window.view);
         }
       }, 150);
     });
@@ -7029,8 +7036,11 @@ Maintain safe distance
           overlay.style.display = "none";
           overlay.classList.remove("is-exiting-corner", "is-message-phase", "is-video-phase");
           if (window.view) {
-            window.view.resize();
-            if (typeof window.view.requestRender === "function") window.view.requestRender();
+            if (typeof window.refreshViewSize === "function") {
+              window.refreshViewSize();
+            } else {
+              requestViewRefresh(window.view);
+            }
           }
         }, 420);
       };

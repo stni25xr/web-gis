@@ -4,6 +4,16 @@
     dwellMs: 5000
   };
   const BUS_GROUND_OFFSET_METERS = 6;
+  const HARD_FALLBACK_LOOP = [
+    [14.2620, 57.7722],
+    [14.2642, 57.7737],
+    [14.2673, 57.7736],
+    [14.2696, 57.7721],
+    [14.2692, 57.7702],
+    [14.2669, 57.7694],
+    [14.2638, 57.7697],
+    [14.2622, 57.7711]
+  ];
 
   const LINES = {
     "15": {
@@ -371,24 +381,30 @@
 
     if (!routes || !routes.out?.route || !routes.in?.route) {
       statusLine(lineState, `Bus ${opts.label}: Simulating (fallback route)`);
-      const res = await ctx.busLayer.queryFeatures({ where: "1=1", outFields: ["Nr", "Hplnamn"], returnGeometry: true });
-      const feats = res.features || [];
-      const points = feats
-        .map((f) => {
-          const lon = f.geometry?.longitude ?? f.geometry?.x;
-          const lat = f.geometry?.latitude ?? f.geometry?.y;
-          return Number.isFinite(lon) && Number.isFinite(lat) ? [lon, lat] : null;
-        })
-        .filter(Boolean);
-      if (points.length < 4) {
-        statusLine(lineState, `Bus ${opts.label}: Simulating (no route data)`);
-        return null;
+      let points = [];
+      try {
+        const res = await ctx.busLayer.queryFeatures({ where: "1=1", outFields: ["Nr", "Hplnamn"], returnGeometry: true });
+        const feats = res.features || [];
+        points = feats
+          .map((f) => {
+            const lon = f.geometry?.longitude ?? f.geometry?.x;
+            const lat = f.geometry?.latitude ?? f.geometry?.y;
+            return Number.isFinite(lon) && Number.isFinite(lat) ? [lon, lat] : null;
+          })
+          .filter(Boolean);
+      } catch (e) {
+        console.warn(`Bus ${opts.label}: bus stop query failed, using hard fallback`, e);
       }
-      const mid = Math.floor(points.length / 2);
+      if (points.length < 4) {
+        points = HARD_FALLBACK_LOOP.slice();
+        statusLine(lineState, `Bus ${opts.label}: Simulating (hard fallback route)`);
+      }
+      const mid = Math.max(2, Math.floor(points.length / 2));
       routes = {
         out: { route: points.slice(0, mid), stops: [] },
         in: { route: points.slice(mid).concat(points[0]), stops: [] }
       };
+      if (routes.out.route.length < 2 || routes.in.route.length < 2) return null;
     } else {
       statusLine(lineState, `Bus ${opts.label}: Simulating from timetable (GTFS shapes)`);
     }
