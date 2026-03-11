@@ -6,6 +6,7 @@
   const BUS_GROUND_OFFSET_METERS = 6;
   const BUS_SIM_SPEED_MULTIPLIER = 1;
   const GTFS_ROUTE_JOIN_MAX_METERS = 900;
+  const DEMO_ROUTE_CACHE_VERSION = "v5";
   const HARD_FALLBACK_LOOP = [
     [14.2620, 57.7722],
     [14.2642, 57.7737],
@@ -32,12 +33,16 @@
     "1416": { name: "Öxnehaga idrottsplats", coord: [14.25666525400004, 57.773645170000066] },
     "1228": { name: "Lövhagen", coord: [14.269413961000055, 57.769885116000069] },
     "1229": { name: "Stekelvägen", coord: [14.271560191000049, 57.766830973000083] },
-    "1422": { name: "Lövhagsgatan", coord: [14.269915089000051, 57.763623099000029] }
+    "1422": { name: "Lövhagsgatan", coord: [14.269915089000051, 57.763623099000029] },
+    "1501": { name: "Vårstarondellen", coord: [14.26884, 57.78048] },
+    "1502": { name: "Vikaplan", coord: [14.27372, 57.78128] },
+    "1503": { name: "Huskvarna station", coord: [14.27751, 57.78198] },
+    "1504": { name: "Esplanaden", coord: [14.28191, 57.78335] }
   };
   const DEMO_LINE_ROUTES = {
     "15": {
-      outStopIds: ["1422", "1229", "1228", "1419", "1413", "1414", "1415", "1420", "1412", "1018"],
-      inStopIds: ["1018", "1412", "1420", "1415", "1414", "1413", "1419", "1228", "1229", "1422"]
+      outStopIds: ["1422", "1229", "1228", "1419", "1413", "1414", "1415", "1420", "1412", "1018", "1501", "1502", "1503", "1504"],
+      inStopIds: ["1504", "1503", "1502", "1501", "1018", "1412", "1420", "1415", "1414", "1413", "1419", "1228", "1229", "1422"]
     },
     "2": {
       outStopIds: ["2001", "2002", "2003", "1420"],
@@ -215,8 +220,8 @@
     if (outStops.length < 2 || inStops.length < 2) return null;
     const outRaw = outStops.map((s) => [s.lon, s.lat]);
     const inRaw = inStops.map((s) => [s.lon, s.lat]);
-    const outRoute = await resolveRoadRoute(outRaw, `bus_demo_${lineShortName}_out_v4`);
-    const inRoute = await resolveRoadRoute(inRaw, `bus_demo_${lineShortName}_in_v4`);
+    const outRoute = await resolveRoadRoute(outRaw, `bus_demo_${lineShortName}_out_${DEMO_ROUTE_CACHE_VERSION}`);
+    const inRoute = await resolveRoadRoute(inRaw, `bus_demo_${lineShortName}_in_${DEMO_ROUTE_CACHE_VERSION}`);
     if (!Array.isArray(outRoute) || outRoute.length < 2 || !Array.isArray(inRoute) || inRoute.length < 2) {
       return null;
     }
@@ -809,6 +814,17 @@
     const useClockDepartures = clockDepartures.length > 0;
     const fleetCap = Math.max(1, Number(config.busCount) || 1);
     const activeDepartures = useClockDepartures ? clockDepartures.slice(-fleetCap) : [];
+    if (useClockDepartures && activeDepartures.length > 0 && activeDepartures.length < fleetCap) {
+      const scheduledHeadwayMs = Math.max(1, Number(config.headwayMinutes || 10) * 60 * 1000);
+      const observedHeadwayMs = activeDepartures.length >= 2
+        ? Math.max(1, activeDepartures[activeDepartures.length - 1] - activeDepartures[activeDepartures.length - 2])
+        : scheduledHeadwayMs;
+      let seed = activeDepartures[0];
+      while (activeDepartures.length < fleetCap) {
+        seed -= observedHeadwayMs;
+        activeDepartures.unshift(seed);
+      }
+    }
     const buses = useClockDepartures
       ? activeDepartures.map((depTs, idx) => {
           const hh = String(new Date(depTs).getHours()).padStart(2, "0");
