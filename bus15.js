@@ -4,7 +4,7 @@
     dwellMs: 5000
   };
   const BUS_GROUND_OFFSET_METERS = 6;
-  const BUS_SIM_SPEED_MULTIPLIER = 6;
+  const BUS_SIM_SPEED_MULTIPLIER = 1;
   const HARD_FALLBACK_LOOP = [
     [14.2620, 57.7722],
     [14.2642, 57.7737],
@@ -15,6 +15,31 @@
     [14.2638, 57.7697],
     [14.2622, 57.7711]
   ];
+  const DEMO_STOPS = {
+    "1018": { name: "Kungsporten", coord: [14.261092639000026, 57.781745461000071] },
+    "1412": { name: "Hästhagsgatan", coord: [14.263372397000069, 57.779142051000065] },
+    "1420": { name: "Huskvarna Oxhagsskolan", coord: [14.26059093300006, 57.77735702400008] },
+    "1415": { name: "Öxnegården", coord: [14.25969862200003, 57.77542438200004] },
+    "1414": { name: "Öxnehaga centrum", coord: [14.264104008000061, 57.775388269000075] },
+    "1413": { name: "Lahagsgatan", coord: [14.268596427000034, 57.774886093000077] },
+    "1419": { name: "Kalvhagsgatan", coord: [14.268249268000034, 57.771191051000073] },
+    "1418": { name: "Kohagsgatan", coord: [14.264283418000048, 57.771573884000077] },
+    "1417": { name: "Rishagsgatan", coord: [14.258814077000068, 57.771740692000037] },
+    "1416": { name: "Öxnehaga idrottsplats", coord: [14.25666525400004, 57.773645170000066] },
+    "1228": { name: "Lövhagen", coord: [14.269413961000055, 57.769885116000069] },
+    "1229": { name: "Stekelvägen", coord: [14.271560191000049, 57.766830973000083] },
+    "1422": { name: "Lövhagsgatan", coord: [14.269915089000051, 57.763623099000029] }
+  };
+  const DEMO_LINE_ROUTES = {
+    "15": {
+      outStopIds: ["1420", "1415", "1414", "1413", "1419", "1418", "1417", "1416", "1415", "1420"],
+      inStopIds: ["1420", "1412", "1018", "1420"]
+    },
+    "2": {
+      outStopIds: ["1420", "1415", "1414", "1413", "1419", "1228", "1229", "1422"],
+      inStopIds: ["1422", "1229", "1228", "1419", "1413", "1414", "1415", "1420"]
+    }
+  };
 
   const LINES = {
     "15": {
@@ -33,8 +58,7 @@
       stopNames: null,
       headwayMinutes: 10,
       loopMinutes: 30,
-      // +5 buses compared to previous count
-      busCount: 9,
+      busCount: 5,
       colors: ["#f97316", "#14b8a6", "#8b5cf6", "#0ea5e9"]
     }
   };
@@ -108,6 +132,64 @@
       });
       return obj;
     });
+  }
+
+  function demoStopsFromIds(ids) {
+    if (!Array.isArray(ids) || ids.length < 2) return [];
+    return ids
+      .map((id) => {
+        const stop = DEMO_STOPS[String(id)];
+        if (!stop) return null;
+        return { id: String(id), name: stop.name, lon: stop.coord[0], lat: stop.coord[1] };
+      })
+      .filter(Boolean);
+  }
+
+  async function resolveRoadRoute(rawPoints, cacheKey) {
+    if (!Array.isArray(rawPoints) || rawPoints.length < 2) return null;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length >= 2) return parsed;
+      }
+    } catch (_) {
+      // ignore cache issues and continue
+    }
+    try {
+      const coords = rawPoints.map((p) => `${Number(p[0])},${Number(p[1])}`).join(";");
+      const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&alternatives=false&steps=false`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`OSRM ${res.status}`);
+      const data = await res.json();
+      const route = data?.routes?.[0]?.geometry?.coordinates;
+      if (Array.isArray(route) && route.length >= 2) {
+        try { localStorage.setItem(cacheKey, JSON.stringify(route)); } catch (_) {}
+        return route;
+      }
+    } catch (err) {
+      console.warn("Bus route OSRM fallback to stop polyline:", err);
+    }
+    return rawPoints;
+  }
+
+  async function buildDemoLineRoutes(lineShortName) {
+    const def = DEMO_LINE_ROUTES[String(lineShortName)];
+    if (!def) return null;
+    const outStops = demoStopsFromIds(def.outStopIds);
+    const inStops = demoStopsFromIds(def.inStopIds);
+    if (outStops.length < 2 || inStops.length < 2) return null;
+    const outRaw = outStops.map((s) => [s.lon, s.lat]);
+    const inRaw = inStops.map((s) => [s.lon, s.lat]);
+    const outRoute = await resolveRoadRoute(outRaw, `bus_demo_${lineShortName}_out_v2`);
+    const inRoute = await resolveRoadRoute(inRaw, `bus_demo_${lineShortName}_in_v2`);
+    if (!Array.isArray(outRoute) || outRoute.length < 2 || !Array.isArray(inRoute) || inRoute.length < 2) {
+      return null;
+    }
+    return {
+      out: { route: outRoute, stops: outStops },
+      in: { route: inRoute, stops: inStops }
+    };
   }
 
   function buildSampler(Polyline, webMercatorUtils, routePoints) {
@@ -449,14 +531,19 @@
     }
 
     if (!routes || !routes.out?.route || !routes.in?.route) {
-      const points = HARD_FALLBACK_LOOP.slice();
-      statusLine(lineState, `Bus ${opts.label}: Simulating (hard fallback route)`);
-      const mid = Math.max(2, Math.floor(points.length / 2));
-      routes = {
-        out: { route: points.slice(0, mid), stops: [] },
-        in: { route: points.slice(mid).concat(points[0]), stops: [] }
-      };
-      if (routes.out.route.length < 2 || routes.in.route.length < 2) return null;
+      routes = await buildDemoLineRoutes(opts.lineShortName);
+      if (routes?.out?.route?.length >= 2 && routes?.in?.route?.length >= 2) {
+        statusLine(lineState, `Bus ${opts.label}: Simulating från Oxhagsskolan (lokal demo-rutt)`);
+      } else {
+        const points = HARD_FALLBACK_LOOP.slice();
+        statusLine(lineState, `Bus ${opts.label}: Simulating (hard fallback route)`);
+        const mid = Math.max(2, Math.floor(points.length / 2));
+        routes = {
+          out: { route: points.slice(0, mid), stops: [] },
+          in: { route: points.slice(mid).concat(points[0]), stops: [] }
+        };
+        if (routes.out.route.length < 2 || routes.in.route.length < 2) return null;
+      }
     } else {
       statusLine(lineState, `Bus ${opts.label}: Simulating from timetable (GTFS shapes)`);
     }

@@ -896,6 +896,7 @@
         <div id="shuttleMessage" class="alarm-message"></div>
       </div>
       <div class="alarm-actions">
+        <button id="shuttleOpenDashboard" type="button">Visa dashboard</button>
         <button id="shuttleCancel" type="button">Avbryt transport</button>
       </div>
     </div>
@@ -6508,6 +6509,7 @@ Maintain safe distance
     const rightClose = document.getElementById("rightPanelClose");
     const shuttleDashboard = document.getElementById("shuttleDashboard");
     const shuttleDashClose = document.getElementById("shuttleDashClose");
+    const shuttleOpenDashboardBtn = document.getElementById("shuttleOpenDashboard");
     const shuttleSpeedValue = document.getElementById("shuttleSpeedValue");
     const shuttleSpeedBar = document.getElementById("shuttleSpeedBar");
     const shuttleSpeedStatus = document.getElementById("shuttleSpeedStatus");
@@ -6864,6 +6866,10 @@ Maintain safe distance
     digitalClose?.addEventListener("click", closeDigital);
     rightClose?.addEventListener("click", closeRight);
     shuttleDashClose?.addEventListener("click", closeShuttleDashboard);
+    shuttleOpenDashboardBtn?.addEventListener("click", () => {
+      openShuttleDashboard();
+      window.ShuttleController?.hideModal?.();
+    });
     shuttleDashboard?.addEventListener("click", (e) => {
       if (e.target && e.target.id === "shuttleDashboard") closeShuttleDashboard();
     });
@@ -7245,6 +7251,6 @@ Maintain safe distance
   </script>
   <script src="./local-guide-chat.js"></script>
   <script type="module" src="./electricity-sim.js"></script>
-  <script type="module" src="./bus15.js?v=20260311b"></script>
+  <script type="module" src="./bus15.js?v=20260311c"></script>
 </body>
 </html>

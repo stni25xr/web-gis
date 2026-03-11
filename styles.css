@@ -1011,7 +1011,23 @@ html, body, body.app {
 #shuttleModal .alarm-actions {
   padding: 10px 14px 14px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+#shuttleModal #shuttleOpenDashboard {
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: rgba(14, 165, 233, 0.16);
+  color: #e0f2fe;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#shuttleModal #shuttleOpenDashboard:hover {
+  background: rgba(14, 165, 233, 0.26);
 }
 
 #shuttleModal #shuttleCancel {
