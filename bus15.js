@@ -4,6 +4,7 @@
     dwellMs: 5000
   };
   const BUS_GROUND_OFFSET_METERS = 6;
+  const BUS_SIM_SPEED_MULTIPLIER = 6;
   const HARD_FALLBACK_LOOP = [
     [14.2620, 57.7722],
     [14.2642, 57.7737],
@@ -380,25 +381,8 @@
     }
 
     if (!routes || !routes.out?.route || !routes.in?.route) {
-      statusLine(lineState, `Bus ${opts.label}: Simulating (fallback route)`);
-      let points = [];
-      try {
-        const res = await ctx.busLayer.queryFeatures({ where: "1=1", outFields: ["Nr", "Hplnamn"], returnGeometry: true });
-        const feats = res.features || [];
-        points = feats
-          .map((f) => {
-            const lon = f.geometry?.longitude ?? f.geometry?.x;
-            const lat = f.geometry?.latitude ?? f.geometry?.y;
-            return Number.isFinite(lon) && Number.isFinite(lat) ? [lon, lat] : null;
-          })
-          .filter(Boolean);
-      } catch (e) {
-        console.warn(`Bus ${opts.label}: bus stop query failed, using hard fallback`, e);
-      }
-      if (points.length < 4) {
-        points = HARD_FALLBACK_LOOP.slice();
-        statusLine(lineState, `Bus ${opts.label}: Simulating (hard fallback route)`);
-      }
+      const points = HARD_FALLBACK_LOOP.slice();
+      statusLine(lineState, `Bus ${opts.label}: Simulating (hard fallback route)`);
       const mid = Math.max(2, Math.floor(points.length / 2));
       routes = {
         out: { route: points.slice(0, mid), stops: [] },
@@ -444,8 +428,13 @@
   function buildBusList(config) {
     const ids = ["A", "B", "C", "D", "E", "F", "G"];
     const offsets = [];
+    const loopMs = Math.max(1, config.loopMinutes * 60 * 1000);
+    const desiredHeadwayMs = Math.max(1, config.headwayMinutes * 60 * 1000);
+    const effectiveHeadwayMs = (desiredHeadwayMs * config.busCount > loopMs)
+      ? (loopMs / Math.max(1, config.busCount))
+      : desiredHeadwayMs;
     for (let i = 0; i < config.busCount; i++) {
-      offsets.push(i * config.headwayMinutes * 60 * 1000);
+      offsets.push(i * effectiveHeadwayMs);
     }
     return offsets.map((offsetMs, idx) => ({
       id: ids[idx] || String(idx + 1),
@@ -475,7 +464,8 @@
     const buses = buildBusList(config);
 
     buses.forEach((bus) => {
-      const t = ((now - state.startMs - bus.offsetMs) % loopMs + loopMs) % loopMs;
+      const simNow = (now - state.startMs) * BUS_SIM_SPEED_MULTIPLIER;
+      const t = ((simNow - bus.offsetMs) % loopMs + loopMs) % loopMs;
       let dist = 0;
       if (stopCount >= 2) {
         let remaining = t;
