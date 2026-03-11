@@ -185,6 +185,73 @@
     };
   }
 
+  function haversineMeters(a, b) {
+    if (!a || !b) return 0;
+    const lon1 = Number(a[0]);
+    const lat1 = Number(a[1]);
+    const lon2 = Number(b[0]);
+    const lat2 = Number(b[1]);
+    if (![lon1, lat1, lon2, lat2].every(Number.isFinite)) return 0;
+    const R = 6371000;
+    const toRad = (v) => (v * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const p1 = toRad(lat1);
+    const p2 = toRad(lat2);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+
+  function buildGeoSampler(routePoints) {
+    if (!routePoints || routePoints.length < 2) return null;
+    const path = routePoints
+      .map((p) => [Number(p[0]), Number(p[1])])
+      .filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+    if (path.length < 2) return null;
+    const cum = [0];
+    let total = 0;
+    for (let i = 1; i < path.length; i++) {
+      total += haversineMeters(path[i - 1], path[i]);
+      cum[i] = total;
+    }
+    if (total <= 0) return null;
+    const pointAt = (dist) => {
+      if (dist <= 0) return path[0];
+      if (dist >= total) return path[path.length - 1];
+      let i = 1;
+      while (i < cum.length && cum[i] < dist) i++;
+      const prev = cum[i - 1];
+      const segLen = cum[i] - prev;
+      const t = segLen === 0 ? 0 : (dist - prev) / segLen;
+      const p0 = path[i - 1];
+      const p1 = path[i];
+      return [p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t];
+    };
+    const distanceAtPoint = (p) => {
+      const lon = Number(Array.isArray(p) ? p[0] : (p?.longitude ?? p?.x));
+      const lat = Number(Array.isArray(p) ? p[1] : (p?.latitude ?? p?.y));
+      if (!Number.isFinite(lon) || !Number.isFinite(lat)) return 0;
+      let bestI = 0;
+      let bestD = Infinity;
+      for (let i = 0; i < path.length; i++) {
+        const d = haversineMeters([lon, lat], path[i]);
+        if (d < bestD) {
+          bestD = d;
+          bestI = i;
+        }
+      }
+      return cum[bestI] || 0;
+    };
+    return {
+      total,
+      distanceAtPoint,
+      toGeo: (dist) => {
+        const p = pointAt(dist);
+        return { type: "point", longitude: p[0], latitude: p[1], spatialReference: { wkid: 4326 } };
+      }
+    };
+  }
+
   async function loadGtfsShapes({ JSZip, key, lineShortName, stopNames }) {
     const url = `https://opendata.samtrafiken.se/gtfs/jlt/jlt.zip?key=${encodeURIComponent(key)}`;
     const res = await fetch(url);
@@ -399,10 +466,10 @@
     lineState.routeLayer.visible = false;
     lineState.routeLayer2.visible = false;
 
-    lineState.samplers.out = buildSampler(Polyline, webMercatorUtils, routes.out.route);
-    lineState.samplers.in = buildSampler(Polyline, webMercatorUtils, routes.in.route);
+    lineState.samplers.out = buildSampler(Polyline, webMercatorUtils, routes.out.route) || buildGeoSampler(routes.out.route);
+    lineState.samplers.in = buildSampler(Polyline, webMercatorUtils, routes.in.route) || buildGeoSampler(routes.in.route);
     const loopRoute = routes.out.route.concat(routes.in.route.slice(1));
-    lineState.samplers.loop = buildSampler(Polyline, webMercatorUtils, loopRoute);
+    lineState.samplers.loop = buildSampler(Polyline, webMercatorUtils, loopRoute) || buildGeoSampler(loopRoute);
     lineState.stopSeq.out = routes.out.stops || [];
     lineState.stopSeq.in = routes.in.stops || [];
     lineState.loopStops = lineState.stopSeq.out.concat(lineState.stopSeq.in.slice(1));
