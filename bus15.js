@@ -32,41 +32,24 @@
   };
   const DEMO_LINE_ROUTES = {
     "15": {
-      outStopIds: ["1422", "1229", "1228", "1419", "1413", "1414", "1415", "1420", "1412", "1018"],
-      inStopIds: ["1018", "1412", "1420", "1415", "1414", "1413", "1419", "1228", "1229", "1422"]
+      outStopIds: ["1420", "1415", "1414", "1413", "1419", "1418", "1417", "1416", "1415", "1420"],
+      inStopIds: ["1420", "1412", "1018", "1420"]
     },
     "2": {
       outStopIds: ["1420", "1415", "1414", "1413", "1419", "1228", "1229", "1422"],
       inStopIds: ["1422", "1229", "1228", "1419", "1413", "1414", "1415", "1420"]
     }
   };
-  const OXHAGSSKOLAN_COORD = [14.26059093300006, 57.77735702400008];
-  const OXNEHAGA_CENTRUM_COORD = [14.264104008000061, 57.775388269000075];
-  const HISINGSANGEN_COORD = [14.269915089000051, 57.763623099000029];
-  const LOVHAGSGATAN_COORD = [14.269915089000051, 57.763623099000029];
-  const ESPLANADEN_PROXY_COORD = [14.261092639000026, 57.781745461000071];
 
   const LINES = {
     "15": {
       lineShortName: "15",
       label: "15",
-      stopNames: { a: "Lövhagsgatan", b: "Esplanaden" },
-      headwayMinutes: 20,
-      loopMinutes: 80,
+      stopNames: { a: "Öxnehaga", b: "Esplanaden" },
+      headwayMinutes: 10,
+      loopMinutes: 30,
+      // +1 bus compared to previous count
       busCount: 4,
-      scheduleMode: "two-terminal-clock",
-      terminalAName: "Lövhagsgatan",
-      terminalACoord: LOVHAGSGATAN_COORD,
-      terminalBName: "Esplanaden",
-      terminalBCoord: ESPLANADEN_PROXY_COORD,
-      terminalABaseMinute: 8,
-      terminalASlotOffsetsMinutes: [0, 20, 40, 60],
-      travelMinutesOneWay: 24,
-      terminalADwellMinutes: 16,
-      terminalBDwellMinutes: 16,
-      timepointMidName: "Öxnehaga centrum",
-      timepointMidCoord: OXNEHAGA_CENTRUM_COORD,
-      timepointMidMinutesFromA: 6,
       colors: ["#ff6b00", "#10b981", "#2563eb"]
     },
     "2": {
@@ -74,23 +57,8 @@
       label: "2",
       stopNames: null,
       headwayMinutes: 10,
-      loopMinutes: 60,
+      loopMinutes: 30,
       busCount: 4,
-      anchorStopNeedle: "oxhag",
-      anchorCoord: OXHAGSSKOLAN_COORD,
-      alignToClock: true,
-      scheduleMode: "two-terminal-clock",
-      terminalAName: "Hisingsängens vändplan",
-      terminalACoord: HISINGSANGEN_COORD,
-      terminalBName: "Oxhagsskolan",
-      terminalBCoord: OXHAGSSKOLAN_COORD,
-      // 4 buses total: 2 departures from each side
-      terminalADepartMinutes: [10, 20],
-      terminalBDepartMinutes: [48, 58],
-      travelMinutesOneWay: 38,
-      terminalADwellMinutes: 22,
-      terminalBDwellMinutes: 22,
-      hideWaitingAtTerminals: true,
       colors: ["#f97316", "#14b8a6", "#8b5cf6", "#0ea5e9"]
     }
   };
@@ -285,7 +253,6 @@
       return bestDist;
     };
     return {
-      kind: "webmercator",
       total,
       distanceAtPoint,
       toGeo: (dist) => {
@@ -358,7 +325,6 @@
       return cum[bestI] || 0;
     };
     return {
-      kind: "geographic",
       total,
       distanceAtPoint,
       toGeo: (dist) => {
@@ -366,80 +332,6 @@
         return { type: "point", longitude: p[0], latitude: p[1], spatialReference: { wkid: 4326 } };
       }
     };
-  }
-
-  function normalizeStopName(name) {
-    return String(name || "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .trim();
-  }
-
-  function distanceOnSampler(sampler, webMercatorUtils, lon, lat) {
-    if (!sampler || !Number.isFinite(lon) || !Number.isFinite(lat)) return null;
-    if (sampler.kind === "geographic") {
-      const d = sampler.distanceAtPoint([lon, lat]);
-      return Number.isFinite(d) ? d : null;
-    }
-    const wm = webMercatorUtils.geographicToWebMercator({
-      type: "point",
-      longitude: lon,
-      latitude: lat,
-      spatialReference: { wkid: 4326 }
-    });
-    if (!wm || !Number.isFinite(wm.x) || !Number.isFinite(wm.y)) return null;
-    const d = sampler.distanceAtPoint([wm.x, wm.y]);
-    return Number.isFinite(d) ? d : null;
-  }
-
-  function shiftStopDistancesFromAnchor(stopDistances, anchorDist, loopLen) {
-    if (!Array.isArray(stopDistances) || stopDistances.length < 2 || !Number.isFinite(loopLen) || loopLen <= 0) return [];
-    const shifted = stopDistances
-      .map((d) => {
-        if (!Number.isFinite(d)) return null;
-        let v = d - anchorDist;
-        while (v < 0) v += loopLen;
-        while (v >= loopLen) v -= loopLen;
-        return v;
-      })
-      .filter((v) => Number.isFinite(v))
-      .sort((a, b) => a - b);
-    if (!shifted.length) return [];
-    const dedup = [];
-    shifted.forEach((v) => {
-      if (!dedup.length || Math.abs(v - dedup[dedup.length - 1]) > 1) dedup.push(v);
-    });
-    const hasZero = dedup.some((v) => Math.abs(v) <= 1);
-    if (!hasZero) dedup.unshift(0);
-    return dedup;
-  }
-
-  function latestClockMinuteMs(nowMs, minuteOfHour) {
-    const d = new Date(nowMs);
-    const m = ((Number(minuteOfHour) % 60) + 60) % 60;
-    d.setSeconds(0, 0);
-    d.setMinutes(m);
-    let ts = d.getTime();
-    if (ts > nowMs) ts -= 60 * 60 * 1000;
-    return ts;
-  }
-
-  function routeDirectionMap(opts, routes) {
-    const out = routes?.out?.route || [];
-    const inn = routes?.in?.route || [];
-    if (out.length < 2 || inn.length < 2) return null;
-    const outStart = out[0];
-    const outEnd = out[out.length - 1];
-    const a = Array.isArray(opts.terminalACoord) ? opts.terminalACoord : null;
-    const b = Array.isArray(opts.terminalBCoord) ? opts.terminalBCoord : null;
-    if (!a || !b) return null;
-    const scoreOutAtoB = haversineMeters(outStart, a) + haversineMeters(outEnd, b);
-    const scoreOutBtoA = haversineMeters(outStart, b) + haversineMeters(outEnd, a);
-    if (scoreOutAtoB <= scoreOutBtoA) {
-      return { outIsAtoB: true };
-    }
-    return { outIsAtoB: false };
   }
 
   async function loadGtfsShapes({ JSZip, key, lineShortName, stopNames }) {
@@ -612,13 +504,9 @@
       routeLayer: new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 }, visible: false }),
       routeLayer2: new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 2 }, visible: false }),
       samplers: { out: null, in: null, loop: null },
-      directionSamplers: { AtoB: null, BtoA: null },
       stopSeq: { out: [], in: [] },
       loopStops: [],
       loopStopDistances: [],
-      anchorDistanceM: 0,
-      midDistanceAtoB: null,
-      scheduleFleet: [],
       graphics: new Map()
     };
 
@@ -645,7 +533,7 @@
     if (!routes || !routes.out?.route || !routes.in?.route) {
       routes = await buildDemoLineRoutes(opts.lineShortName);
       if (routes?.out?.route?.length >= 2 && routes?.in?.route?.length >= 2) {
-        statusLine(lineState, `Bus ${opts.label}: Simulating (lokal demo-rutt)`);
+        statusLine(lineState, `Bus ${opts.label}: Simulating från Oxhagsskolan (lokal demo-rutt)`);
       } else {
         const points = HARD_FALLBACK_LOOP.slice();
         statusLine(lineState, `Bus ${opts.label}: Simulating (hard fallback route)`);
@@ -674,103 +562,19 @@
     lineState.loopStops = lineState.stopSeq.out.concat(lineState.stopSeq.in.slice(1));
 
     if (lineState.samplers.loop && lineState.loopStops.length) {
-      lineState.loopStopDistances = lineState.loopStops
-        .map((s) => distanceOnSampler(lineState.samplers.loop, webMercatorUtils, Number(s.lon), Number(s.lat)))
-        .filter((d) => Number.isFinite(d));
-    }
-
-    if (lineState.samplers.loop) {
-      const needle = normalizeStopName(opts.anchorStopNeedle || "");
-      if (needle && lineState.loopStops.length && lineState.loopStopDistances.length === lineState.loopStops.length) {
-        const idx = lineState.loopStops.findIndex((s) => normalizeStopName(s?.name || "").includes(needle));
-        if (idx >= 0 && Number.isFinite(lineState.loopStopDistances[idx])) {
-          lineState.anchorDistanceM = lineState.loopStopDistances[idx];
-        }
-      }
-      if (!Number.isFinite(lineState.anchorDistanceM) || lineState.anchorDistanceM <= 0) {
-        const anchorCoord = Array.isArray(opts.anchorCoord) ? opts.anchorCoord : null;
-        if (anchorCoord && Number.isFinite(anchorCoord[0]) && Number.isFinite(anchorCoord[1])) {
-          const d = distanceOnSampler(lineState.samplers.loop, webMercatorUtils, anchorCoord[0], anchorCoord[1]);
-          if (Number.isFinite(d)) lineState.anchorDistanceM = d;
-        }
-      }
-      if (!Number.isFinite(lineState.anchorDistanceM)) lineState.anchorDistanceM = 0;
-    }
-
-    const dirMap = routeDirectionMap(opts, routes);
-    if (dirMap?.outIsAtoB === true) {
-      lineState.directionSamplers.AtoB = lineState.samplers.out;
-      lineState.directionSamplers.BtoA = lineState.samplers.in;
-    } else if (dirMap?.outIsAtoB === false) {
-      lineState.directionSamplers.AtoB = lineState.samplers.in;
-      lineState.directionSamplers.BtoA = lineState.samplers.out;
-    } else {
-      lineState.directionSamplers.AtoB = lineState.samplers.out;
-      lineState.directionSamplers.BtoA = lineState.samplers.in;
-    }
-
-    const midCoord = Array.isArray(opts.timepointMidCoord) ? opts.timepointMidCoord : null;
-    if (midCoord && lineState.directionSamplers.AtoB) {
-      const midDist = distanceOnSampler(
-        lineState.directionSamplers.AtoB,
-        webMercatorUtils,
-        Number(midCoord[0]),
-        Number(midCoord[1])
-      );
-      if (Number.isFinite(midDist)) lineState.midDistanceAtoB = midDist;
-    }
-
-    if (opts.scheduleMode === "two-terminal-clock") {
-      const nowMs = Date.now();
-      const depA = Array.isArray(opts.terminalADepartMinutes) ? opts.terminalADepartMinutes : [];
-      const depB = Array.isArray(opts.terminalBDepartMinutes) ? opts.terminalBDepartMinutes : [];
-      const slotA = Array.isArray(opts.terminalASlotOffsetsMinutes) ? opts.terminalASlotOffsetsMinutes : [];
-      const slotB = Array.isArray(opts.terminalBSlotOffsetsMinutes) ? opts.terminalBSlotOffsetsMinutes : [];
-      const colors = Array.isArray(opts.colors) && opts.colors.length ? opts.colors : ["#f97316"];
-      const fleet = [];
-      if (slotA.length && Number.isFinite(Number(opts.terminalABaseMinute))) {
-        const base = latestClockMinuteMs(nowMs, Number(opts.terminalABaseMinute));
-        slotA.forEach((offsetMin, idx) => {
-          fleet.push({
-            id: `A${idx + 1}`,
-            origin: "A",
-            seedDepartureMs: base - Math.max(0, Number(offsetMin) || 0) * 60 * 1000,
-            color: colors[idx % colors.length]
+      const wmStops = lineState.loopStops
+        .map((s) => {
+          if (!Number.isFinite(s.lon) || !Number.isFinite(s.lat)) return null;
+          const wm = webMercatorUtils.geographicToWebMercator({
+            type: "point",
+            longitude: s.lon,
+            latitude: s.lat,
+            spatialReference: { wkid: 4326 }
           });
-        });
-      } else {
-        depA.forEach((minute, idx) => {
-          fleet.push({
-            id: `A${idx + 1}`,
-            origin: "A",
-            seedDepartureMs: latestClockMinuteMs(nowMs, minute),
-            color: colors[idx % colors.length]
-          });
-        });
-      }
-      if (slotB.length && Number.isFinite(Number(opts.terminalBBaseMinute))) {
-        const base = latestClockMinuteMs(nowMs, Number(opts.terminalBBaseMinute));
-        const bColorOffset = fleet.length;
-        slotB.forEach((offsetMin, idx) => {
-          fleet.push({
-            id: `B${idx + 1}`,
-            origin: "B",
-            seedDepartureMs: base - Math.max(0, Number(offsetMin) || 0) * 60 * 1000,
-            color: colors[(idx + bColorOffset) % colors.length]
-          });
-        });
-      } else {
-        const bColorOffset = fleet.length;
-        depB.forEach((minute, idx) => {
-          fleet.push({
-            id: `B${idx + 1}`,
-            origin: "B",
-            seedDepartureMs: latestClockMinuteMs(nowMs, minute),
-            color: colors[(idx + bColorOffset) % colors.length]
-          });
-        });
-      }
-      lineState.scheduleFleet = fleet;
+          return wm ? [wm.x, wm.y] : null;
+        })
+        .filter(Boolean);
+      lineState.loopStopDistances = wmStops.map((p) => lineState.samplers.loop.distanceAtPoint(p));
     }
 
     return lineState;
@@ -778,172 +582,24 @@
 
   function buildBusList(config) {
     const ids = ["A", "B", "C", "D", "E", "F", "G"];
-    const headwayMs = Math.max(1, Number(config.headwayMinutes || 10) * 60 * 1000);
-    return Array.from({ length: Math.max(1, Number(config.busCount) || 1) }).map((_, idx) => ({
+    const offsets = [];
+    const loopMs = Math.max(1, config.loopMinutes * 60 * 1000);
+    const desiredHeadwayMs = Math.max(1, config.headwayMinutes * 60 * 1000);
+    const effectiveHeadwayMs = (desiredHeadwayMs * config.busCount > loopMs)
+      ? (loopMs / Math.max(1, config.busCount))
+      : desiredHeadwayMs;
+    for (let i = 0; i < config.busCount; i++) {
+      offsets.push(i * effectiveHeadwayMs);
+    }
+    return offsets.map((offsetMs, idx) => ({
       id: ids[idx] || String(idx + 1),
       color: config.colors[idx % config.colors.length],
-      offsetMs: idx * headwayMs
+      offsetMs
     }));
-  }
-
-  function updateLineTwoTerminalClock(ctx, lineState, now) {
-    const { Graphic } = ctx;
-    const { config } = lineState;
-    const samplerAtoB = lineState.directionSamplers?.AtoB;
-    const samplerBtoA = lineState.directionSamplers?.BtoA;
-    if (!samplerAtoB || !samplerBtoA) return;
-    const travelMs = Math.max(1, Number(config.travelMinutesOneWay || 38) * 60 * 1000);
-    const dwellAMs = Math.max(0, Number(config.terminalADwellMinutes || 0) * 60 * 1000);
-    const dwellBMs = Math.max(0, Number(config.terminalBDwellMinutes || 0) * 60 * 1000);
-    const cycleMs = travelMs + dwellBMs + travelMs + dwellAMs;
-    const termA = String(config.terminalAName || "Terminal A");
-    const termB = String(config.terminalBName || "Terminal B");
-    const fleet = Array.isArray(lineState.scheduleFleet) ? lineState.scheduleFleet : [];
-    if (!fleet.length) return;
-    const midName = String(config.timepointMidName || "");
-    const midMinutesFromA = Math.max(0, Number(config.timepointMidMinutesFromA || 0) * 60 * 1000);
-    const midDistAtoBRaw = Number(lineState.midDistanceAtoB);
-    const midDistAtoB = Number.isFinite(midDistAtoBRaw)
-      ? Math.max(0, Math.min(samplerAtoB.total, midDistAtoBRaw))
-      : null;
-    const distanceAtoB = (legMs) => {
-      if (!Number.isFinite(midDistAtoB) || midMinutesFromA <= 0 || midMinutesFromA >= travelMs) {
-        return (Math.max(0, Math.min(travelMs, legMs)) / travelMs) * samplerAtoB.total;
-      }
-      if (legMs <= midMinutesFromA) {
-        return (legMs / midMinutesFromA) * midDistAtoB;
-      }
-      const tailMs = travelMs - midMinutesFromA;
-      const tailLeg = legMs - midMinutesFromA;
-      return midDistAtoB + (tailLeg / tailMs) * (samplerAtoB.total - midDistAtoB);
-    };
-    const distanceBtoA = (legMs) => {
-      if (!Number.isFinite(midDistAtoB) || midMinutesFromA <= 0 || midMinutesFromA >= travelMs) {
-        return (Math.max(0, Math.min(travelMs, legMs)) / travelMs) * samplerBtoA.total;
-      }
-      const midMinutesFromB = travelMs - midMinutesFromA;
-      const midDistFromB = Math.max(0, Math.min(samplerBtoA.total, samplerBtoA.total - midDistAtoB));
-      if (legMs <= midMinutesFromB) {
-        return (legMs / midMinutesFromB) * midDistFromB;
-      }
-      const tailMs = travelMs - midMinutesFromB;
-      const tailLeg = legMs - midMinutesFromB;
-      return midDistFromB + (tailLeg / tailMs) * (samplerBtoA.total - midDistFromB);
-    };
-
-    const nextGraphics = new Map();
-    fleet.forEach((bus) => {
-      const since = now - Number(bus.seedDepartureMs || now);
-      const phase = ((since % cycleMs) + cycleMs) % cycleMs;
-      let sampler = null;
-      let segment = "";
-      let nextStop = "";
-      let dist = 0;
-      let etaMs = travelMs;
-
-      if (bus.origin === "A") {
-        if (phase < travelMs) {
-          const leg = phase;
-          sampler = samplerAtoB;
-          dist = distanceAtoB(leg);
-          segment = `${termA} → ${termB}`;
-          nextStop = termB;
-          etaMs = travelMs - leg;
-        } else if (phase < travelMs + dwellBMs) {
-          if (config.hideWaitingAtTerminals) return;
-          sampler = samplerAtoB;
-          dist = samplerAtoB.total;
-          segment = `Stopp vid ${termB}`;
-          nextStop = termB;
-          etaMs = (travelMs + dwellBMs) - phase;
-        } else if (phase < travelMs + dwellBMs + travelMs) {
-          const leg = phase - (travelMs + dwellBMs);
-          sampler = samplerBtoA;
-          dist = distanceBtoA(leg);
-          segment = `${termB} → ${termA}`;
-          nextStop = termA;
-          etaMs = travelMs - leg;
-        } else {
-          if (config.hideWaitingAtTerminals) return;
-          sampler = samplerAtoB;
-          dist = 0;
-          segment = `Stopp vid ${termA}`;
-          nextStop = termA;
-          etaMs = cycleMs - phase;
-        }
-      } else {
-        if (phase < travelMs) {
-          const leg = phase;
-          sampler = samplerBtoA;
-          dist = distanceBtoA(leg);
-          segment = `${termB} → ${termA}`;
-          nextStop = termA;
-          etaMs = travelMs - leg;
-        } else if (phase < travelMs + dwellAMs) {
-          if (config.hideWaitingAtTerminals) return;
-          sampler = samplerBtoA;
-          dist = samplerBtoA.total;
-          segment = `Stopp vid ${termA}`;
-          nextStop = termA;
-          etaMs = (travelMs + dwellAMs) - phase;
-        } else if (phase < travelMs + dwellAMs + travelMs) {
-          const leg = phase - (travelMs + dwellAMs);
-          sampler = samplerAtoB;
-          dist = distanceAtoB(leg);
-          segment = `${termA} → ${termB}`;
-          nextStop = termB;
-          etaMs = travelMs - leg;
-        } else {
-          if (config.hideWaitingAtTerminals) return;
-          sampler = samplerBtoA;
-          dist = 0;
-          segment = `Stopp vid ${termB}`;
-          nextStop = termB;
-          etaMs = cycleMs - phase;
-        }
-      }
-
-      if (!sampler || !Number.isFinite(sampler.total) || sampler.total <= 0) return;
-      const pt = sampler.toGeo(dist);
-      if (!pt) return;
-      const etaMin = Math.max(1, Math.round(Math.max(0, etaMs) / 60000));
-      const directionLabel = midName && segment === `${termA} → ${termB}`
-        ? `${segment} (via ${midName})`
-        : segment;
-
-      let g = lineState.graphics.get(bus.id);
-      if (!g) {
-        g = createBusGraphic(Graphic, pt, bus.color);
-        lineState.graphics.set(bus.id, g);
-        lineState.layer.add(g);
-      } else {
-        g.geometry = pt;
-      }
-      g.attributes = {
-        line: config.label,
-        direction: directionLabel,
-        nextStop,
-        segment,
-        eta: etaMin,
-        source: "Clock schedule",
-        busId: bus.id
-      };
-      nextGraphics.set(bus.id, g);
-    });
-
-    lineState.graphics.forEach((entry, id) => {
-      if (nextGraphics.has(id)) return;
-      lineState.layer.remove(entry);
-    });
-    lineState.graphics = nextGraphics;
   }
 
   function updateLine(ctx, lineState, now) {
     if (!lineState.enabled) return;
-    if (lineState?.config?.scheduleMode === "two-terminal-clock") {
-      updateLineTwoTerminalClock(ctx, lineState, now);
-      return;
-    }
     const { Graphic } = ctx;
     const { config } = lineState;
     const loopSampler = lineState.samplers.loop;
@@ -953,31 +609,21 @@
       console.warn(`Bus ${config.label}: missing route sampler`);
       return;
     }
-    const headwayMs = Math.max(1, Number(config.headwayMinutes || 10) * 60 * 1000);
-    const configuredLoopMs = Math.max(1, Number(config.loopMinutes || 30) * 60 * 1000);
-    const scheduledLoopMs = Math.max(configuredLoopMs, headwayMs * Math.max(1, Number(config.busCount) || 1));
-    const loopMs = config.alignToClock ? scheduledLoopMs : configuredLoopMs;
+    const loopMs = config.loopMinutes * 60 * 1000;
     const loopLen = loopSampler.total;
     const outLen = outSampler.total;
     const inLen = inSampler.total;
-    const anchorDist = Number.isFinite(lineState.anchorDistanceM) ? lineState.anchorDistanceM : 0;
-    const baseStopDistances = lineState.loopStopDistances || [];
-    const stopDistances = config.alignToClock
-      ? shiftStopDistancesFromAnchor(baseStopDistances, anchorDist, loopLen)
-      : baseStopDistances;
+    const stopDistances = lineState.loopStopDistances || [];
     const stopCount = stopDistances.length;
     const travelMs = Math.max(0, loopMs - DEFAULTS.dwellMs * stopCount);
     const buses = buildBusList(config);
 
     buses.forEach((bus) => {
-      const simNow = now * BUS_SIM_SPEED_MULTIPLIER;
-      const phaseNow = config.alignToClock
-        ? simNow
-        : (simNow - state.startMs * BUS_SIM_SPEED_MULTIPLIER);
-      const tPhase = ((phaseNow - bus.offsetMs) % loopMs + loopMs) % loopMs;
+      const simNow = (now - state.startMs) * BUS_SIM_SPEED_MULTIPLIER;
+      const t = ((simNow - bus.offsetMs) % loopMs + loopMs) % loopMs;
       let dist = 0;
       if (stopCount >= 2) {
-        let remaining = tPhase;
+        let remaining = t;
         for (let i = 0; i < stopCount; i++) {
           const cur = stopDistances[i];
           const next = stopDistances[(i + 1) % stopCount];
@@ -999,10 +645,7 @@
           remaining -= segMs;
         }
       } else {
-        dist = (tPhase / loopMs) * loopLen;
-      }
-      if (config.alignToClock && loopLen > 0) {
-        dist = (dist + anchorDist) % loopLen;
+        dist = (t / loopMs) * loopLen;
       }
 
       const pt = loopSampler.toGeo(dist);
