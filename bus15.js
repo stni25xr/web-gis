@@ -53,7 +53,7 @@
       headwayMinutes: 20,
       loopMinutes: 80,
       busCount: 4,
-      preferGtfs: true,
+      preferGtfs: false,
       colors: ["#9ca3af", "#6b7280", "#4b5563", "#d1d5db"]
     },
     "2": {
@@ -63,7 +63,7 @@
       headwayMinutes: 10,
       loopMinutes: 80,
       busCount: 4,
-      preferGtfs: true,
+      preferGtfs: false,
       colors: ["#16a34a", "#22c55e", "#15803d", "#86efac"]
     }
   };
