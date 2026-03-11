@@ -80,6 +80,8 @@
       anchorCoord: OXHAGSSKOLAN_COORD,
       alignToClock: true,
       scheduleMode: "two-terminal-clock",
+      strictClockDepartures: true,
+      showOnlyActiveTrips: true,
       terminalAName: "Hisingsängens vändplan",
       terminalACoord: HISINGSANGEN_COORD,
       terminalBName: "Oxhagsskolan",
@@ -724,6 +726,27 @@
       const slotB = Array.isArray(opts.terminalBSlotOffsetsMinutes) ? opts.terminalBSlotOffsetsMinutes : [];
       const colors = Array.isArray(opts.colors) && opts.colors.length ? opts.colors : ["#f97316"];
       const fleet = [];
+      if (opts.strictClockDepartures) {
+        depA.forEach((minute, idx) => {
+          fleet.push({
+            id: `A${idx + 1}`,
+            origin: "A",
+            departMinute: Number(minute),
+            color: colors[idx % colors.length]
+          });
+        });
+        const bColorOffset = fleet.length;
+        depB.forEach((minute, idx) => {
+          fleet.push({
+            id: `B${idx + 1}`,
+            origin: "B",
+            departMinute: Number(minute),
+            color: colors[(idx + bColorOffset) % colors.length]
+          });
+        });
+        lineState.scheduleFleet = fleet;
+        return lineState;
+      }
       if (slotA.length && Number.isFinite(Number(opts.terminalABaseMinute))) {
         const base = latestClockMinuteMs(nowMs, Number(opts.terminalABaseMinute));
         slotA.forEach((offsetMin, idx) => {
@@ -826,6 +849,56 @@
       const tailLeg = legMs - midMinutesFromB;
       return midDistFromB + (tailLeg / tailMs) * (samplerBtoA.total - midDistFromB);
     };
+
+    if (config.strictClockDepartures) {
+      const nextGraphics = new Map();
+      fleet.forEach((bus) => {
+        const minute = Number(bus.departMinute);
+        if (!Number.isFinite(minute)) return;
+        const depMs = latestClockMinuteMs(now, minute);
+        const elapsed = now - depMs;
+        if (elapsed < 0 || elapsed >= travelMs) {
+          if (config.showOnlyActiveTrips !== false) return;
+        }
+        const legMs = Math.max(0, Math.min(travelMs, elapsed));
+        const fromA = bus.origin === "A";
+        const sampler = fromA ? samplerAtoB : samplerBtoA;
+        if (!sampler || !Number.isFinite(sampler.total) || sampler.total <= 0) return;
+        const dist = fromA ? distanceAtoB(legMs) : distanceBtoA(legMs);
+        const pt = sampler.toGeo(dist);
+        if (!pt) return;
+        const etaMin = Math.max(1, Math.round((travelMs - legMs) / 60000));
+        const segment = fromA ? `${termA} → ${termB}` : `${termB} → ${termA}`;
+        const directionLabel = midName && fromA ? `${segment} (via ${midName})` : segment;
+        const nextStop = fromA ? termB : termA;
+
+        let g = lineState.graphics.get(bus.id);
+        if (!g) {
+          g = createBusGraphic(Graphic, pt, bus.color);
+          lineState.graphics.set(bus.id, g);
+          lineState.layer.add(g);
+        } else {
+          g.geometry = pt;
+        }
+        g.attributes = {
+          line: config.label,
+          direction: directionLabel,
+          nextStop,
+          segment,
+          eta: etaMin,
+          source: "Clock schedule",
+          busId: bus.id
+        };
+        nextGraphics.set(bus.id, g);
+      });
+
+      lineState.graphics.forEach((entry, id) => {
+        if (nextGraphics.has(id)) return;
+        lineState.layer.remove(entry);
+      });
+      lineState.graphics = nextGraphics;
+      return;
+    }
 
     const nextGraphics = new Map();
     fleet.forEach((bus) => {
