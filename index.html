@@ -1976,6 +1976,10 @@ Maintain safe distance
         });
       }
 
+      function waitForNextFrame() {
+        return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      }
+
       function drawScreenshotWatermark(ctx, width, height, text) {
         const marginX = Math.max(12, Math.round(width * 0.02));
         let fontSize = Math.max(12, Math.min(30, Math.round(width / 52)));
@@ -2006,6 +2010,8 @@ Maintain safe distance
         const format = normalizeMapScreenshotFormat(formatValue);
         const ext = format === "jpg" ? "jpg" : "png";
         const mimeType = format === "jpg" ? "image/jpeg" : "image/png";
+        const MAPSHOT_CLEAN_CLASS = "mapshot-clean-mode";
+        const bodyEl = document.body;
 
         if (!view || typeof view.takeScreenshot !== "function") {
           setMapScreenshotStatus("Printscreen unavailable right now.");
@@ -2015,6 +2021,26 @@ Maintain safe distance
         setMapScreenshotStatus(`Capturing ${ext.toUpperCase()}…`);
 
         try {
+          // Ensure screenshot is map-only: close panels/popups and force a full-map layout.
+          if (typeof closeAll === "function") closeAll();
+          if (view?.popup?.visible && typeof view.popup.close === "function") {
+            view.popup.close();
+          }
+          const guidePanelEl = document.getElementById("guideChatPanel");
+          const guideToggleEl = document.getElementById("guideChatToggle");
+          if (guidePanelEl) {
+            guidePanelEl.hidden = true;
+            guidePanelEl.style.display = "none";
+          }
+          if (guideToggleEl) {
+            guideToggleEl.setAttribute("aria-expanded", "false");
+          }
+          bodyEl?.classList.add(MAPSHOT_CLEAN_CLASS);
+          if (bodyEl) bodyEl.style.overflow = "hidden";
+          requestViewRefresh(view);
+          await waitForNextFrame();
+          await waitForNextFrame();
+
           const shot = await view.takeScreenshot({
             format,
             quality: format === "jpg" ? 98 : undefined
@@ -2042,6 +2068,11 @@ Maintain safe distance
           console.error("Browser printscreen failed:", err);
           setMapScreenshotStatus("Printscreen failed. Try again.");
         } finally {
+          if (bodyEl) {
+            bodyEl.classList.remove(MAPSHOT_CLEAN_CLASS);
+            bodyEl.style.overflow = "";
+          }
+          requestViewRefresh(view);
           if (btn) btn.disabled = false;
         }
       }

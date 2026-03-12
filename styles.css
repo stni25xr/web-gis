@@ -111,6 +111,24 @@
   height: calc(100% - var(--header-height, 64px)) !important;
 }
 
+/* Temporary clean mode used when taking map printscreens. */
+body.mapshot-clean-mode > :not(#sceneView) {
+  display: none !important;
+}
+
+body.mapshot-clean-mode #sceneView {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 2147483000 !important;
+}
+
+body.mapshot-clean-mode #sceneView .esri-ui,
+body.mapshot-clean-mode #sceneView .esri-popup {
+  display: none !important;
+}
+
 .wind-blue-tint {
   position: fixed;
   inset: var(--header-height, 64px) 0 0 0;
