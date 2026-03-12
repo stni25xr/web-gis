@@ -56,7 +56,7 @@
       label: "15",
       stopNames: { a: "Lövhagsgatan", b: "Esplanaden" },
       headwayMinutes: 20,
-      loopMinutes: 60,
+      loopMinutes: 48,
       busCount: 3,
       preferGtfs: false,
       // Weekday departures from Lövhagsgatan based on provided timetable image.
