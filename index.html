@@ -7258,7 +7258,7 @@ Maintain safe distance
 
       startBtn?.addEventListener("click", () => startDemo(false));
       shuttleBtn?.addEventListener("click", () => startDemo(true));
-      skipBtn?.addEventListener("click", () => startDemo(false));
+      skipBtn?.addEventListener("click", () => showIntroMessageOverlay());
       introBtn?.addEventListener("click", () => {
         window.stopSimTime?.();
         showIntroMessageOverlay();
