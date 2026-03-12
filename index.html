@@ -1374,9 +1374,9 @@ Maintain safe distance
       map.add(bimMarkerLayer);
       const bimBuildingLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 0 } });
       map.add(bimBuildingLayer);
-      const bimReplacementLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 0 } });
+      const bimReplacementLayer = new GraphicsLayer({ elevationInfo: { mode: "on-the-ground" } });
       map.add(bimReplacementLayer);
-      const bimClipLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 0 } });
+      const bimClipLayer = new GraphicsLayer({ elevationInfo: { mode: "on-the-ground" } });
       map.add(bimClipLayer);
       const busDashLayer = new GraphicsLayer({ elevationInfo: { mode: "relative-to-ground", offset: 4 } });
       map.add(busDashLayer);
@@ -1842,10 +1842,11 @@ Maintain safe distance
       const DEFAULT_BIM_REPLACE_TARGET_ID = "e11f4a59-b4e9-4316-8850-3fe72633a93d";
       const BIM_REPLACE_STORAGE_KEY = "bim_replace_models_v1";
       const BIM_PRESET_MODEL_FILES = [
-        "/Users/nicolas_stpierre/Library/CloudStorage/OneDrive-JonkopingUniversity/Courses/TUIS23 - Urban Information Management/MODELLER/A-40-V-001a.glb",
-        "/Users/nicolas_stpierre/Library/CloudStorage/OneDrive-JonkopingUniversity/Courses/TUIS23 - Urban Information Management/MODELLER/A-40-V-003a.glb",
-        "/Users/nicolas_stpierre/Library/CloudStorage/OneDrive-JonkopingUniversity/Courses/TUIS23 - Urban Information Management/MODELLER/Project3_1.glb"
+        "A-40-V-001a.glb",
+        "Project3_1.glb"
       ];
+      const BIM_GITHUB_RAW_BASE = "https://raw.githubusercontent.com/stni25xr/web-gis/main";
+      const BIM_GITHUB_ALT_BASE = "https://github.com/stni25xr/web-gis/raw/main";
       const BIM_OBJECT_PRESET_FILE_BY_ID = new window.Map([
         ["712b01d6-1b2c-4019-8eb7-875209dc5317", "A-40-V-001a.glb"]
       ]);
@@ -1872,17 +1873,25 @@ Maintain safe distance
       const bimReplaceClipX = document.getElementById("bimReplaceClipX");
       const bimReplaceClipY = document.getElementById("bimReplaceClipY");
       const bimReplaceClipZ = document.getElementById("bimReplaceClipZ");
-      const BIM_PRESET_MODELS = BIM_PRESET_MODEL_FILES.map((absPath, index) => {
-        const fileName = absPath.split("/").pop() || `preset-${index + 1}.glb`;
-        const normalizedPath = absPath.replace(/\\/g, "/");
-        const fileUrl = `file://${normalizedPath.split("/").map((segment, segmentIndex) => (
-          segmentIndex === 0 ? "" : encodeURIComponent(segment)
-        )).join("/")}`;
+      const BIM_PRESET_MODELS = BIM_PRESET_MODEL_FILES.map((fileName, index) => {
+        const normalizedFileName = String(fileName || "").trim() || `preset-${index + 1}.glb`;
+        const encodedFileName = encodeURIComponent(normalizedFileName);
+        const urlCandidates = [
+          `./${encodedFileName}`,
+          `./data/${encodedFileName}`,
+          `./assets/${encodedFileName}`,
+          `${BIM_GITHUB_RAW_BASE}/${encodedFileName}`,
+          `${BIM_GITHUB_RAW_BASE}/data/${encodedFileName}`,
+          `${BIM_GITHUB_RAW_BASE}/assets/${encodedFileName}`,
+          `${BIM_GITHUB_ALT_BASE}/${encodedFileName}`,
+          `${BIM_GITHUB_ALT_BASE}/data/${encodedFileName}`,
+          `${BIM_GITHUB_ALT_BASE}/assets/${encodedFileName}`
+        ];
         return {
           id: `preset-${index + 1}`,
-          absPath,
-          fileName,
-          sourceUrl: fileUrl,
+          fileName: normalizedFileName,
+          sourceUrl: urlCandidates[0],
+          urlCandidates,
           objectUrl: ""
         };
       });
@@ -2067,6 +2076,27 @@ Maintain safe distance
           z,
           spatialReference: center.spatialReference || view.spatialReference
         });
+      }
+
+      async function clampPointToGround(point) {
+        if (!point || !Number.isFinite(Number(point.x)) || !Number.isFinite(Number(point.y))) return null;
+        const surface = await getSurfaceZ(point);
+        const groundedZ = Number.isFinite(surface?.z) ? Number(surface.z) : (Number.isFinite(Number(point.z)) ? Number(point.z) : 0);
+        return new Point({
+          x: Number(point.x),
+          y: Number(point.y),
+          z: groundedZ,
+          spatialReference: point.spatialReference || view?.spatialReference
+        });
+      }
+
+      async function clampModelGraphicToGround(model) {
+        if (!model?.graphic?.geometry || model.graphic.geometry.type !== "point") return false;
+        const groundedPoint = await clampPointToGround(model.graphic.geometry);
+        if (!groundedPoint) return false;
+        model.graphic.geometry = groundedPoint;
+        model.lastGeometry = serializePoint(groundedPoint);
+        return true;
       }
 
       function applyBimFootprintMask() {
@@ -2260,12 +2290,13 @@ Maintain safe distance
             tool: "transform",
             toggleToolOnClick: false,
             enableRotation: true,
+            enableZ: false,
             enableScaling: false,
             preserveAspectRatio: true,
             multipleSelectionEnabled: false
           }
         });
-        bimReplaceSketchVM.on("update", (event) => {
+        bimReplaceSketchVM.on("update", async (event) => {
           if (event.state === "active") return;
           const model = getActiveBimModel();
           if (model?.graphic) {
@@ -2275,7 +2306,10 @@ Maintain safe distance
             applyClipToBimViewerForActiveModel();
           }
           if (event.state === "complete") {
-            setBimReplaceStatus("Model position updated.");
+            if (model) {
+              await clampModelGraphicToGround(model);
+            }
+            setBimReplaceStatus("Model position updated at ground level.");
           } else if (event.state === "cancel") {
             setBimReplaceStatus("Edit canceled.");
           }
@@ -2303,6 +2337,7 @@ Maintain safe distance
           tool,
           toggleToolOnClick: false,
           enableRotation: tool === "transform",
+          enableZ: false,
           enableScaling: false,
           preserveAspectRatio: true,
           multipleSelectionEnabled: false
@@ -2491,7 +2526,7 @@ Maintain safe distance
           return;
         }
         const objectUrl = URL.createObjectURL(file);
-        upsertBimModel({
+        const model = upsertBimModel({
           objectId: id,
           fileName: file.name,
           point: anchorPoint,
@@ -2500,6 +2535,9 @@ Maintain safe distance
           file,
           hideGis: true
         }, { select: true, openMenu: true });
+        if (model) {
+          await clampModelGraphicToGround(model);
+        }
         setBimReplaceStatus(`Loaded ${file.name} for ${id}.`);
         startBimReplacementEdit("move");
       }
@@ -2514,25 +2552,33 @@ Maintain safe distance
           setBimReplaceStatus("Could not find target building geometry.");
           return;
         }
-        upsertBimModel({
+        const model = upsertBimModel({
           objectId: id,
           fileName: presetModel.fileName || "model.glb",
           point: anchorPoint,
           sourceUrl,
           hideGis: true
         }, { select: true, openMenu: true });
+        if (model) {
+          await clampModelGraphicToGround(model);
+        }
         setBimReplaceStatus(`Loaded ${presetModel.fileName} for ${id}.`);
         startBimReplacementEdit("move");
       }
 
-      async function canAccessPresetSourceDirectly(presetModel) {
-        if (!presetModel?.sourceUrl) return false;
-        if (!String(presetModel.sourceUrl).startsWith("file://")) return true;
+      async function canAccessPresetSourceDirectly(presetModel, sourceUrlOverride = "") {
+        const testUrl = String(sourceUrlOverride || presetModel?.sourceUrl || "").trim();
+        if (!testUrl) return false;
         try {
-          const response = await fetch(presetModel.sourceUrl, { method: "HEAD" });
+          const response = await fetch(testUrl, { method: "HEAD" });
           return !!response?.ok;
         } catch (err) {
-          return false;
+          try {
+            const response = await fetch(testUrl, { method: "GET", headers: { Range: "bytes=0-0" } });
+            return response?.ok || response?.status === 206;
+          } catch (innerErr) {
+            return false;
+          }
         }
       }
 
@@ -2578,10 +2624,20 @@ Maintain safe distance
         if (presetModel.objectUrl && String(presetModel.objectUrl).startsWith("blob:")) {
           return presetModel.objectUrl;
         }
-        if (await canAccessPresetSourceDirectly(presetModel)) {
+        if (await canAccessPresetSourceDirectly(presetModel, presetModel.sourceUrl)) {
           return presetModel.sourceUrl;
         }
-        setBimReplaceStatus(`Browser blocked direct access to ${presetModel.fileName}. Select that file once.`);
+        const candidates = Array.isArray(presetModel.urlCandidates) ? presetModel.urlCandidates : [];
+        const tried = new Set([String(presetModel.sourceUrl || "").trim()]);
+        for (const candidateUrl of candidates) {
+          const url = String(candidateUrl || "").trim();
+          if (!url || tried.has(url)) continue;
+          tried.add(url);
+          if (!(await canAccessPresetSourceDirectly(presetModel, url))) continue;
+          presetModel.sourceUrl = url;
+          return url;
+        }
+        setBimReplaceStatus(`Could not fetch ${presetModel.fileName} from web/GitHub. Select that file once.`);
         const pickedFile = await pickPresetFileFromUser(presetModel);
         if (!pickedFile) {
           setBimReplaceStatus("Preset load canceled.");
@@ -2609,7 +2665,7 @@ Maintain safe distance
             point = await resolveBimReplaceAnchorPoint(objectId);
           }
           if (!point) continue;
-          upsertBimModel({
+          const model = upsertBimModel({
             objectId,
             fileName: item.fileName || "model.glb",
             point,
@@ -2618,6 +2674,9 @@ Maintain safe distance
             hideGis: item.hideGis !== false,
             clipState: { ...getDefaultClipState(), ...(item.clipState || {}), enabled: false }
           }, { select: false, openMenu: false });
+          if (model) {
+            await clampModelGraphicToGround(model);
+          }
         }
       }
 
