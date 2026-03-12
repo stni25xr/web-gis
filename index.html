@@ -2035,7 +2035,7 @@ Maintain safe distance
 
       function canvasToBlob(canvas, mimeType, quality) {
         return new Promise((resolve, reject) => {
-          if (typeof canvas.toBlob !== "function") {
+          const dataUrlFallback = () => {
             try {
               const dataUrl = canvas.toDataURL(mimeType, quality);
               const parts = dataUrl.split(",");
@@ -2052,6 +2052,10 @@ Maintain safe distance
             } catch (error) {
               reject(error);
             }
+          };
+
+          if (typeof canvas.toBlob !== "function") {
+            dataUrlFallback();
             return;
           }
           canvas.toBlob((blob) => {
@@ -2059,7 +2063,8 @@ Maintain safe distance
               resolve(blob);
               return;
             }
-            reject(new Error("Failed to encode screenshot blob."));
+            // Some browsers occasionally return null here; retry with dataURL fallback.
+            dataUrlFallback();
           }, mimeType, quality);
         });
       }
