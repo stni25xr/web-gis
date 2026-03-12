@@ -300,6 +300,7 @@
         </div>
       </div>
     </div>
+    <button id="introSkipBtn" type="button" class="intro-skip-btn" aria-label="Hoppa över intro">Skip intro</button>
   </div>
 
   <!-- HEADER -->
@@ -7125,6 +7126,7 @@ Maintain safe distance
       const overlay = document.getElementById("loginOverlay");
       const startBtn = document.getElementById("introStartBtn");
       const shuttleBtn = document.getElementById("introShuttleBtn");
+      const skipBtn = document.getElementById("introSkipBtn");
       const introBtn = document.getElementById("logoutBtn");
       const introVideo = document.getElementById("introVideo");
       let introAnimTimer = null;
@@ -7256,6 +7258,7 @@ Maintain safe distance
 
       startBtn?.addEventListener("click", () => startDemo(false));
       shuttleBtn?.addEventListener("click", () => startDemo(true));
+      skipBtn?.addEventListener("click", () => startDemo(false));
       introBtn?.addEventListener("click", () => {
         window.stopSimTime?.();
         showIntroMessageOverlay();
