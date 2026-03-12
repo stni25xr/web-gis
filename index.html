@@ -840,6 +840,7 @@
   </section>
   <div id="iotContainer" style="display:none;"></div>
   <input id="bimReplaceFile" type="file" accept=".glb,.gbl" style="display:none;" />
+  <input id="bimPresetFile" type="file" accept=".glb,.gbl" style="display:none;" />
   <div id="bimReplaceControls" class="bim-replace-controls" style="display:none;" aria-label="GLB replace controls">
     <div class="bim-replace-header">
       <div class="bim-replace-title">GLB model on map</div>
@@ -1838,6 +1839,7 @@ Maintain safe distance
       const bimReplaceStatusEl = document.getElementById("bimReplaceStatus");
       const bimReplaceObjectIdEl = document.getElementById("bimReplaceObjectId");
       const bimReplaceFileInput = document.getElementById("bimReplaceFile");
+      const bimPresetFileInput = document.getElementById("bimPresetFile");
       const bimReplacePresetEl = document.getElementById("bimReplacePreset");
       const bimReplaceLoadPresetBtn = document.getElementById("bimReplaceLoadPreset");
       const bimReplaceCloseBtn = document.getElementById("bimReplaceClose");
@@ -1862,8 +1864,10 @@ Maintain safe distance
         )).join("/")}`;
         return {
           id: `preset-${index + 1}`,
+          absPath,
           fileName,
-          sourceUrl: fileUrl
+          sourceUrl: fileUrl,
+          objectUrl: ""
         };
       });
       const BIM_PRESET_MODELS_BY_ID = new window.Map(BIM_PRESET_MODELS.map((model) => [model.id, model]));
@@ -2478,7 +2482,9 @@ Maintain safe distance
 
       async function loadBimModelFromPresetForObject(objectId, presetModel) {
         const id = String(objectId || "").trim();
-        if (!id || !presetModel?.sourceUrl) return;
+        if (!id || !presetModel) return;
+        const sourceUrl = await resolvePresetSourceUrl(presetModel);
+        if (!sourceUrl) return;
         const anchorPoint = await resolveBimReplaceAnchorPoint(id);
         if (!anchorPoint) {
           setBimReplaceStatus("Could not find target building geometry.");
@@ -2488,11 +2494,83 @@ Maintain safe distance
           objectId: id,
           fileName: presetModel.fileName || "model.glb",
           point: anchorPoint,
-          sourceUrl: presetModel.sourceUrl,
+          sourceUrl,
           hideGis: true
         }, { select: true, openMenu: true });
         setBimReplaceStatus(`Loaded ${presetModel.fileName} for ${id}.`);
         startBimReplacementEdit("move");
+      }
+
+      async function canAccessPresetSourceDirectly(presetModel) {
+        if (!presetModel?.sourceUrl) return false;
+        if (!String(presetModel.sourceUrl).startsWith("file://")) return true;
+        try {
+          const response = await fetch(presetModel.sourceUrl, { method: "HEAD" });
+          return !!response?.ok;
+        } catch (err) {
+          return false;
+        }
+      }
+
+      function pickPresetFileWithHiddenInput() {
+        if (!bimPresetFileInput) return Promise.resolve(null);
+        return new Promise((resolve) => {
+          const onChange = (event) => {
+            const file = event?.target?.files?.[0] || null;
+            bimPresetFileInput.value = "";
+            resolve(file);
+          };
+          bimPresetFileInput.addEventListener("change", onChange, { once: true });
+          bimPresetFileInput.click();
+        });
+      }
+
+      async function pickPresetFileFromUser(presetModel) {
+        if (window.showOpenFilePicker) {
+          try {
+            const handles = await window.showOpenFilePicker({
+              multiple: false,
+              types: [{
+                description: "GLB model",
+                accept: {
+                  "model/gltf-binary": [".glb", ".gbl"],
+                  "application/octet-stream": [".glb", ".gbl"]
+                }
+              }],
+              suggestedName: presetModel?.fileName || "model.glb"
+            });
+            const handle = handles?.[0];
+            if (!handle) return null;
+            return await handle.getFile();
+          } catch (err) {
+            if (err?.name === "AbortError") return null;
+          }
+        }
+        return await pickPresetFileWithHiddenInput();
+      }
+
+      async function resolvePresetSourceUrl(presetModel) {
+        if (!presetModel) return "";
+        if (presetModel.objectUrl && String(presetModel.objectUrl).startsWith("blob:")) {
+          return presetModel.objectUrl;
+        }
+        if (await canAccessPresetSourceDirectly(presetModel)) {
+          return presetModel.sourceUrl;
+        }
+        setBimReplaceStatus(`Browser blocked direct access to ${presetModel.fileName}. Select that file once.`);
+        const pickedFile = await pickPresetFileFromUser(presetModel);
+        if (!pickedFile) {
+          setBimReplaceStatus("Preset load canceled.");
+          return "";
+        }
+        if (presetModel.objectUrl && String(presetModel.objectUrl).startsWith("blob:")) {
+          URL.revokeObjectURL(presetModel.objectUrl);
+        }
+        presetModel.objectUrl = URL.createObjectURL(pickedFile);
+        if (pickedFile.name && pickedFile.name !== presetModel.fileName) {
+          setBimReplaceStatus(`Using selected file ${pickedFile.name} for preset ${presetModel.fileName}.`);
+        }
+        return presetModel.objectUrl;
       }
 
       async function restoreSavedBimModels() {
@@ -2592,6 +2670,12 @@ Maintain safe distance
 
       window.addEventListener("beforeunload", () => {
         bimModelsById.forEach((model) => cleanupModelObjectUrl(model));
+        BIM_PRESET_MODELS.forEach((presetModel) => {
+          if (presetModel?.objectUrl && String(presetModel.objectUrl).startsWith("blob:")) {
+            URL.revokeObjectURL(presetModel.objectUrl);
+            presetModel.objectUrl = "";
+          }
+        });
       });
 
       view.whenLayerView(buildingFootprints).then(async (layerView) => {
