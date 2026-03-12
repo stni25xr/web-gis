@@ -601,6 +601,9 @@
     </div>
     </div>
     <div class="sidebar-footer">
+      <a id="presentationPaperMenuLink" class="presentation-link-btn" href="./presentation-paper.html" target="_blank" rel="noopener">
+        Presentation paper
+      </a>
       <button id="restartDemoBtn" type="button" class="demo-reset-btn" aria-label="Soft restart demo">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16" aria-hidden="true">
           <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
@@ -752,6 +755,15 @@
               <details data-section="blue">
                 <summary class="panel-title">BIM & buss live</summary>
                 <div class="panel-body">
+                  <div class="website-know-box" style="margin-bottom:10px;">
+                    <div class="muted" style="margin-bottom:4px;"><strong>About this website (for presentation)</strong></div>
+                    <div class="muted">1) How it was built and system structure</div>
+                    <div class="muted">2) Data and API sources</div>
+                    <div class="muted" style="margin-bottom:6px;">3) Building height and elevation logic</div>
+                    <a class="presentation-link-inline" href="./presentation-paper.html" target="_blank" rel="noopener">
+                      Open presentation paper
+                    </a>
+                  </div>
                   <div class="muted" style="margin-bottom:6px;">
                     De rörliga prickarna i kartan är busslinje 2 och 15 som kör i området.
                   </div>
@@ -1657,18 +1669,32 @@ Maintain safe distance
               edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
             }]
           },
-          uniqueValueInfos: [{
-            value: "712b01d6-1b2c-4019-8eb7-875209dc5317",
-            symbol: {
-              type: "polygon-3d",
-              symbolLayers: [{
-                type: "extrude",
-                size: 5,
-                material: { color: [245, 158, 11, 0.35] },
-                edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
-              }]
+          uniqueValueInfos: [
+            {
+              value: "712b01d6-1b2c-4019-8eb7-875209dc5317",
+              symbol: {
+                type: "polygon-3d",
+                symbolLayers: [{
+                  type: "extrude",
+                  size: 5,
+                  material: { color: [245, 158, 11, 0.35] },
+                  edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
+                }]
+              }
+            },
+            {
+              value: "5f1faa24-108f-419c-b83a-ed80b80e4501",
+              symbol: {
+                type: "polygon-3d",
+                symbolLayers: [{
+                  type: "extrude",
+                  size: 5,
+                  material: { color: [245, 158, 11, 0.35] },
+                  edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
+                }]
+              }
             }
-          }],
+          ],
           visualVariables: [{
             type: "size",
             field: "b_Hight_m",
@@ -1849,7 +1875,7 @@ Maintain safe distance
       const BIM_GITHUB_ALT_BASE = "https://github.com/stni25xr/web-gis/raw/main";
       const BIM_OBJECT_PRESET_FILE_BY_ID = new window.Map([
         ["712b01d6-1b2c-4019-8eb7-875209dc5317", "A-40-V-001a.glb"],
-        ["5f1faa24-108f-419c-b83a-ed80b80e4501", "Project3_1.glb"]
+        ["5f1faa24-108f-419c-b83a-ed80b80e4501", "A-40-V-001a.glb"]
       ]);
       const hiddenBimOverlayIds = new Set();
       const bimModelsById = new window.Map();
