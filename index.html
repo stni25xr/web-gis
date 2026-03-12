@@ -2037,6 +2037,77 @@ Maintain safe distance
         return new Promise((resolve) => requestAnimationFrame(() => resolve()));
       }
 
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      function clickIfPresent(id) {
+        const el = document.getElementById(id);
+        if (el && typeof el.click === "function") el.click();
+      }
+
+      function closeUiForMapScreenshot(targetView) {
+        // Use existing close buttons so each panel controller updates its own state.
+        clickIfPresent("leftPanelClose");
+        clickIfPresent("digitalPanelClose");
+        clickIfPresent("rightPanelClose");
+        clickIfPresent("shuttleDashClose");
+        clickIfPresent("captainLogClose");
+        clickIfPresent("guideChatClose");
+        clickIfPresent("routeColorClose");
+        clickIfPresent("alarmClose");
+        clickIfPresent("incidentClose");
+        clickIfPresent("shuttleClose");
+        clickIfPresent("bimClose");
+        clickIfPresent("bimReplaceClose");
+
+        // Hard-close any leftover overlays that may not have an active controller.
+        [
+          "guideChatPanel",
+          "captainLogModal",
+          "routeColorModal",
+          "alarmModal",
+          "incidentModal",
+          "shuttleModal",
+          "bimModal",
+          "iotContainer",
+          "bimReplaceControls"
+        ].forEach((id) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.hidden = true;
+          el.style.display = "none";
+        });
+
+        const guideToggleEl = document.getElementById("guideChatToggle");
+        if (guideToggleEl) guideToggleEl.setAttribute("aria-expanded", "false");
+
+        if (targetView?.popup?.visible && typeof targetView.popup.close === "function") {
+          targetView.popup.close();
+        }
+      }
+
+      async function takeScreenshotWithFallback(targetView, format) {
+        const requestedQuality = format === "jpg" ? 98 : undefined;
+        const width = Math.min(2200, Math.max(800, Math.round(targetView?.width || 0)));
+        const height = Math.min(2200, Math.max(500, Math.round(targetView?.height || 0)));
+        const attempts = [
+          { format, quality: requestedQuality, width, height },
+          { format, quality: requestedQuality },
+          { format: "png" }
+        ];
+        let lastErr = null;
+        for (let i = 0; i < attempts.length; i++) {
+          try {
+            return await targetView.takeScreenshot(attempts[i]);
+          } catch (err) {
+            lastErr = err;
+            await sleep(120);
+          }
+        }
+        throw lastErr || new Error("ArcGIS screenshot failed.");
+      }
+
       function drawScreenshotWatermark(ctx, width, height, text) {
         const marginX = Math.max(12, Math.round(width * 0.02));
         let fontSize = Math.max(12, Math.min(30, Math.round(width / 52)));
@@ -2076,30 +2147,12 @@ Maintain safe distance
         setMapScreenshotStatus(`Capturing ${ext.toUpperCase()}…`);
 
         try {
-          // Ensure screenshot is map-only: close panels/popups before capture.
-          if (typeof closeAll === "function") closeAll();
-          if (typeof window.closeAll === "function") window.closeAll();
-          if (view?.popup?.visible && typeof view.popup.close === "function") {
-            view.popup.close();
-          }
-          const guidePanelEl = document.getElementById("guideChatPanel");
-          const guideToggleEl = document.getElementById("guideChatToggle");
-          if (guidePanelEl) {
-            guidePanelEl.hidden = true;
-            guidePanelEl.style.display = "none";
-          }
-          if (guideToggleEl) {
-            guideToggleEl.setAttribute("aria-expanded", "false");
-          }
+          closeUiForMapScreenshot(view);
           requestViewRefresh(view);
+          await sleep(120);
           await waitForNextFrame();
 
-          const shot = await view.takeScreenshot({
-            format,
-            quality: format === "jpg" ? 98 : undefined,
-            width: Math.min(2200, Math.max(800, Math.round(view.width || 0))),
-            height: Math.min(2200, Math.max(500, Math.round(view.height || 0)))
-          });
+          const shot = await takeScreenshotWithFallback(view, format);
           const image = await loadImageFromDataUrl(shot.dataUrl);
           const canvas = document.createElement("canvas");
           canvas.width = shot.width;
@@ -2123,8 +2176,8 @@ Maintain safe distance
           setMapScreenshotStatus(`Saved ${ext.toUpperCase()} printscreen.`);
         } catch (err) {
           console.error("Browser printscreen failed:", err);
-          const msg = err && err.message ? err.message : "Try again.";
-          setMapScreenshotStatus(`Printscreen failed: ${msg}`);
+          const msg = err && err.message ? String(err.message) : "Try again.";
+          setMapScreenshotStatus(`Printscreen failed: ${msg.slice(0, 120)}`);
         } finally {
           requestViewRefresh(view);
           if (btn) btn.disabled = false;
