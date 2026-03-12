@@ -1180,23 +1180,29 @@ Maintain safe distance
           </div>
         </section>
         <section class="captain-log-entry">
-          <h3>Entry 01 // How It Was Done (Implementation)</h3>
-          <ul>
-            <li>Built as a single-page app centered in <strong>index.html</strong> with ArcGIS SceneView as map engine.</li>
-            <li>Feature logic split into modules: <strong>bus15.js</strong>, <strong>pm25Live.js</strong>, <strong>windLive.js</strong>, <strong>cloudWms.js</strong>, and <strong>elevationProvider.js</strong>.</li>
-            <li>UI split into three operational panels: Menu, Digital City, and BLUE/Information.</li>
-            <li>Hybrid data pipeline: local GeoJSON + live API requests + route/elevation processing in browser.</li>
-          </ul>
+          <h3>Entry 01 // How It Was Done (Narrative)</h3>
+          <p class="captain-log-paragraph">
+            This mission platform was built as a single-page application where <strong>index.html</strong> acts as the command center.
+            The map core is ArcGIS SceneView, while the user experience is organized around three operational spaces: Menu, Digital City, and BLUE/Information.
+          </p>
+          <p class="captain-log-paragraph">
+            To keep the implementation maintainable, feature logic is separated into modules such as <strong>bus15.js</strong>,
+            <strong>pm25Live.js</strong>, <strong>windLive.js</strong>, <strong>cloudWms.js</strong>, and <strong>elevationProvider.js</strong>.
+            In practice, this creates a hybrid workflow where local GeoJSON data and live API responses are combined in real time for routing, analysis, and visual overlays.
+          </p>
         </section>
         <section class="captain-log-entry">
           <h3>Entry 02 // System Structure Behind The Website</h3>
-          <ul>
-            <li><strong>UI/Controls layer:</strong> tabs, toggles, popup flows, modal windows, and simulation controls.</li>
-            <li><strong>Map/render layer:</strong> ArcGIS 3D scene + thematic layers + custom graphics overlays.</li>
-            <li><strong>Analysis layer:</strong> distance, route selection, nearest services, and elevation sampling.</li>
-            <li><strong>Integration layer:</strong> weather, transport, air quality, cloud imagery, and electricity prices.</li>
-            <li><strong>Data storage layer:</strong> local files in <strong>/data</strong> and browser cache/localStorage for selected runtime data.</li>
-          </ul>
+          <p class="captain-log-paragraph">
+            The architecture can be read as five stacked layers. The UI/control layer handles tabs, toggles, popups, and modal workflows.
+            The map/render layer handles ArcGIS 3D layers and all visual symbols in the scene.
+            The analysis layer computes nearest services, distances, routes, and elevation effects.
+          </p>
+          <p class="captain-log-paragraph">
+            Above this, the integration layer connects to weather, transport, PM2.5, cloud, and energy services through web APIs.
+            The storage layer relies on local files in <strong>/data</strong> plus browser caching/localStorage where needed for runtime efficiency.
+            This separation is what makes the project stable while still allowing live updates.
+          </p>
         </section>
         <section class="captain-log-entry">
           <h3>Entry 03 // API Web Addresses (Live Integrations)</h3>
@@ -1238,7 +1244,27 @@ Maintain safe distance
           </ul>
         </section>
         <section class="captain-log-entry">
-          <h3>Entry 06 // Report Signature</h3>
+          <h3>Entry 06 // How BLUE Avatar Is Built</h3>
+          <p class="captain-log-paragraph">
+            The BLUE avatar is built as local design assets in the project under <strong>assets/chatbot-avatar.svg</strong> and <strong>assets/chatbot-avatar.png</strong>.
+            The SVG version preserves high-quality vector detail, while the PNG version is used directly where fast image display is needed.
+          </p>
+          <p class="captain-log-paragraph">
+            In the interface, the avatar appears in the chat launcher button (96x96) and is also reused in this report popup header section as a visual mission identity element.
+            This reuse keeps branding consistent across BLUE chat and the report module.
+          </p>
+        </section>
+        <section class="captain-log-entry">
+          <h3>Entry 07 // Storytelling Flow (Step 1 to 5)</h3>
+          <p class="captain-log-paragraph">The built-in BLUE guided story follows this exact sequence:</p>
+          <p class="captain-log-step"><strong>Step 1/5:</strong> Här ser du Öxnehaga i 3D. Börja med att rotera kartan och få en överblick.</p>
+          <p class="captain-log-step"><strong>Step 2/5:</strong> Öppna Information och testa service, blåljus och närmaste busshållplats med tid/distans.</p>
+          <p class="captain-log-step"><strong>Step 3/5:</strong> Klicka på en busshållplats för live avgångar och länk till tidtabell.</p>
+          <p class="captain-log-step"><strong>Step 4/5:</strong> Klicka på en byggnad för att se huset i 3D och öppna byggnadsinfo/BIM.</p>
+          <p class="captain-log-step"><strong>Step 5/5:</strong> Öppna DIGITAL CITY för vind och moln live, och testa shuttle (Call shuttle + dashboard).</p>
+        </section>
+        <section class="captain-log-entry">
+          <h3>Entry 08 // Report Signature</h3>
           <p>
             Nicolas St-Pierre<br />
             Master&rsquo;s student, BIM &ndash; Sustainable Building Information Management 2026
@@ -1978,6 +2004,25 @@ Maintain safe distance
 
       function canvasToBlob(canvas, mimeType, quality) {
         return new Promise((resolve, reject) => {
+          if (typeof canvas.toBlob !== "function") {
+            try {
+              const dataUrl = canvas.toDataURL(mimeType, quality);
+              const parts = dataUrl.split(",");
+              if (parts.length < 2) throw new Error("Invalid canvas data URL.");
+              const meta = parts[0] || "";
+              const b64 = parts[1] || "";
+              const match = /data:([^;]+)/.exec(meta);
+              const type = match?.[1] || mimeType || "image/png";
+              const binary = atob(b64);
+              const len = binary.length;
+              const bytes = new Uint8Array(len);
+              for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+              resolve(new Blob([bytes], { type }));
+            } catch (error) {
+              reject(error);
+            }
+            return;
+          }
           canvas.toBlob((blob) => {
             if (blob) {
               resolve(blob);
@@ -2022,8 +2067,6 @@ Maintain safe distance
         const format = normalizeMapScreenshotFormat(formatValue);
         const ext = format === "jpg" ? "jpg" : "png";
         const mimeType = format === "jpg" ? "image/jpeg" : "image/png";
-        const MAPSHOT_CLEAN_CLASS = "mapshot-clean-mode";
-        const bodyEl = document.body;
 
         if (!view || typeof view.takeScreenshot !== "function") {
           setMapScreenshotStatus("Printscreen unavailable right now.");
@@ -2033,8 +2076,9 @@ Maintain safe distance
         setMapScreenshotStatus(`Capturing ${ext.toUpperCase()}…`);
 
         try {
-          // Ensure screenshot is map-only: close panels/popups and force a full-map layout.
+          // Ensure screenshot is map-only: close panels/popups before capture.
           if (typeof closeAll === "function") closeAll();
+          if (typeof window.closeAll === "function") window.closeAll();
           if (view?.popup?.visible && typeof view.popup.close === "function") {
             view.popup.close();
           }
@@ -2047,15 +2091,14 @@ Maintain safe distance
           if (guideToggleEl) {
             guideToggleEl.setAttribute("aria-expanded", "false");
           }
-          bodyEl?.classList.add(MAPSHOT_CLEAN_CLASS);
-          if (bodyEl) bodyEl.style.overflow = "hidden";
           requestViewRefresh(view);
-          await waitForNextFrame();
           await waitForNextFrame();
 
           const shot = await view.takeScreenshot({
             format,
-            quality: format === "jpg" ? 98 : undefined
+            quality: format === "jpg" ? 98 : undefined,
+            width: Math.min(2200, Math.max(800, Math.round(view.width || 0))),
+            height: Math.min(2200, Math.max(500, Math.round(view.height || 0)))
           });
           const image = await loadImageFromDataUrl(shot.dataUrl);
           const canvas = document.createElement("canvas");
@@ -2080,12 +2123,9 @@ Maintain safe distance
           setMapScreenshotStatus(`Saved ${ext.toUpperCase()} printscreen.`);
         } catch (err) {
           console.error("Browser printscreen failed:", err);
-          setMapScreenshotStatus("Printscreen failed. Try again.");
+          const msg = err && err.message ? err.message : "Try again.";
+          setMapScreenshotStatus(`Printscreen failed: ${msg}`);
         } finally {
-          if (bodyEl) {
-            bodyEl.classList.remove(MAPSHOT_CLEAN_CLASS);
-            bodyEl.style.overflow = "";
-          }
           requestViewRefresh(view);
           if (btn) btn.disabled = false;
         }
