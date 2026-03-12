@@ -413,6 +413,46 @@
   color: #cbd5e1;
 }
 
+.bim-replace-presets {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.bim-replace-presets label {
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.bim-replace-presets-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.bim-replace-presets-row select {
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #111827;
+  color: #e2e8f0;
+  font-size: 12px;
+  padding: 7px 8px;
+}
+
+.bim-replace-presets-row button {
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #111827;
+  color: #e2e8f0;
+  font-size: 12px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.bim-replace-presets-row button:hover {
+  background: #1f2937;
+}
+
 .bim-replace-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

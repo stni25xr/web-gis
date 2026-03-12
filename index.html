@@ -847,6 +847,15 @@
     </div>
     <div id="bimReplaceObjectId" class="bim-replace-object-id">Object: -</div>
     <div id="bimReplaceStatus" class="bim-replace-status">No model loaded.</div>
+    <div class="bim-replace-presets">
+      <label for="bimReplacePreset">Preset BIM model</label>
+      <div class="bim-replace-presets-row">
+        <select id="bimReplacePreset">
+          <option value="">Choose preset model...</option>
+        </select>
+        <button id="bimReplaceLoadPreset" type="button">Load preset</button>
+      </div>
+    </div>
     <div class="bim-replace-actions">
       <button id="bimReplaceLoad" type="button">Load GLB</button>
       <button id="bimReplaceSave" type="button">Save</button>
@@ -1818,12 +1827,19 @@ Maintain safe distance
       };
       const DEFAULT_BIM_REPLACE_TARGET_ID = "e11f4a59-b4e9-4316-8850-3fe72633a93d";
       const BIM_REPLACE_STORAGE_KEY = "bim_replace_models_v1";
+      const BIM_PRESET_MODEL_FILES = [
+        "/Users/nicolas_stpierre/Library/CloudStorage/OneDrive-JonkopingUniversity/Courses/TUIS23 - Urban Information Management/MODELLER/A-40-V-001a.glb",
+        "/Users/nicolas_stpierre/Library/CloudStorage/OneDrive-JonkopingUniversity/Courses/TUIS23 - Urban Information Management/MODELLER/A-40-V-003a.glb",
+        "/Users/nicolas_stpierre/Library/CloudStorage/OneDrive-JonkopingUniversity/Courses/TUIS23 - Urban Information Management/MODELLER/Project3_1.glb"
+      ];
       const hiddenBimOverlayIds = new Set();
       const bimModelsById = new window.Map();
       const bimReplaceControlsEl = document.getElementById("bimReplaceControls");
       const bimReplaceStatusEl = document.getElementById("bimReplaceStatus");
       const bimReplaceObjectIdEl = document.getElementById("bimReplaceObjectId");
       const bimReplaceFileInput = document.getElementById("bimReplaceFile");
+      const bimReplacePresetEl = document.getElementById("bimReplacePreset");
+      const bimReplaceLoadPresetBtn = document.getElementById("bimReplaceLoadPreset");
       const bimReplaceCloseBtn = document.getElementById("bimReplaceClose");
       const bimReplaceLoadBtn = document.getElementById("bimReplaceLoad");
       const bimReplaceSaveBtn = document.getElementById("bimReplaceSave");
@@ -1838,6 +1854,19 @@ Maintain safe distance
       const bimReplaceClipX = document.getElementById("bimReplaceClipX");
       const bimReplaceClipY = document.getElementById("bimReplaceClipY");
       const bimReplaceClipZ = document.getElementById("bimReplaceClipZ");
+      const BIM_PRESET_MODELS = BIM_PRESET_MODEL_FILES.map((absPath, index) => {
+        const fileName = absPath.split("/").pop() || `preset-${index + 1}.glb`;
+        const normalizedPath = absPath.replace(/\\/g, "/");
+        const fileUrl = `file://${normalizedPath.split("/").map((segment, segmentIndex) => (
+          segmentIndex === 0 ? "" : encodeURIComponent(segment)
+        )).join("/")}`;
+        return {
+          id: `preset-${index + 1}`,
+          fileName,
+          sourceUrl: fileUrl
+        };
+      });
+      const BIM_PRESET_MODELS_BY_ID = new window.Map(BIM_PRESET_MODELS.map((model) => [model.id, model]));
       let bimReplaceSketchVM = null;
       let buildingFootprintsLayerView = null;
       let activeBimObjectId = DEFAULT_BIM_REPLACE_TARGET_ID;
@@ -1850,6 +1879,14 @@ Maintain safe distance
       if (bimReplaceClipControlsEl) {
         bimReplaceClipControlsEl.querySelectorAll(".bim-replace-clip-slider").forEach((el) => {
           el.style.display = "none";
+        });
+      }
+      if (bimReplacePresetEl) {
+        BIM_PRESET_MODELS.forEach((model) => {
+          const option = document.createElement("option");
+          option.value = model.id;
+          option.textContent = model.fileName;
+          bimReplacePresetEl.appendChild(option);
         });
       }
 
@@ -2039,6 +2076,7 @@ Maintain safe distance
       function buildBimGraphic({ objectId, point, sourceUrl, fileName }) {
         return new Graphic({
           geometry: point,
+          elevationInfo: { mode: "on-the-ground" },
           attributes: {
             objektidentitet: objectId,
             objectId,
@@ -2050,7 +2088,8 @@ Maintain safe distance
             symbolLayers: [{
               type: "object",
               resource: { href: sourceUrl },
-              heading: 0
+              heading: 0,
+              anchor: "bottom"
             }]
           }
         });
@@ -2437,6 +2476,25 @@ Maintain safe distance
         startBimReplacementEdit("move");
       }
 
+      async function loadBimModelFromPresetForObject(objectId, presetModel) {
+        const id = String(objectId || "").trim();
+        if (!id || !presetModel?.sourceUrl) return;
+        const anchorPoint = await resolveBimReplaceAnchorPoint(id);
+        if (!anchorPoint) {
+          setBimReplaceStatus("Could not find target building geometry.");
+          return;
+        }
+        upsertBimModel({
+          objectId: id,
+          fileName: presetModel.fileName || "model.glb",
+          point: anchorPoint,
+          sourceUrl: presetModel.sourceUrl,
+          hideGis: true
+        }, { select: true, openMenu: true });
+        setBimReplaceStatus(`Loaded ${presetModel.fileName} for ${id}.`);
+        startBimReplacementEdit("move");
+      }
+
       async function restoreSavedBimModels() {
         const store = loadPersistedBimStore();
         const models = Object.values(store || {});
@@ -2461,7 +2519,7 @@ Maintain safe distance
         }
       }
 
-      window.startMapBimReplacement = function (objectId) {
+      window.startMapBimReplacement = function (objectId, options = {}) {
         if (typeof closeBuildingInfoModal === "function") closeBuildingInfoModal();
         const fallbackId = lastSelectedBuildingAttrs?.objektidentitet || activeBimObjectId || DEFAULT_BIM_REPLACE_TARGET_ID;
         const targetId = String(objectId || fallbackId || "").trim();
@@ -2469,7 +2527,14 @@ Maintain safe distance
           setBimReplaceStatus("No target object selected.");
           return;
         }
-        bindActiveObjectToMenu(targetId, { openMenu: true, statusText: `Target object: ${targetId}. Select a GLB file.` });
+        const openFilePicker = options?.openFilePicker === true;
+        bindActiveObjectToMenu(targetId, {
+          openMenu: true,
+          statusText: openFilePicker
+            ? `Target object: ${targetId}. Select a GLB file.`
+            : `Target object: ${targetId}. Choose a preset BIM model or load a GLB file.`
+        });
+        if (!openFilePicker) return;
         if (!bimReplaceFileInput) {
           setBimReplaceStatus("No GLB file input available.");
           return;
@@ -2487,7 +2552,17 @@ Maintain safe distance
       });
 
       bimReplaceCloseBtn?.addEventListener("click", hideBimReplaceMenu);
-      bimReplaceLoadBtn?.addEventListener("click", () => window.startMapBimReplacement(activeBimObjectId));
+      bimReplaceLoadBtn?.addEventListener("click", () => window.startMapBimReplacement(activeBimObjectId, { openFilePicker: true }));
+      bimReplaceLoadPresetBtn?.addEventListener("click", async () => {
+        const targetId = activeBimObjectId || pendingBimTargetObjectId || DEFAULT_BIM_REPLACE_TARGET_ID;
+        const selectedId = String(bimReplacePresetEl?.value || "").trim();
+        const preset = BIM_PRESET_MODELS_BY_ID.get(selectedId);
+        if (!preset) {
+          setBimReplaceStatus("Choose a preset BIM model first.");
+          return;
+        }
+        await loadBimModelFromPresetForObject(targetId, preset);
+      });
       bimReplaceSaveBtn?.addEventListener("click", saveActiveBimModel);
       bimReplaceMoveBtn?.addEventListener("click", () => startBimReplacementEdit("move"));
       bimReplaceRotateBtn?.addEventListener("click", () => startBimReplacementEdit("transform"));
