@@ -1976,6 +1976,18 @@ Maintain safe distance
         });
       }
 
+      function canvasToBlob(canvas, mimeType, quality) {
+        return new Promise((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+              return;
+            }
+            reject(new Error("Failed to encode screenshot blob."));
+          }, mimeType, quality);
+        });
+      }
+
       function waitForNextFrame() {
         return new Promise((resolve) => requestAnimationFrame(() => resolve()));
       }
@@ -2055,13 +2067,15 @@ Maintain safe distance
           ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
           drawScreenshotWatermark(ctx, canvas.width, canvas.height, MAP_SCREENSHOT_WATERMARK);
 
-          const output = canvas.toDataURL(mimeType, format === "jpg" ? 0.95 : undefined);
+          const blob = await canvasToBlob(canvas, mimeType, format === "jpg" ? 0.95 : undefined);
+          const output = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = output;
           link.download = mapScreenshotFilename(ext);
           document.body.appendChild(link);
           link.click();
           link.remove();
+          setTimeout(() => URL.revokeObjectURL(output), 1000);
 
           setMapScreenshotStatus(`Saved ${ext.toUpperCase()} printscreen.`);
         } catch (err) {
