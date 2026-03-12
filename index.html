@@ -1652,7 +1652,7 @@ Maintain safe distance
             symbolLayers: [{
               type: "extrude",
               size: 5,
-              material: { color: [148, 163, 184, 0.6] },
+              material: { color: [245, 158, 11, 0.35] },
               edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
             }]
           },
@@ -1833,6 +1833,9 @@ Maintain safe distance
         "/Users/nicolas_stpierre/Library/CloudStorage/OneDrive-JonkopingUniversity/Courses/TUIS23 - Urban Information Management/MODELLER/A-40-V-003a.glb",
         "/Users/nicolas_stpierre/Library/CloudStorage/OneDrive-JonkopingUniversity/Courses/TUIS23 - Urban Information Management/MODELLER/Project3_1.glb"
       ];
+      const BIM_OBJECT_PRESET_FILE_BY_ID = new window.Map([
+        ["712b01d6-1b2c-4019-8eb7-875209dc5317", "A-40-V-001a.glb"]
+      ]);
       const hiddenBimOverlayIds = new Set();
       const bimModelsById = new window.Map();
       const bimReplaceControlsEl = document.getElementById("bimReplaceControls");
@@ -1909,6 +1912,14 @@ Maintain safe distance
       function showBimReplaceControls(show) {
         if (!bimReplaceControlsEl) return;
         bimReplaceControlsEl.style.display = show ? "block" : "none";
+      }
+
+      function getPresetModelForObjectId(objectId) {
+        const id = String(objectId || "").trim();
+        if (!id) return null;
+        const targetFileName = String(BIM_OBJECT_PRESET_FILE_BY_ID.get(id) || "").trim().toLowerCase();
+        if (!targetFileName) return null;
+        return BIM_PRESET_MODELS.find((model) => String(model?.fileName || "").trim().toLowerCase() === targetFileName) || null;
       }
 
       function getBimModelForObject(objectId) {
@@ -2612,6 +2623,22 @@ Maintain safe distance
             ? `Target object: ${targetId}. Select a GLB file.`
             : `Target object: ${targetId}. Choose a preset BIM model or load a GLB file.`
         });
+        const attachedPreset = getPresetModelForObjectId(targetId);
+        if (!openFilePicker && attachedPreset) {
+          if (bimReplacePresetEl) bimReplacePresetEl.value = attachedPreset.id;
+          const existingModel = getBimModelForObject(targetId);
+          const isAlreadyAttached = String(existingModel?.fileName || "").trim().toLowerCase() === String(attachedPreset.fileName || "").trim().toLowerCase();
+          if (isAlreadyAttached) {
+            setBimReplaceStatus(`Attached model ready: ${attachedPreset.fileName}.`);
+            return;
+          }
+          setBimReplaceStatus(`Loading attached model ${attachedPreset.fileName} for ${targetId}...`);
+          loadBimModelFromPresetForObject(targetId, attachedPreset).catch((err) => {
+            console.warn("Could not auto-load attached BIM preset", err);
+            setBimReplaceStatus(`Auto-load failed for ${attachedPreset.fileName}.`);
+          });
+          return;
+        }
         if (!openFilePicker) return;
         if (!bimReplaceFileInput) {
           setBimReplaceStatus("No GLB file input available.");
