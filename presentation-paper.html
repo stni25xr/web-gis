@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>STN25XR - Project Presentation Paper</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --paper: #ffffff;
+      --line: #d7e0ee;
+      --text: #0f172a;
+      --muted: #475569;
+      --accent: #1d4ed8;
+      --accent-soft: #e8f0ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.5;
+    }
+    .page {
+      max-width: 980px;
+      margin: 28px auto;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 28px;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 16px;
+      margin-bottom: 18px;
+    }
+    h1 {
+      font-size: 28px;
+      margin: 0 0 8px 0;
+      line-height: 1.2;
+    }
+    h2 {
+      font-size: 20px;
+      margin: 24px 0 10px 0;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--line);
+    }
+    h3 {
+      font-size: 16px;
+      margin: 16px 0 8px 0;
+    }
+    p { margin: 8px 0; }
+    .meta {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: right;
+    }
+    .pill {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      margin: 0 8px 8px 0;
+      border: 1px solid #cfe0ff;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #fcfdff;
+    }
+    .small {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f8fbff;
+      font-weight: 700;
+    }
+    ul {
+      margin: 8px 0;
+      padding-left: 20px;
+    }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      white-space: pre-wrap;
+    }
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .btn {
+      border: 1px solid #c8d6f0;
+      background: #fff;
+      color: #0f172a;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 13px;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .btn:hover { background: #eef4ff; }
+    .highlight {
+      border-left: 4px solid var(--accent);
+      background: var(--accent-soft);
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin: 10px 0;
+    }
+    @media print {
+      body { background: #fff; }
+      .page {
+        margin: 0;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .btn-row { display: none; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="btn-row">
+      <button class="btn" type="button" onclick="window.print()">Print / Save as PDF</button>
+      <a class="btn" href="./index.html">Back to map</a>
+    </div>
+
+    <header class="header">
+      <div>
+        <h1>STN25XR - Project Presentation Paper</h1>
+        <div class="small">Topic: How the website was built, system structure, data/API sources, and building height logic.</div>
+      </div>
+      <div class="meta">
+        Course demo: BLUE / Digital City<br />
+        Area: Oxnehaga, Huskvarna<br />
+        Date: March 12, 2026
+      </div>
+    </header>
+
+    <section>
+      <span class="pill">Single-page web GIS app</span>
+      <span class="pill">ArcGIS JS API 4.30</span>
+      <span class="pill">Live + local datasets</span>
+      <span class="pill">BIM + transport + safety</span>
+      <p>
+        This project is an interactive 3D map for Oxnehaga. It combines local GeoJSON data, live transport and environment APIs, and BIM model visualization.
+        The goal is to support decision-making and explain conditions around mobility, service access, and safety.
+      </p>
+    </section>
+
+    <section>
+      <h2>1) How I Built It</h2>
+      <ul>
+        <li>I used a single-page architecture with <strong>index.html</strong> as the main app shell and ArcGIS SceneView for 3D.</li>
+        <li>I separated features into modules (wind, PM2.5, cloud layer, bus simulation, elevation provider, BIM viewer logic).</li>
+        <li>I loaded local city data from <strong>/data</strong> GeoJSON files and combined it with selected live APIs.</li>
+        <li>I added panel-based UX (Menu, Digital City, Information) so each part of the demo has a clear function.</li>
+      </ul>
+      <div class="mono">Main files:
+index.html
+styles.css + ui-2026.css
+bus15.js
+elevationProvider.js
+pm25Live.js
+windLive.js
+cloudWms.js
+data/*.geojson</div>
+    </section>
+
+    <section>
+      <h2>2) System Structure Behind the Website</h2>
+      <div class="mono">User (browser)
+  -> index.html UI + ArcGIS SceneView
+    -> Local layers (GeoJSON files in /data)
+    -> Remote layers/APIs (transport, weather, air, cloud, shelters)
+    -> Analysis logic (distance, routing, elevation, simulation)
+    -> Results in side panels and map graphics</div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>UI Layer</h3>
+          <div class="small">Header, menu tab, digital panel, BLUE/info panel, modals, BIM controls.</div>
+        </div>
+        <div class="card">
+          <h3>Map Layer</h3>
+          <div class="small">ArcGIS SceneView with SceneLayer, GeoJSONLayer, FeatureLayer, and GraphicsLayer overlays.</div>
+        </div>
+        <div class="card">
+          <h3>Data/Service Layer</h3>
+          <div class="small">Local GeoJSON + external APIs for route, departures, weather, air quality, wind, and cloud imagery.</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>3) Where the Information Comes From (Data + APIs)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Purpose</th>
+            <th>Source</th>
+            <th>How it is used in the project</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>3D map engine</td>
+            <td>ArcGIS JavaScript API 4.30</td>
+            <td>Core map, SceneView, layers, popups, graphics, and elevation queries.</td>
+          </tr>
+          <tr>
+            <td>Main local layers</td>
+            <td>GeoJSON files in <strong>/data</strong> (buildings, area, services, transport, water, etc.)</td>
+            <td>Displayed as GeoJSONLayer for neighborhood context and thematic analysis.</td>
+          </tr>
+          <tr>
+            <td>Shelters</td>
+            <td>ArcGIS Feature Service (Skyddsrum_220225)</td>
+            <td>Loaded as FeatureLayer for safety analysis.</td>
+          </tr>
+          <tr>
+            <td>Bus stops/departures</td>
+            <td>ResRobot API (Trafiklab)</td>
+            <td>Nearby stops and departure board in the information panel.</td>
+          </tr>
+          <tr>
+            <td>Bus route basis</td>
+            <td>Samtrafiken GTFS static (JLT ZIP)</td>
+            <td>Used by bus simulation logic; fallback timetable simulation is included.</td>
+          </tr>
+          <tr>
+            <td>Route calculation</td>
+            <td>OpenRouteService + OSRM fallback</td>
+            <td>Walking/driving route generation and fallback routing.</td>
+          </tr>
+          <tr>
+            <td>Weather in header</td>
+            <td>Open-Meteo forecast API</td>
+            <td>Temperature and weather code summary for Huskvarna.</td>
+          </tr>
+          <tr>
+            <td>Electricity price</td>
+            <td>elprisetjustnu.se API (SE3)</td>
+            <td>Current price shown in the top header.</td>
+          </tr>
+          <tr>
+            <td>Air quality PM2.5</td>
+            <td>SMHI/Naturvardsverket Datahost API</td>
+            <td>Live PM2.5 station values around the project area.</td>
+          </tr>
+          <tr>
+            <td>Wind field</td>
+            <td>Open-Meteo ECMWF endpoint</td>
+            <td>Live wind vectors and animated stream field.</td>
+          </tr>
+          <tr>
+            <td>Cloud satellite layer</td>
+            <td>NASA GIBS WMTS</td>
+            <td>Cloud imagery overlay in Digital City panel.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>4) Building Height and Elevation Logic</h2>
+      <h3>Building extrusion in the 3D map</h3>
+      <ul>
+        <li>Building polygons come from <strong>data/Main_byggnad.geojson</strong>.</li>
+        <li>Extrusion uses attribute <strong>b_Hight_m</strong> (meters).</li>
+        <li>If <strong>b_Hight_m</strong> is missing, fallback extrusion is <strong>5 m</strong>.</li>
+      </ul>
+
+      <h3>Special simulation override</h3>
+      <ul>
+        <li>Two selected simulation buildings are forced to <strong>18 m</strong> for a clear visual scenario.</li>
+      </ul>
+
+      <h3>Building information modal note</h3>
+      <ul>
+        <li>The current modal uses a <strong>demo factsheet (mock)</strong>, including a sample height value of <strong>18.5 m</strong>.</li>
+        <li>So modal text is demonstration content, while map extrusion is attribute-driven.</li>
+      </ul>
+
+      <h3>Elevation for distance/route analysis</h3>
+      <ul>
+        <li>Primary in-app terrain analysis uses ArcGIS ground elevation query.</li>
+        <li>Additional elevation support is provided by <strong>elevationProvider.js</strong> and a hosted elevation GeoJSON dataset (<strong>Hojder_Oxnehaga_1.geojson</strong>).</li>
+        <li>Fallback providers include OpenTopoData and Open-Meteo elevation endpoint when applicable.</li>
+      </ul>
+
+      <div class="highlight">
+        Practical explanation for teacher: <br />
+        <strong>Building height on the map</strong> is mostly from building attributes (`b_Hight_m`).<br />
+        <strong>Height difference in route analysis</strong> comes from terrain elevation sampling.
+      </div>
+    </section>
+
+    <section>
+      <h2>5) Folder Structure (Simplified)</h2>
+      <div class="mono">/web-gis
+  index.html                  # Main app and ArcGIS logic
+  styles.css, ui-2026.css     # UI styling
+  bus15.js                     # Bus simulation and GTFS/timetable logic
+  elevationProvider.js         # Elevation dataset + fallback logic
+  pm25Live.js                  # PM2.5 live layer
+  windLive.js                  # Wind live visualization
+  cloudWms.js                  # NASA GIBS cloud layer
+  data/                        # Local GeoJSON + PDFs + exports</div>
+    </section>
+
+    <section>
+      <h2>6) Limitations and Next Steps</h2>
+      <ul>
+        <li>Some building info modal values are demo/mock and should be replaced by real IFC-derived metadata.</li>
+        <li>API keys are currently client-side; production version should move key usage to a secure backend proxy.</li>
+        <li>A formal metadata catalog can be added (source owner, update frequency, license).</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>7) Short Presentation Script (1 minute)</h2>
+      <p>
+        "I built a 3D web GIS for Oxnehaga using ArcGIS JavaScript API. The website is structured as one interactive page with separate modules for transport, weather, air quality, cloud and elevation.
+        Most map layers are local GeoJSON files, and live information comes from APIs like ResRobot, OpenRouteService, Open-Meteo, SMHI datahost, NASA GIBS, and electricity pricing API.
+        Building heights in the map are mainly driven by the building attribute `b_Hight_m`, with controlled overrides for specific simulation buildings.
+        Elevation differences for walking/driving analysis are computed from terrain queries and the elevation provider dataset."
+      </p>
+    </section>
+  </main>
+</body>
+</html>

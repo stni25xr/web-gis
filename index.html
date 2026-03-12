@@ -352,6 +352,43 @@
     <h2>Meny <button id="leftPanelClose" class="panel-close" type="button" aria-label="Stäng meny">✕</button></h2>
     <div class="sidebar-scroll">
 
+    <details id="presentationPaperMenuSection" class="switch-group presentation-paper-group">
+      <summary class="switch-group-title">Presentation paper (teacher)</summary>
+      <div class="presentation-paper-mini">
+        <div class="pp-title">How I have done it</div>
+        <p>
+          I built this as a single-page 3D web GIS app in <strong>index.html</strong> with ArcGIS SceneView.
+          Features are separated into modules (transport, PM2.5, wind, cloud, BIM, elevation).
+        </p>
+        <div class="pp-title">Structure behind the website</div>
+        <ul>
+          <li>UI layer: Menu tab, Digital City tab, BLUE/Information tab.</li>
+          <li>Map layer: ArcGIS SceneView + GeoJSONLayer/FeatureLayer/GraphicsLayer.</li>
+          <li>Data layer: local <strong>/data</strong> files + live API calls.</li>
+        </ul>
+        <div class="pp-title">Where I took information (APIs and data)</div>
+        <ul>
+          <li>ArcGIS JS API 4.30 (3D map engine)</li>
+          <li>Local GeoJSON files in <strong>/data</strong> (buildings, services, water, area, bus stops)</li>
+          <li>ResRobot / Trafiklab (departures and nearby stops)</li>
+          <li>Samtrafiken GTFS static (JLT route basis for bus simulation)</li>
+          <li>OpenRouteService + OSRM fallback (walking/driving routes)</li>
+          <li>Open-Meteo (weather + wind/ECMWF)</li>
+          <li>SMHI/Naturvardsverket data host (PM2.5)</li>
+          <li>NASA GIBS WMTS (cloud imagery)</li>
+          <li>elprisetjustnu.se (electricity price SE3)</li>
+          <li>ArcGIS Feature Service Skyddsrum_220225 (shelters)</li>
+        </ul>
+        <div class="pp-title">Building height and elevation</div>
+        <ul>
+          <li>Building map height mainly uses <strong>b_Hight_m</strong> from <strong>data/Main_byggnad.geojson</strong>.</li>
+          <li>Fallback extrusion is 5 m when value is missing.</li>
+          <li>Two simulation buildings are forced to 18 m for demo visualization.</li>
+          <li>Route height difference is calculated from terrain elevation (ArcGIS ground + elevation provider/fallback).</li>
+        </ul>
+      </div>
+    </details>
+
     <details class="switch-group">
       <summary class="switch-group-title">Baslager</summary>
       <div class="switch-row">
@@ -601,9 +638,9 @@
     </div>
     </div>
     <div class="sidebar-footer">
-      <a id="presentationPaperMenuLink" class="presentation-link-btn" href="./presentation-paper.html" target="_blank" rel="noopener">
+      <button id="presentationPaperMenuBtn" class="presentation-link-btn" type="button">
         Presentation paper
-      </a>
+      </button>
       <button id="restartDemoBtn" type="button" class="demo-reset-btn" aria-label="Soft restart demo">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16" aria-hidden="true">
           <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
@@ -760,9 +797,7 @@
                     <div class="muted">1) How it was built and system structure</div>
                     <div class="muted">2) Data and API sources</div>
                     <div class="muted" style="margin-bottom:6px;">3) Building height and elevation logic</div>
-                    <a class="presentation-link-inline" href="./presentation-paper.html" target="_blank" rel="noopener">
-                      Open presentation paper
-                    </a>
+                    <button id="presentationPaperBlueBtn" class="presentation-link-inline" type="button">Open presentation paper in Menu</button>
                   </div>
                   <div class="muted" style="margin-bottom:6px;">
                     De rörliga prickarna i kartan är busslinje 2 och 15 som kör i området.
@@ -6790,6 +6825,9 @@ Maintain safe distance
     const leftTabShuttle = document.getElementById("leftTabShuttle");
     const rightTab = document.getElementById("rightTab");
     const restartDemoBtn = document.getElementById("restartDemoBtn");
+    const presentationPaperMenuBtn = document.getElementById("presentationPaperMenuBtn");
+    const presentationPaperBlueBtn = document.getElementById("presentationPaperBlueBtn");
+    const presentationPaperMenuSection = document.getElementById("presentationPaperMenuSection");
     const leftClose = document.getElementById("leftPanelClose");
     const digitalClose = document.getElementById("digitalPanelClose");
     const rightClose = document.getElementById("rightPanelClose");
@@ -7144,10 +7182,20 @@ Maintain safe distance
       window.clearSupportFlows?.();
     }
 
+    function openPresentationPaperInMenu() {
+      openLeft();
+      if (presentationPaperMenuSection) {
+        presentationPaperMenuSection.open = true;
+        presentationPaperMenuSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+
     leftTabMain?.addEventListener("click", openLeft);
     leftTabDigital?.addEventListener("click", openDigital);
     leftTabShuttle?.addEventListener("click", openShuttleDashboard);
     rightTab?.addEventListener("click", openRight);
+    presentationPaperMenuBtn?.addEventListener("click", openPresentationPaperInMenu);
+    presentationPaperBlueBtn?.addEventListener("click", openPresentationPaperInMenu);
     leftClose?.addEventListener("click", closeLeft);
     digitalClose?.addEventListener("click", closeDigital);
     rightClose?.addEventListener("click", closeRight);
