@@ -2003,19 +2003,18 @@ Maintain safe distance
       }
 
       async function screenshotToCanvas(shot) {
-        const width = Number(shot?.width) || 0;
-        const height = Number(shot?.height) || 0;
-        if (width < 1 || height < 1) {
-          throw new Error("Invalid screenshot size.");
-        }
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) throw new Error("Canvas 2D context is unavailable.");
+        const dataWidth = Number(shot?.data?.width) || 0;
+        const dataHeight = Number(shot?.data?.height) || 0;
+        let width = Number(shot?.width) || dataWidth || 0;
+        let height = Number(shot?.height) || dataHeight || 0;
 
-        // Prefer raw ImageData from ArcGIS to avoid dataURL decode failures on some browsers.
-        if (shot?.data && typeof ctx.putImageData === "function") {
+        // Prefer raw ImageData from ArcGIS when valid.
+        if (shot?.data && dataWidth > 0 && dataHeight > 0) {
+          const canvas = document.createElement("canvas");
+          canvas.width = dataWidth;
+          canvas.height = dataHeight;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Canvas 2D context is unavailable.");
           try {
             ctx.putImageData(shot.data, 0, 0);
             return { canvas, ctx };
@@ -2026,6 +2025,18 @@ Maintain safe distance
 
         if (typeof shot?.dataUrl === "string" && shot.dataUrl) {
           const image = await loadImageFromDataUrl(shot.dataUrl);
+          if (width < 1 || height < 1) {
+            width = Number(image.naturalWidth || image.width) || 0;
+            height = Number(image.naturalHeight || image.height) || 0;
+          }
+          if (width < 1 || height < 1) {
+            throw new Error("Invalid screenshot size.");
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Canvas 2D context is unavailable.");
           ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
           return { canvas, ctx };
         }
