@@ -661,6 +661,14 @@
         <div class="export-block">
           <button id="oxnehagaExportBtn" type="button" class="export-btn">Export buildings (Öxnehaga) → Excel</button>
           <div id="oxnehagaExportStatus" class="export-status">Redo</div>
+          <div class="export-row">
+            <select id="mapShotFormat" class="export-format" aria-label="Screenshot format">
+              <option value="png">PNG</option>
+              <option value="jpeg">JPEG</option>
+            </select>
+            <button id="mapScreenshotBtn" type="button" class="export-btn">Printscreen browser</button>
+          </div>
+          <div id="mapScreenshotStatus" class="export-status">Ready for printscreen</div>
         </div>
       </details>
     </div>
@@ -1936,6 +1944,109 @@ Maintain safe distance
           if (btn) btn.disabled = false;
         }
       }
+      const MAP_SCREENSHOT_WATERMARK = "Demo Blue | STNI25XR 2026 | Urban Information Management (TUIS23)";
+
+      function setMapScreenshotStatus(message) {
+        const statusEl = document.getElementById("mapScreenshotStatus");
+        if (statusEl) statusEl.textContent = message;
+      }
+
+      function normalizeMapScreenshotFormat(format) {
+        const value = String(format || "png").trim().toLowerCase();
+        return value === "jpeg" || value === "jpg" ? "jpg" : "png";
+      }
+
+      function mapScreenshotFilename(ext) {
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, "0");
+        const dd = String(now.getDate()).padStart(2, "0");
+        const hh = String(now.getHours()).padStart(2, "0");
+        const min = String(now.getMinutes()).padStart(2, "0");
+        const sec = String(now.getSeconds()).padStart(2, "0");
+        return `browser_printscreen_${yyyy}${mm}${dd}_${hh}${min}${sec}.${ext}`;
+      }
+
+      function loadImageFromDataUrl(dataUrl) {
+        return new Promise((resolve, reject) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = () => reject(new Error("Failed to load screenshot image data."));
+          image.src = dataUrl;
+        });
+      }
+
+      function drawScreenshotWatermark(ctx, width, height, text) {
+        const marginX = Math.max(12, Math.round(width * 0.02));
+        let fontSize = Math.max(12, Math.min(30, Math.round(width / 52)));
+        ctx.font = `700 ${fontSize}px "Sora", "Segoe UI", sans-serif`;
+        while (fontSize > 11 && ctx.measureText(text).width > width - marginX * 2) {
+          fontSize -= 1;
+          ctx.font = `700 ${fontSize}px "Sora", "Segoe UI", sans-serif`;
+        }
+        const verticalPadding = Math.max(8, Math.round(fontSize * 0.68));
+        const barHeight = fontSize + verticalPadding * 2;
+        const barTop = height - barHeight;
+
+        ctx.fillStyle = "rgba(15, 23, 42, 0.62)";
+        ctx.fillRect(0, barTop, width, barHeight);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.lineWidth = Math.max(2, Math.round(fontSize * 0.16));
+        ctx.strokeStyle = "rgba(2, 6, 23, 0.75)";
+        ctx.fillStyle = "rgba(248, 250, 252, 0.98)";
+        const textX = Math.round(width / 2);
+        const textY = Math.round(barTop + barHeight / 2);
+        ctx.strokeText(text, textX, textY);
+        ctx.fillText(text, textX, textY);
+      }
+
+      async function exportBrowserPrintscreen(formatValue) {
+        const btn = document.getElementById("mapScreenshotBtn");
+        const format = normalizeMapScreenshotFormat(formatValue);
+        const ext = format === "jpg" ? "jpg" : "png";
+        const mimeType = format === "jpg" ? "image/jpeg" : "image/png";
+
+        if (!view || typeof view.takeScreenshot !== "function") {
+          setMapScreenshotStatus("Printscreen unavailable right now.");
+          return;
+        }
+        if (btn) btn.disabled = true;
+        setMapScreenshotStatus(`Capturing ${ext.toUpperCase()}…`);
+
+        try {
+          const shot = await view.takeScreenshot({
+            format,
+            quality: format === "jpg" ? 98 : undefined
+          });
+          const image = await loadImageFromDataUrl(shot.dataUrl);
+          const canvas = document.createElement("canvas");
+          canvas.width = shot.width;
+          canvas.height = shot.height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Canvas 2D context is unavailable.");
+
+          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+          drawScreenshotWatermark(ctx, canvas.width, canvas.height, MAP_SCREENSHOT_WATERMARK);
+
+          const output = canvas.toDataURL(mimeType, format === "jpg" ? 0.95 : undefined);
+          const link = document.createElement("a");
+          link.href = output;
+          link.download = mapScreenshotFilename(ext);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+
+          setMapScreenshotStatus(`Saved ${ext.toUpperCase()} printscreen.`);
+        } catch (err) {
+          console.error("Browser printscreen failed:", err);
+          setMapScreenshotStatus("Printscreen failed. Try again.");
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      }
+      window.exportBrowserPrintscreen = exportBrowserPrintscreen;
+
       const SIM_OBJECT_IDS = [
         "e11f4a59-b4e9-4316-8850-3fe72633a93d",
         "5f1faa24-108f-419c-b83a-ed80b80e4501"
@@ -4836,6 +4947,8 @@ Maintain safe distance
       const buildingTypeApply = document.getElementById("buildingTypeApply");
       const buildingTypeClear = document.getElementById("buildingTypeClear");
       const oxnehagaExportBtn = document.getElementById("oxnehagaExportBtn");
+      const mapScreenshotBtn = document.getElementById("mapScreenshotBtn");
+      const mapShotFormat = document.getElementById("mapShotFormat");
       const layerOptions = [
         { id: "buildings", title: "Byggnader", layer: buildings },
         { id: "ox", title: "Oxnehaga", layer: ox },
@@ -5058,6 +5171,11 @@ Maintain safe distance
       if (oxnehagaExportBtn) {
         oxnehagaExportBtn.addEventListener("click", () => {
           exportOxnehagaBuildingsToCSV();
+        });
+      }
+      if (mapScreenshotBtn) {
+        mapScreenshotBtn.addEventListener("click", () => {
+          exportBrowserPrintscreen(mapShotFormat?.value || "png");
         });
       }
 

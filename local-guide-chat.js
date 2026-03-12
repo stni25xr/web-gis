@@ -23,6 +23,7 @@
     uploadHouse: { label: "Se BIM‑modell" },
     windLive: { label: "Vind live" },
     cloudLive: { label: "Molnighet live" },
+    printscreen: { label: "Printscreen map (PNG/JPEG)" },
     digital: { label: "Digital City" },
     documents: { label: "Dokument" }
   };
@@ -113,7 +114,7 @@
       if (greeted) return;
       greeted = true;
       addMessage("bot", "Hej! Jag är en lokal guide utan AI. Skriv 'vad kan vi göra' för att se demo-funktionerna, eller starta story.");
-      setQuickActions(["demoList", "blueInfoLog", "story", "service", "departures", "windLive"]);
+      setQuickActions(["demoList", "blueInfoLog", "printscreen", "story", "service", "windLive"]);
     };
 
     const resetChatOnly = () => {
@@ -205,9 +206,10 @@
               "8) Se BIM‑modell via Building information\n" +
               "9) Se vindanimation live\n" +
               "10) Se molnighet live\n" +
-              "11) Öppna Blue's Informations Log (mini rapport med API-adresser)"
+              "11) Öppna Blue's Informations Log (mini rapport med API-adresser)\n" +
+              "12) Ta printscreen av kartan (PNG/JPEG + watermark)"
           );
-          setQuickActions(["blueInfoLog", "service", "blueLight", "nearestBus", "departures", "shuttleDashboard"]);
+          setQuickActions(["printscreen", "blueInfoLog", "service", "blueLight", "nearestBus", "departures"]);
           return;
         case "blueInfoLog":
           openBlueInfoLog();
@@ -279,7 +281,20 @@
         case "cloudLive":
           openDigitalPanel();
           addMessage("bot", "Molnighet live finns i DIGITAL CITY > Luft. Slå på 'Moln (satellit)' för live molnlagret.");
-          setQuickActions(["windLive", "digital", "overview"]);
+          setQuickActions(["windLive", "printscreen", "digital", "overview"]);
+          return;
+        case "printscreen":
+          openDigitalPanel();
+          addMessage(
+            "bot",
+            "För printscreen av browser-kartan:\n" +
+              "1) Öppna DIGITAL CITY\n" +
+              "2) Gå till Export\n" +
+              "3) Välj format: PNG eller JPEG\n" +
+              "4) Klicka 'Printscreen browser'\n" +
+              "Filen laddas ner med watermark: Demo Blue | STNI25XR 2026 | Urban Information Management (TUIS23)."
+          );
+          setQuickActions(["digital", "overview", "demoList"]);
           return;
         case "documents":
           openInfoPanel();
@@ -290,11 +305,11 @@
         case "digital":
           openDigitalPanel();
           addMessage("bot", "DIGITAL CITY är öppen: här styr du vind live, moln live, PM2.5 och simuleringar.");
-          setQuickActions(["windLive", "cloudLive", "overview"]);
+          setQuickActions(["windLive", "cloudLive", "printscreen", "overview"]);
           return;
         default:
-          addMessage("bot", "Jag förstod inte helt. Testa: Blue's Informations Log, vad kan vi göra, service, blåljus, buss, shuttle, hus 3D, vind eller moln.");
-          setQuickActions(["blueInfoLog", "demoList", "story", "service", "nearestBus", "windLive"]);
+          addMessage("bot", "Jag förstod inte helt. Testa: Blue's Informations Log, printscreen, vad kan vi göra, service, blåljus, buss, shuttle, hus 3D, vind eller moln.");
+          setQuickActions(["printscreen", "blueInfoLog", "demoList", "story", "service", "windLive"]);
       }
     };
 
@@ -321,6 +336,7 @@
       if (/(ladda.*hus|ladda.*modell|glb|upload|se.*bim|bim model)/.test(text)) return "uploadHouse";
       if (/(vind|wind)/.test(text)) return "windLive";
       if (/(moln|molnighet|cloud)/.test(text)) return "cloudLive";
+      if (/(printscreen|skarmbild|screenshot|skarmdump|capture|png|jpeg|jpg)/.test(text)) return "printscreen";
       if (/(bygg|bim|objekt|modell)/.test(text)) return "house3d";
       if (/(pdf|dok|dokument|byggnadsinfo)/.test(text)) return "documents";
       if (/(digital|simulering|pm2|vind|moln|energi|el)/.test(text)) return "digital";

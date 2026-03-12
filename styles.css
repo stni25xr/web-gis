@@ -809,6 +809,12 @@ html, body, body.app {
   margin-top: 6px;
 }
 
+.export-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
 #digitalPanel .export-btn {
   width: 100%;
   text-align: left;
@@ -819,6 +825,22 @@ html, body, body.app {
   padding: 9px 10px;
   font-size: 12px;
   cursor: pointer;
+}
+
+#digitalPanel .export-row .export-btn {
+  flex: 1;
+  width: auto;
+}
+
+#digitalPanel .export-format {
+  width: 92px;
+  min-width: 92px;
+  border: 1px solid #1f2937;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 12px;
+  padding: 9px 8px;
 }
 
 #digitalPanel .export-btn:hover {
