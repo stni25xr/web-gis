@@ -352,43 +352,6 @@
     <h2>Meny <button id="leftPanelClose" class="panel-close" type="button" aria-label="Stäng meny">✕</button></h2>
     <div class="sidebar-scroll">
 
-    <details id="presentationPaperMenuSection" class="switch-group presentation-paper-group">
-      <summary class="switch-group-title">Presentation paper (teacher)</summary>
-      <div class="presentation-paper-mini">
-        <div class="pp-title">How I have done it</div>
-        <p>
-          I built this as a single-page 3D web GIS app in <strong>index.html</strong> with ArcGIS SceneView.
-          Features are separated into modules (transport, PM2.5, wind, cloud, BIM, elevation).
-        </p>
-        <div class="pp-title">Structure behind the website</div>
-        <ul>
-          <li>UI layer: Menu tab, Digital City tab, BLUE/Information tab.</li>
-          <li>Map layer: ArcGIS SceneView + GeoJSONLayer/FeatureLayer/GraphicsLayer.</li>
-          <li>Data layer: local <strong>/data</strong> files + live API calls.</li>
-        </ul>
-        <div class="pp-title">Where I took information (APIs and data)</div>
-        <ul>
-          <li>ArcGIS JS API 4.30 (3D map engine)</li>
-          <li>Local GeoJSON files in <strong>/data</strong> (buildings, services, water, area, bus stops)</li>
-          <li>ResRobot / Trafiklab (departures and nearby stops)</li>
-          <li>Samtrafiken GTFS static (JLT route basis for bus simulation)</li>
-          <li>OpenRouteService + OSRM fallback (walking/driving routes)</li>
-          <li>Open-Meteo (weather + wind/ECMWF)</li>
-          <li>SMHI/Naturvardsverket data host (PM2.5)</li>
-          <li>NASA GIBS WMTS (cloud imagery)</li>
-          <li>elprisetjustnu.se (electricity price SE3)</li>
-          <li>ArcGIS Feature Service Skyddsrum_220225 (shelters)</li>
-        </ul>
-        <div class="pp-title">Building height and elevation</div>
-        <ul>
-          <li>Building map height mainly uses <strong>b_Hight_m</strong> from <strong>data/Main_byggnad.geojson</strong>.</li>
-          <li>Fallback extrusion is 5 m when value is missing.</li>
-          <li>Two simulation buildings are forced to 18 m for demo visualization.</li>
-          <li>Route height difference is calculated from terrain elevation (ArcGIS ground + elevation provider/fallback).</li>
-        </ul>
-      </div>
-    </details>
-
     <details class="switch-group">
       <summary class="switch-group-title">Baslager</summary>
       <div class="switch-row">
@@ -639,7 +602,7 @@
     </div>
     <div class="sidebar-footer">
       <button id="presentationPaperMenuBtn" class="presentation-link-btn" type="button">
-        Presentation paper
+        Captain's log
       </button>
       <button id="restartDemoBtn" type="button" class="demo-reset-btn" aria-label="Soft restart demo">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16" aria-hidden="true">
@@ -793,11 +756,11 @@
                 <summary class="panel-title">BIM & buss live</summary>
                 <div class="panel-body">
                   <div class="website-know-box" style="margin-bottom:10px;">
-                    <div class="muted" style="margin-bottom:4px;"><strong>About this website (for presentation)</strong></div>
-                    <div class="muted">1) How it was built and system structure</div>
-                    <div class="muted">2) Data and API sources</div>
-                    <div class="muted" style="margin-bottom:6px;">3) Building height and elevation logic</div>
-                    <button id="presentationPaperBlueBtn" class="presentation-link-inline" type="button">Open presentation paper in Menu</button>
+                    <div class="muted" style="margin-bottom:4px;"><strong>Captain's log briefing</strong></div>
+                    <div class="muted">1) How this mission website was built</div>
+                    <div class="muted">2) Data and API uplinks</div>
+                    <div class="muted" style="margin-bottom:6px;">3) Building height + elevation protocol</div>
+                    <button id="presentationPaperBlueBtn" class="presentation-link-inline" type="button">Open Captain's Log</button>
                   </div>
                   <div class="muted" style="margin-bottom:6px;">
                     De rörliga prickarna i kartan är busslinje 2 och 15 som kör i området.
@@ -1178,6 +1141,64 @@ Maintain safe distance
         <button id="incidentRoute" type="button">Visa polisväg</button>
         <button id="incidentRouteClear" type="button">Avbryt</button>
         <button id="incidentAcknowledge" type="button">Bekräfta</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="captainLogModal" style="display:none;">
+    <div class="captain-log-window" role="dialog" aria-modal="true" aria-labelledby="captainLogTitle">
+      <div class="captain-log-header">
+        <div>
+          <div id="captainLogTitle" class="captain-log-title">Captain's Log // STN25XR</div>
+          <div class="captain-log-subtitle">Star-date 2026.03.12 • Sector: Oxnehaga / Huskvarna</div>
+        </div>
+        <button id="captainLogClose" type="button" aria-label="Close captain log">✕</button>
+      </div>
+      <div class="captain-log-meta">
+        <span>Mission Type: Digital City Recon</span>
+        <span>System Core: ArcGIS SceneView</span>
+        <span>Status: Operational</span>
+      </div>
+      <div class="captain-log-body">
+        <section class="captain-log-entry">
+          <h3>Entry 01 // Build Method</h3>
+          <p>
+            This platform was engineered as a single-page 3D web GIS command interface.
+            Core mission control is <strong>index.html</strong>, with feature modules for transport, air, wind, cloud, BIM, and elevation.
+          </p>
+        </section>
+        <section class="captain-log-entry">
+          <h3>Entry 02 // Architecture</h3>
+          <ul>
+            <li>UI Deck: Menu, Digital City, and BLUE info panel.</li>
+            <li>Map Engine: ArcGIS SceneView with GeoJSONLayer, FeatureLayer, and GraphicsLayer.</li>
+            <li>Data Pipeline: local geo files + live API uplinks.</li>
+          </ul>
+        </section>
+        <section class="captain-log-entry">
+          <h3>Entry 03 // Data and API Uplinks</h3>
+          <ul>
+            <li>ArcGIS JavaScript API 4.30 (3D engine)</li>
+            <li>Local GeoJSON from <strong>/data</strong> (buildings, services, water, area, bus stops)</li>
+            <li>ResRobot/Trafiklab (nearby stops + departures)</li>
+            <li>Samtrafiken GTFS static (JLT basis for bus simulation)</li>
+            <li>OpenRouteService + OSRM fallback (walking and driving routes)</li>
+            <li>Open-Meteo (weather and wind/ECMWF)</li>
+            <li>SMHI/Naturvardsverket data host (PM2.5)</li>
+            <li>NASA GIBS WMTS (cloud layer)</li>
+            <li>elprisetjustnu.se (SE3 electricity price)</li>
+            <li>ArcGIS Feature Service Skyddsrum_220225 (shelters)</li>
+          </ul>
+        </section>
+        <section class="captain-log-entry">
+          <h3>Entry 04 // Height Protocol</h3>
+          <ul>
+            <li>Building height on map: attribute <strong>b_Hight_m</strong> in <strong>data/Main_byggnad.geojson</strong>.</li>
+            <li>Fallback extrusion: <strong>5 m</strong> when missing.</li>
+            <li>Scenario override: two simulation buildings forced to <strong>18 m</strong>.</li>
+            <li>Route elevation analysis: ArcGIS ground sampling + elevation provider/fallback.</li>
+          </ul>
+        </section>
       </div>
     </div>
   </div>
@@ -6827,7 +6848,8 @@ Maintain safe distance
     const restartDemoBtn = document.getElementById("restartDemoBtn");
     const presentationPaperMenuBtn = document.getElementById("presentationPaperMenuBtn");
     const presentationPaperBlueBtn = document.getElementById("presentationPaperBlueBtn");
-    const presentationPaperMenuSection = document.getElementById("presentationPaperMenuSection");
+    const captainLogModal = document.getElementById("captainLogModal");
+    const captainLogClose = document.getElementById("captainLogClose");
     const leftClose = document.getElementById("leftPanelClose");
     const digitalClose = document.getElementById("digitalPanelClose");
     const rightClose = document.getElementById("rightPanelClose");
@@ -7174,6 +7196,7 @@ Maintain safe distance
       digitalOpen = false;
       rightOpen = false;
       shuttleOpen = false;
+      closeCaptainLogModal();
       if (shuttleDashboard) shuttleDashboard.style.display = "none";
       document.body.classList.remove("shuttle-dashboard-open");
       stopShuttleTelemetrySimulation();
@@ -7182,20 +7205,23 @@ Maintain safe distance
       window.clearSupportFlows?.();
     }
 
-    function openPresentationPaperInMenu() {
-      openLeft();
-      if (presentationPaperMenuSection) {
-        presentationPaperMenuSection.open = true;
-        presentationPaperMenuSection.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+    function openCaptainLogModal() {
+      if (!captainLogModal) return;
+      captainLogModal.style.display = "flex";
+    }
+
+    function closeCaptainLogModal() {
+      if (!captainLogModal) return;
+      captainLogModal.style.display = "none";
     }
 
     leftTabMain?.addEventListener("click", openLeft);
     leftTabDigital?.addEventListener("click", openDigital);
     leftTabShuttle?.addEventListener("click", openShuttleDashboard);
     rightTab?.addEventListener("click", openRight);
-    presentationPaperMenuBtn?.addEventListener("click", openPresentationPaperInMenu);
-    presentationPaperBlueBtn?.addEventListener("click", openPresentationPaperInMenu);
+    presentationPaperMenuBtn?.addEventListener("click", openCaptainLogModal);
+    presentationPaperBlueBtn?.addEventListener("click", openCaptainLogModal);
+    captainLogClose?.addEventListener("click", closeCaptainLogModal);
     leftClose?.addEventListener("click", closeLeft);
     digitalClose?.addEventListener("click", closeDigital);
     rightClose?.addEventListener("click", closeRight);
@@ -7207,8 +7233,16 @@ Maintain safe distance
     shuttleDashboard?.addEventListener("click", (e) => {
       if (e.target && e.target.id === "shuttleDashboard") closeShuttleDashboard();
     });
+    captainLogModal?.addEventListener("click", (e) => {
+      if (e.target && e.target.id === "captainLogModal") closeCaptainLogModal();
+    });
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeAll();
+      if (e.key !== "Escape") return;
+      if (captainLogModal?.style?.display === "flex") {
+        closeCaptainLogModal();
+        return;
+      }
+      closeAll();
     });
 
     // Default collapsed
