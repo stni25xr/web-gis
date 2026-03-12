@@ -1,7 +1,7 @@
 (() => {
   const DEFAULTS = {
     updateMs: 5000,
-    dwellMs: 5000
+    dwellMs: 10000
   };
   const BUS_GROUND_OFFSET_METERS = 6;
   const BUS_SIM_SPEED_MULTIPLIER = 1;
@@ -409,21 +409,30 @@
 
   function normalizeLoopStopDistances(distances, loopLen) {
     if (!Array.isArray(distances) || !Number.isFinite(loopLen) || loopLen <= 0) return [];
-    const normalized = distances
-      .map((d) => Number(d))
-      .filter((d) => Number.isFinite(d))
-      .map((d) => {
-        let v = d % loopLen;
-        if (v < 0) v += loopLen;
-        return v;
-      })
-      .sort((a, b) => a - b);
-    if (normalized.length < 2) return [];
-    const dedup = [];
-    normalized.forEach((d) => {
-      if (!dedup.length || Math.abs(d - dedup[dedup.length - 1]) > 1) dedup.push(d);
+    const normalized = [];
+    distances.forEach((d) => {
+      let v = Number(d);
+      if (!Number.isFinite(v)) return;
+      v %= loopLen;
+      if (v < 0) v += loopLen;
+      if (!normalized.length) {
+        normalized.push(v);
+        return;
+      }
+      const prev = normalized[normalized.length - 1];
+      const delta = Math.abs(v - prev);
+      const wrappedDelta = Math.min(delta, Math.abs(loopLen - delta));
+      // Ignore consecutive duplicates/noise from nearest-point projection.
+      if (wrappedDelta > 2) normalized.push(v);
     });
-    return dedup;
+    if (normalized.length >= 2) {
+      const first = normalized[0];
+      const last = normalized[normalized.length - 1];
+      const edgeDelta = Math.abs(last - first);
+      const wrappedEdgeDelta = Math.min(edgeDelta, Math.abs(loopLen - edgeDelta));
+      if (wrappedEdgeDelta <= 2) normalized.pop();
+    }
+    return normalized.length >= 2 ? normalized : [];
   }
 
   async function loadGtfsStaticTables({ JSZip, key }) {
