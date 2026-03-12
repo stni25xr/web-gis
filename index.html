@@ -1646,16 +1646,29 @@ Maintain safe distance
         outFields: ["*"],
         visible: true,
         renderer: {
-          type: "simple",
-          symbol: {
+          type: "unique-value",
+          field: "objektidentitet",
+          defaultSymbol: {
             type: "polygon-3d",
             symbolLayers: [{
               type: "extrude",
               size: 5,
-              material: { color: [245, 158, 11, 0.35] },
+              material: { color: [148, 163, 184, 0.6] },
               edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
             }]
           },
+          uniqueValueInfos: [{
+            value: "712b01d6-1b2c-4019-8eb7-875209dc5317",
+            symbol: {
+              type: "polygon-3d",
+              symbolLayers: [{
+                type: "extrude",
+                size: 5,
+                material: { color: [245, 158, 11, 0.35] },
+                edges: { type: "solid", color: [0, 0, 0, 0], size: 0 }
+              }]
+            }
+          }],
           visualVariables: [{
             type: "size",
             field: "b_Hight_m",
