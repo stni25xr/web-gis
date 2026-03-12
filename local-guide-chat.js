@@ -9,6 +9,7 @@
 
   const QUICK_ACTIONS = {
     demoList: { label: "Vad kan vi göra?" },
+    blueInfoLog: { label: "Blue's Informations Log" },
     overview: { label: "Kort översikt" },
     story: { label: "Starta story" },
     storyNext: { label: "Nästa steg" },
@@ -51,6 +52,15 @@
     const openInfoPanel = () => openPanelByTab("rightTab");
     const openDigitalPanel = () => openPanelByTab("leftTabDigital");
     const openShuttleDashboard = () => openPanelByTab("leftTabShuttle");
+    const openBlueInfoLog = () => {
+      const blueBtn = document.getElementById("presentationPaperBlueBtn");
+      if (blueBtn && typeof blueBtn.click === "function") {
+        blueBtn.click();
+        return;
+      }
+      const menuBtn = document.getElementById("presentationPaperMenuBtn");
+      if (menuBtn && typeof menuBtn.click === "function") menuBtn.click();
+    };
 
     const openInfoSection = (section) => {
       const details = document.querySelector(`#info-panel details[data-section="${section}"]`);
@@ -103,7 +113,7 @@
       if (greeted) return;
       greeted = true;
       addMessage("bot", "Hej! Jag är en lokal guide utan AI. Skriv 'vad kan vi göra' för att se demo-funktionerna, eller starta story.");
-      setQuickActions(["demoList", "story", "service", "departures", "callShuttle", "windLive"]);
+      setQuickActions(["demoList", "blueInfoLog", "story", "service", "departures", "windLive"]);
     };
 
     const resetChatOnly = () => {
@@ -194,13 +204,19 @@
               "7) Kolla hus i 3D-kartan\n" +
               "8) Se BIM‑modell via Building information\n" +
               "9) Se vindanimation live\n" +
-              "10) Se molnighet live"
+              "10) Se molnighet live\n" +
+              "11) Öppna Blue's Informations Log (mini rapport med API-adresser)"
           );
-          setQuickActions(["service", "blueLight", "nearestBus", "departures", "callShuttle", "shuttleDashboard"]);
+          setQuickActions(["blueInfoLog", "service", "blueLight", "nearestBus", "departures", "shuttleDashboard"]);
+          return;
+        case "blueInfoLog":
+          openBlueInfoLog();
+          addMessage("bot", "Öppnade Blue's Informations Log. Där finns mini-rapporten med hur sidan är byggd, struktur, API webbadresser och höjd/elevation.");
+          setQuickActions(["demoList", "overview", "service", "digital"]);
           return;
         case "overview":
           addMessage("bot", "Sidan visar en interaktiv 3D-karta med serviceanalys, kollektivtrafik, blåljus, hus/BIM och live-lager.");
-          setQuickActions(["demoList", "story", "service", "house3d", "digital"]);
+          setQuickActions(["demoList", "blueInfoLog", "story", "service", "digital"]);
           return;
         case "story":
           storyIndex = 0;
@@ -277,8 +293,8 @@
           setQuickActions(["windLive", "cloudLive", "overview"]);
           return;
         default:
-          addMessage("bot", "Jag förstod inte helt. Testa: vad kan vi göra, service, blåljus, buss, shuttle, hus 3D, vind eller moln.");
-          setQuickActions(["demoList", "story", "service", "nearestBus", "callShuttle", "windLive"]);
+          addMessage("bot", "Jag förstod inte helt. Testa: Blue's Informations Log, vad kan vi göra, service, blåljus, buss, shuttle, hus 3D, vind eller moln.");
+          setQuickActions(["blueInfoLog", "demoList", "story", "service", "nearestBus", "windLive"]);
       }
     };
 
@@ -294,6 +310,7 @@
       if (!text) return null;
       if (/(nasta|fortsatt|fortsattning|more|next)/.test(text)) return "storyNext";
       if (/(story|beratt|guide|tour|rundtur)/.test(text)) return "story";
+      if (/(blue.*info|info.*log|informations log|mini rapport|rapport|api.*adress|api.*webb)/.test(text)) return "blueInfoLog";
       if (/(service|tid.*distans|distans.*service|gangtid|gangvag)/.test(text)) return "service";
       if (/(blaljus|blaljustjanst|polis|ambulans|raddning)/.test(text)) return "blueLight";
       if (/(narmaste.*buss|narmaste.*hallplats|busshallplats|hallplats)/.test(text)) return "nearestBus";
