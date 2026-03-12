@@ -1763,6 +1763,23 @@ body.shuttle-dashboard-open {
   padding: 12px;
 }
 
+#captainLogModal .captain-log-hero {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+#captainLogModal .captain-log-avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid rgba(103, 232, 249, 0.45);
+  background: rgba(8, 47, 73, 0.35);
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.55);
+}
+
 #captainLogModal .captain-log-entry h3 {
   margin: 0 0 8px 0;
   color: #67e8f9;
@@ -1787,6 +1804,16 @@ body.shuttle-dashboard-open {
   margin: 4px 0;
 }
 
+#captainLogModal .captain-log-api-list a {
+  color: #67e8f9;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+#captainLogModal .captain-log-api-list a:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 720px) {
   #captainLogModal .captain-log-window {
     width: 96vw;
@@ -1794,6 +1821,13 @@ body.shuttle-dashboard-open {
   }
   #captainLogModal .captain-log-title {
     font-size: 16px;
+  }
+  #captainLogModal .captain-log-hero {
+    grid-template-columns: 1fr;
+  }
+  #captainLogModal .captain-log-avatar {
+    width: 72px;
+    height: 72px;
   }
 }
 

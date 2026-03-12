@@ -602,7 +602,7 @@
     </div>
     <div class="sidebar-footer">
       <button id="presentationPaperMenuBtn" class="presentation-link-btn" type="button">
-        Captain's log
+        Blue's Informations Log
       </button>
       <button id="restartDemoBtn" type="button" class="demo-reset-btn" aria-label="Soft restart demo">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16" aria-hidden="true">
@@ -756,11 +756,11 @@
                 <summary class="panel-title">BIM & buss live</summary>
                 <div class="panel-body">
                   <div class="website-know-box" style="margin-bottom:10px;">
-                    <div class="muted" style="margin-bottom:4px;"><strong>Captain's log briefing</strong></div>
+                    <div class="muted" style="margin-bottom:4px;"><strong>Blue's Informations Log briefing</strong></div>
                     <div class="muted">1) How this mission website was built</div>
                     <div class="muted">2) Data and API uplinks</div>
                     <div class="muted" style="margin-bottom:6px;">3) Building height + elevation protocol</div>
-                    <button id="presentationPaperBlueBtn" class="presentation-link-inline" type="button">Open Captain's Log</button>
+                    <button id="presentationPaperBlueBtn" class="presentation-link-inline" type="button">Open Blue's Informations Log</button>
                   </div>
                   <div class="muted" style="margin-bottom:6px;">
                     De rörliga prickarna i kartan är busslinje 2 och 15 som kör i området.
@@ -1149,55 +1149,92 @@ Maintain safe distance
     <div class="captain-log-window" role="dialog" aria-modal="true" aria-labelledby="captainLogTitle">
       <div class="captain-log-header">
         <div>
-          <div id="captainLogTitle" class="captain-log-title">Captain's Log // STN25XR</div>
-          <div class="captain-log-subtitle">Star-date 2026.03.12 • Sector: Oxnehaga / Huskvarna</div>
+          <div id="captainLogTitle" class="captain-log-title">Blue's Informations Log // STN25XR</div>
+          <div class="captain-log-subtitle">Mini rapport • Star-date 2026.03.12 • Sector: Oxnehaga / Huskvarna</div>
         </div>
-        <button id="captainLogClose" type="button" aria-label="Close captain log">✕</button>
+        <button id="captainLogClose" type="button" aria-label="Close Blue's Informations Log">✕</button>
       </div>
       <div class="captain-log-meta">
         <span>Mission Type: Digital City Recon</span>
         <span>System Core: ArcGIS SceneView</span>
         <span>Status: Operational</span>
+        <span>Report Level: Deep Dive</span>
       </div>
       <div class="captain-log-body">
+        <section class="captain-log-entry captain-log-hero">
+          <img src="./assets/chatbot-avatar.png" alt="BLUE picture" class="captain-log-avatar" />
+          <div>
+            <h3>Entry 00 // Mission Context</h3>
+            <p>
+              BLUE guides this project as an interactive 3D city mission console.
+              The objective is to explain clearly how the website is built, where data comes from, which API web addresses are used, and how building/elevation values are calculated.
+            </p>
+          </div>
+        </section>
         <section class="captain-log-entry">
-          <h3>Entry 01 // Build Method</h3>
+          <h3>Entry 01 // How It Was Done (Implementation)</h3>
+          <ul>
+            <li>Built as a single-page app centered in <strong>index.html</strong> with ArcGIS SceneView as map engine.</li>
+            <li>Feature logic split into modules: <strong>bus15.js</strong>, <strong>pm25Live.js</strong>, <strong>windLive.js</strong>, <strong>cloudWms.js</strong>, and <strong>elevationProvider.js</strong>.</li>
+            <li>UI split into three operational panels: Menu, Digital City, and BLUE/Information.</li>
+            <li>Hybrid data pipeline: local GeoJSON + live API requests + route/elevation processing in browser.</li>
+          </ul>
+        </section>
+        <section class="captain-log-entry">
+          <h3>Entry 02 // System Structure Behind The Website</h3>
+          <ul>
+            <li><strong>UI/Controls layer:</strong> tabs, toggles, popup flows, modal windows, and simulation controls.</li>
+            <li><strong>Map/render layer:</strong> ArcGIS 3D scene + thematic layers + custom graphics overlays.</li>
+            <li><strong>Analysis layer:</strong> distance, route selection, nearest services, and elevation sampling.</li>
+            <li><strong>Integration layer:</strong> weather, transport, air quality, cloud imagery, and electricity prices.</li>
+            <li><strong>Data storage layer:</strong> local files in <strong>/data</strong> and browser cache/localStorage for selected runtime data.</li>
+          </ul>
+        </section>
+        <section class="captain-log-entry">
+          <h3>Entry 03 // API Web Addresses (Live Integrations)</h3>
+          <ul class="captain-log-api-list">
+            <li><strong>ArcGIS JS API:</strong> <a href="https://js.arcgis.com/4.30/" target="_blank" rel="noopener">https://js.arcgis.com/4.30/</a></li>
+            <li><strong>Open-Meteo weather:</strong> <a href="https://api.open-meteo.com/v1/forecast" target="_blank" rel="noopener">https://api.open-meteo.com/v1/forecast</a></li>
+            <li><strong>Open-Meteo wind (ECMWF):</strong> <a href="https://api.open-meteo.com/v1/ecmwf" target="_blank" rel="noopener">https://api.open-meteo.com/v1/ecmwf</a></li>
+            <li><strong>Open-Meteo elevation fallback:</strong> <a href="https://api.open-meteo.com/v1/elevation" target="_blank" rel="noopener">https://api.open-meteo.com/v1/elevation</a></li>
+            <li><strong>OpenTopoData elevation fallback:</strong> <a href="https://api.opentopodata.org/v1/srtm90m" target="_blank" rel="noopener">https://api.opentopodata.org/v1/srtm90m</a></li>
+            <li><strong>ResRobot departure board:</strong> <a href="https://api.resrobot.se/v2.1/departureBoard" target="_blank" rel="noopener">https://api.resrobot.se/v2.1/departureBoard</a></li>
+            <li><strong>ResRobot nearby stops:</strong> <a href="https://api.resrobot.se/v2.1/location.nearbystops" target="_blank" rel="noopener">https://api.resrobot.se/v2.1/location.nearbystops</a></li>
+            <li><strong>Samtrafiken GTFS static:</strong> <a href="https://opendata.samtrafiken.se/gtfs/jlt/jlt.zip" target="_blank" rel="noopener">https://opendata.samtrafiken.se/gtfs/jlt/jlt.zip</a></li>
+            <li><strong>OpenRouteService walking:</strong> <a href="https://api.openrouteservice.org/v2/directions/foot-walking/geojson" target="_blank" rel="noopener">https://api.openrouteservice.org/v2/directions/foot-walking/geojson</a></li>
+            <li><strong>OpenRouteService driving:</strong> <a href="https://api.openrouteservice.org/v2/directions/driving-car/geojson" target="_blank" rel="noopener">https://api.openrouteservice.org/v2/directions/driving-car/geojson</a></li>
+            <li><strong>OSRM fallback:</strong> <a href="https://router.project-osrm.org/route/v1/driving/" target="_blank" rel="noopener">https://router.project-osrm.org/route/v1/driving/...</a></li>
+            <li><strong>SMHI/Naturvardsverket PM2.5:</strong> <a href="https://datavardluft.smhi.se/52North/api/" target="_blank" rel="noopener">https://datavardluft.smhi.se/52North/api/</a></li>
+            <li><strong>NASA GIBS cloud tiles:</strong> <a href="https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/" target="_blank" rel="noopener">https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/</a></li>
+            <li><strong>SE3 electricity prices:</strong> <a href="https://www.elprisetjustnu.se/api/v1/prices/" target="_blank" rel="noopener">https://www.elprisetjustnu.se/api/v1/prices/</a></li>
+            <li><strong>Skyddsrum Feature Service:</strong> <a href="https://services6.arcgis.com/NThLsKaeOKhGxBBE/arcgis/rest/services/Skyddsrum_220225/FeatureServer/1" target="_blank" rel="noopener">https://services6.arcgis.com/.../Skyddsrum_220225/FeatureServer/1</a></li>
+          </ul>
+        </section>
+        <section class="captain-log-entry">
+          <h3>Entry 04 // Building Height + Elevation Protocol</h3>
+          <ul>
+            <li>Primary building extrusion source: attribute <strong>b_Hight_m</strong> in <strong>data/Main_byggnad.geojson</strong>.</li>
+            <li>If height is missing, fallback extrusion is set to <strong>5 m</strong>.</li>
+            <li>Scenario control: two selected buildings are force-set to <strong>18 m</strong> for simulation visibility.</li>
+            <li>Route elevation profile is sampled from ArcGIS ground query; additional sampling can come from elevation provider data and API fallback chain.</li>
+          </ul>
+        </section>
+        <section class="captain-log-entry">
+          <h3>Entry 05 // Local Data Files Used</h3>
+          <ul>
+            <li><strong>data/Main_byggnad.geojson</strong> (building footprints + attributes)</li>
+            <li><strong>data/Oxnehaga-Area.geojson</strong> (area boundary)</li>
+            <li><strong>data/Busshallplaster_oxnehaga.geojson</strong> (bus stop local layer)</li>
+            <li><strong>data/Fastighet_punkter.geojson</strong>, <strong>data/Komunal_mark.geojson</strong>, <strong>data/Vatten_jonkoping_01.geojson</strong></li>
+            <li><strong>data/Forskola.geojson</strong>, <strong>data/GrundskolaPoint.geojson</strong>, <strong>data/Gymnasieskolal.geojson</strong>, <strong>data/VardcentralPoin.geojson</strong></li>
+          </ul>
+        </section>
+        <section class="captain-log-entry">
+          <h3>Entry 06 // Report Signature</h3>
           <p>
-            This platform was engineered as a single-page 3D web GIS command interface.
-            Core mission control is <strong>index.html</strong>, with feature modules for transport, air, wind, cloud, BIM, and elevation.
+            Nicolas St-Pierre<br />
+            Master&rsquo;s student, BIM &ndash; Sustainable Building Information Management 2026
           </p>
-        </section>
-        <section class="captain-log-entry">
-          <h3>Entry 02 // Architecture</h3>
-          <ul>
-            <li>UI Deck: Menu, Digital City, and BLUE info panel.</li>
-            <li>Map Engine: ArcGIS SceneView with GeoJSONLayer, FeatureLayer, and GraphicsLayer.</li>
-            <li>Data Pipeline: local geo files + live API uplinks.</li>
-          </ul>
-        </section>
-        <section class="captain-log-entry">
-          <h3>Entry 03 // Data and API Uplinks</h3>
-          <ul>
-            <li>ArcGIS JavaScript API 4.30 (3D engine)</li>
-            <li>Local GeoJSON from <strong>/data</strong> (buildings, services, water, area, bus stops)</li>
-            <li>ResRobot/Trafiklab (nearby stops + departures)</li>
-            <li>Samtrafiken GTFS static (JLT basis for bus simulation)</li>
-            <li>OpenRouteService + OSRM fallback (walking and driving routes)</li>
-            <li>Open-Meteo (weather and wind/ECMWF)</li>
-            <li>SMHI/Naturvardsverket data host (PM2.5)</li>
-            <li>NASA GIBS WMTS (cloud layer)</li>
-            <li>elprisetjustnu.se (SE3 electricity price)</li>
-            <li>ArcGIS Feature Service Skyddsrum_220225 (shelters)</li>
-          </ul>
-        </section>
-        <section class="captain-log-entry">
-          <h3>Entry 04 // Height Protocol</h3>
-          <ul>
-            <li>Building height on map: attribute <strong>b_Hight_m</strong> in <strong>data/Main_byggnad.geojson</strong>.</li>
-            <li>Fallback extrusion: <strong>5 m</strong> when missing.</li>
-            <li>Scenario override: two simulation buildings forced to <strong>18 m</strong>.</li>
-            <li>Route elevation analysis: ArcGIS ground sampling + elevation provider/fallback.</li>
-          </ul>
         </section>
       </div>
     </div>
