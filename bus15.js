@@ -6,7 +6,8 @@
   const BUS_GROUND_OFFSET_METERS = 6;
   const BUS_SIM_SPEED_MULTIPLIER = 1;
   const GTFS_ROUTE_JOIN_MAX_METERS = 900;
-  const DEMO_ROUTE_CACHE_VERSION = "v5";
+  const DEMO_ROUTE_CACHE_VERSION = "v6";
+  const SEGMENTED_DEMO_ROUTE_LINES = new Set(["15"]);
   const HARD_FALLBACK_LOOP = [
     [14.2620, 57.7722],
     [14.2642, 57.7737],
@@ -212,6 +213,33 @@
     return rawPoints;
   }
 
+  async function resolveRoadRouteSegmented(rawPoints, cacheKey) {
+    if (!Array.isArray(rawPoints) || rawPoints.length < 2) return null;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length >= 2) return parsed;
+      }
+    } catch (_) {
+      // ignore cache issues and continue
+    }
+
+    const stitched = [];
+    for (let i = 0; i < rawPoints.length - 1; i++) {
+      const a = rawPoints[i];
+      const b = rawPoints[i + 1];
+      const segKey = `${cacheKey}_seg_${i}_${DEMO_ROUTE_CACHE_VERSION}`;
+      let segRoute = await resolveRoadRoute([a, b], segKey);
+      if (!Array.isArray(segRoute) || segRoute.length < 2) segRoute = [a, b];
+      if (i > 0) segRoute = segRoute.slice(1);
+      stitched.push(...segRoute);
+    }
+    if (stitched.length < 2) return rawPoints;
+    try { localStorage.setItem(cacheKey, JSON.stringify(stitched)); } catch (_) {}
+    return stitched;
+  }
+
   async function buildDemoLineRoutes(lineShortName) {
     const def = DEMO_LINE_ROUTES[String(lineShortName)];
     if (!def) return null;
@@ -220,8 +248,15 @@
     if (outStops.length < 2 || inStops.length < 2) return null;
     const outRaw = outStops.map((s) => [s.lon, s.lat]);
     const inRaw = inStops.map((s) => [s.lon, s.lat]);
-    const outRoute = await resolveRoadRoute(outRaw, `bus_demo_${lineShortName}_out_${DEMO_ROUTE_CACHE_VERSION}`);
-    const inRoute = await resolveRoadRoute(inRaw, `bus_demo_${lineShortName}_in_${DEMO_ROUTE_CACHE_VERSION}`);
+    const useSegmented = SEGMENTED_DEMO_ROUTE_LINES.has(String(lineShortName));
+    const outCacheKey = `bus_demo_${lineShortName}_out_${DEMO_ROUTE_CACHE_VERSION}`;
+    const inCacheKey = `bus_demo_${lineShortName}_in_${DEMO_ROUTE_CACHE_VERSION}`;
+    const outRoute = useSegmented
+      ? await resolveRoadRouteSegmented(outRaw, outCacheKey)
+      : await resolveRoadRoute(outRaw, outCacheKey);
+    const inRoute = useSegmented
+      ? await resolveRoadRouteSegmented(inRaw, inCacheKey)
+      : await resolveRoadRoute(inRaw, inCacheKey);
     if (!Array.isArray(outRoute) || outRoute.length < 2 || !Array.isArray(inRoute) || inRoute.length < 2) {
       return null;
     }
@@ -409,21 +444,36 @@
 
   function normalizeLoopStopDistances(distances, loopLen) {
     if (!Array.isArray(distances) || !Number.isFinite(loopLen) || loopLen <= 0) return [];
-    const normalized = distances
-      .map((d) => Number(d))
-      .filter((d) => Number.isFinite(d))
-      .map((d) => {
-        let v = d % loopLen;
-        if (v < 0) v += loopLen;
-        return v;
-      })
-      .sort((a, b) => a - b);
-    if (normalized.length < 2) return [];
-    const dedup = [];
-    normalized.forEach((d) => {
-      if (!dedup.length || Math.abs(d - dedup[dedup.length - 1]) > 1) dedup.push(d);
+    const normalized = [];
+    let prev = null;
+    distances.forEach((raw) => {
+      let d = Number(raw);
+      if (!Number.isFinite(d)) return;
+      if (d < 0 || d > loopLen) {
+        d = d % loopLen;
+        if (d < 0) d += loopLen;
+      }
+      // Keep stop order stable along the loop; never step backwards.
+      if (prev != null && d + 1 < prev) d = prev;
+      if (prev == null || Math.abs(d - prev) > 1) {
+        normalized.push(d);
+        prev = d;
+      }
     });
-    return dedup;
+    return normalized.length >= 2 ? normalized : [];
+  }
+
+  function dedupeOrderedDistances(distances, minGapMeters = 1) {
+    if (!Array.isArray(distances)) return [];
+    const out = [];
+    distances.forEach((d) => {
+      const n = Number(d);
+      if (!Number.isFinite(n)) return;
+      if (!out.length || Math.abs(n - out[out.length - 1]) > minGapMeters) {
+        out.push(n);
+      }
+    });
+    return out;
   }
 
   async function loadGtfsStaticTables({ JSZip, key }) {
@@ -719,11 +769,22 @@
     lineState.stopSeq.in = routes.in.stops || [];
     lineState.loopStops = lineState.stopSeq.out.concat(lineState.stopSeq.in.slice(1));
 
-    if (lineState.samplers.loop && lineState.loopStops.length) {
-      const rawStopDistances = lineState.loopStops
-        .map((s) => distanceOnSampler(lineState.samplers.loop, webMercatorUtils, Number(s.lon), Number(s.lat)))
-        .filter((d) => Number.isFinite(d));
-      lineState.loopStopDistances = normalizeLoopStopDistances(rawStopDistances, lineState.samplers.loop.total);
+    if (lineState.samplers.loop) {
+      const outLen = Number(lineState.samplers.out?.total || 0);
+      const inLen = Number(lineState.samplers.in?.total || 0);
+      const loopLen = Number(lineState.samplers.loop?.total || 0);
+
+      const outDistances = lineState.stopSeq.out
+        .map((s) => distanceOnSampler(lineState.samplers.out, webMercatorUtils, Number(s.lon), Number(s.lat)))
+        .filter((d) => Number.isFinite(d) && d >= 0 && d <= outLen);
+
+      const inDistances = lineState.stopSeq.in
+        .map((s) => distanceOnSampler(lineState.samplers.in, webMercatorUtils, Number(s.lon), Number(s.lat)))
+        .filter((d) => Number.isFinite(d) && d >= 0 && d <= inLen)
+        .map((d) => d + outLen);
+
+      const orderedLoopDistances = dedupeOrderedDistances(outDistances.concat(inDistances.slice(1)));
+      lineState.loopStopDistances = normalizeLoopStopDistances(orderedLoopDistances, loopLen);
     }
 
     return lineState;
