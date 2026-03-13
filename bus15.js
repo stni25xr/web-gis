@@ -5,6 +5,7 @@
   };
   const BUS_GROUND_OFFSET_METERS = 6;
   const BUS_SIM_SPEED_MULTIPLIER = 1;
+  const BUS_ROUTE_FETCH_TIMEOUT_MS = 2500;
   const GTFS_ROUTE_JOIN_MAX_METERS = 900;
   const DEMO_ROUTE_CACHE_VERSION = "v6";
   const SEGMENTED_DEMO_ROUTE_LINES = new Set(["15"]);
@@ -199,7 +200,10 @@
     try {
       const coords = rawPoints.map((p) => `${Number(p[0])},${Number(p[1])}`).join(";");
       const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&alternatives=false&steps=false`;
-      const res = await fetch(url);
+      const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), BUS_ROUTE_FETCH_TIMEOUT_MS) : null;
+      const res = await fetch(url, controller ? { signal: controller.signal } : undefined);
+      if (timeoutId) clearTimeout(timeoutId);
       if (!res.ok) throw new Error(`OSRM ${res.status}`);
       const data = await res.json();
       const route = data?.routes?.[0]?.geometry?.coordinates;
@@ -225,16 +229,24 @@
       // ignore cache issues and continue
     }
 
-    const stitched = [];
+    const segmentPromises = [];
     for (let i = 0; i < rawPoints.length - 1; i++) {
       const a = rawPoints[i];
       const b = rawPoints[i + 1];
       const segKey = `${cacheKey}_seg_${i}_${DEMO_ROUTE_CACHE_VERSION}`;
-      let segRoute = await resolveRoadRoute([a, b], segKey);
-      if (!Array.isArray(segRoute) || segRoute.length < 2) segRoute = [a, b];
-      if (i > 0) segRoute = segRoute.slice(1);
-      stitched.push(...segRoute);
+      segmentPromises.push((async () => {
+        let segRoute = await resolveRoadRoute([a, b], segKey);
+        if (!Array.isArray(segRoute) || segRoute.length < 2) segRoute = [a, b];
+        return segRoute;
+      })());
     }
+    const segmentRoutes = await Promise.all(segmentPromises);
+    const stitched = [];
+    segmentRoutes.forEach((segRoute, i) => {
+      if (!Array.isArray(segRoute) || segRoute.length < 2) return;
+      if (i === 0) stitched.push(...segRoute);
+      else stitched.push(...segRoute.slice(1));
+    });
     if (stitched.length < 2) return rawPoints;
     try { localStorage.setItem(cacheKey, JSON.stringify(stitched)); } catch (_) {}
     return stitched;
